@@ -12,7 +12,7 @@ Plataforma para centralizar el monitoreo de salud, historial de despliegues e in
 
 ## Sobre el proyecto
 
-Cuando desarrollamos y mantenemos varias APIs o microservicios, la información operativa suele estar dispersa: el código en GitHub, los despliegues en el pipeline de CI/CD y los errores en los logs. **DeployOps** reúne todo eso en un panel central: permite registrar servicios y entornos, ejecutar health checks programados para medir tiempos de respuesta, detectar caídas y registrar incidentes vinculados a los cambios de versión en tiempo real.
+Cuando desarrollamos y mantenemos varias APIs o microservicios, la información operativa suele estar dispersa, el código en GitHub, los despliegues en el pipeline de CI/CD y los errores en los logs. **DeployOps** reúne todo eso en un panel central: permite registrar servicios y entornos, ejecutar health checks programados para medir tiempos de respuesta, detectar caídas y registrar incidentes vinculados a los cambios de versión en tiempo real.
 
 ---
 
@@ -56,7 +56,7 @@ El backend está estructurado siguiendo una **arquitectura en capas tradicional*
 | :--- | :--- |
 | **Backend** | Java 21, Spring Boot 4.1.1, Spring Data JPA, Spring Boot Actuator, Hibernate Validator |
 | **Frontend** | Angular 20.3, TypeScript, RxJS, Signals |
-| **Base de Datos** | PostgreSQL (Docker local o Supabase Cloud) |
+| **Base de Datos** | PostgreSQL |
 | **Testing** | JUnit 5, Mockito |
 
 ---
