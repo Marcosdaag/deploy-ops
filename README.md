@@ -12,7 +12,11 @@ Plataforma para centralizar el monitoreo de salud, historial de despliegues e in
 
 ## Sobre el proyecto
 
+<<<<<<< HEAD
 Cuando desarrollamos y mantenemos varias APIs o microservicios, la información operativa suele estar dispersa, el código en GitHub, los despliegues en el pipeline de CI/CD y los errores en los logs. **DeployOps** reúne todo eso en un panel central: permite registrar servicios y entornos, ejecutar health checks programados para medir tiempos de respuesta, detectar caídas y registrar incidentes vinculados a los cambios de versión en tiempo real.
+=======
+Cuando desarrollamos y mantenemos varias APIs o microservicios, la información operativa suele estar dispersa, el código en GitHub, los despliegues en el pipeline de CI/CD y los errores en los logs. **DeployOps** reúne todo eso en un panel central, permite registrar servicios y entornos, ejecutar health checks programados para medir tiempos de respuesta, detectar caídas y registrar incidentes vinculados a los cambios de versión en tiempo real.
+>>>>>>> cd177fc (fix: error en la sincronizacion de archivos)
 
 ---
 
@@ -43,21 +47,21 @@ El backend está estructurado siguiendo una **arquitectura en capas tradicional*
                       +------------------+
 ```
 
-* **Capa de Controladores (Controller):** Expone los endpoints REST consumidos por Angular y valida los datos de entrada.
-* **Capa de Servicios (Service):** Contiene la lógica de negocio, el scheduler para los health checks automáticos y la evaluación de estados de incidentes.
-* **Capa de Datos (Repository):** Administra la persistencia e historial de verificaciones mediante Spring Data JPA.
-* **Frontend (Angular):** Consume la API y muestra en tiempo real el estado, latencia e incidentes de cada servicio.
+- **Capa de Controladores (Controller):** Expone los endpoints REST consumidos por Angular y valida los datos de entrada.
+- **Capa de Servicios (Service):** Contiene la lógica de negocio, el scheduler para los health checks automáticos y la evaluación de estados de incidentes.
+- **Capa de Datos (Repository):** Administra la persistencia e historial de verificaciones mediante Spring Data JPA.
+- **Frontend (Angular):** Consume la API y muestra en tiempo real el estado, latencia e incidentes de cada servicio.
 
 ---
 
 ## Stack Tecnológico
 
-| Capa | Tecnologías |
-| :--- | :--- |
-| **Backend** | Java 21, Spring Boot 4.1.1, Spring Data JPA, Spring Boot Actuator, Hibernate Validator |
-| **Frontend** | Angular 20.3, TypeScript, RxJS, Signals |
-| **Base de Datos** | PostgreSQL |
-| **Testing** | JUnit 5, Mockito |
+| Capa              | Tecnologías                                                                            |
+| :---------------- | :------------------------------------------------------------------------------------- |
+| **Backend**       | Java 21, Spring Boot 4.1.1, Spring Data JPA, Spring Boot Actuator, Hibernate Validator |
+| **Frontend**      | Angular 20.3, TypeScript, RxJS, Signals                                                |
+| **Base de Datos** | PostgreSQL (Docker local o Supabase Cloud)                                             |
+| **Testing**       | JUnit 5, Mockito                                                                       |
 
 ---
 
@@ -84,8 +88,8 @@ El backend está estructurado siguiendo una **arquitectura en capas tradicional*
 
 El detalle de diseño, reglas lógicas y contratos se encuentra en la carpeta [`docs/`](./docs):
 
-* [**Arquitectura del Sistema (`docs/ARCHITECTURE.md`)**](./docs/ARCHITECTURE.md): Detalle de componentes y modelo de comunicación.
-* [**Decisiones Técnicas (`docs/DECISIONS.md`)**](./docs/DECISIONS.md): Justificación de las decisiones técnicas y librerías utilizadas.
-* [**Dominio y Reglas de Negocio (`docs/DOMAIN_AND_RULES.md`)**](./docs/DOMAIN_AND_RULES.md): Ciclo operativo, estados de servicio y reglas de incidentes.
-* [**Especificación de la API (`docs/API_SPEC.md`)**](./docs/API_SPEC.md): Endpoints, payloads JSON y códigos de respuesta.
-* [**Testing y Despliegue (`docs/TESTING_AND_DEVOPS.md`)**](./docs/TESTING_AND_DEVOPS.md): Estrategia de pruebas unitarias y entorno.
+- [**Arquitectura del Sistema (`docs/ARCHITECTURE.md`)**](./docs/ARCHITECTURE.md): Detalle de componentes y modelo de comunicación.
+- [**Decisiones Técnicas (`docs/DECISIONS.md`)**](./docs/DECISIONS.md): Justificación de las decisiones técnicas y librerías utilizadas.
+- [**Dominio y Reglas de Negocio (`docs/DOMAIN_AND_RULES.md`)**](./docs/DOMAIN_AND_RULES.md): Ciclo operativo, estados de servicio y reglas de incidentes.
+- [**Especificación de la API (`docs/API_SPEC.md`)**](./docs/API_SPEC.md): Endpoints, payloads JSON y códigos de respuesta.
+- [**Testing y Despliegue (`docs/TESTING_AND_DEVOPS.md`)**](./docs/TESTING_AND_DEVOPS.md): Estrategia de pruebas unitarias y entorno.
