@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 echo Iniciando base de datos PostgreSQL
 docker-compose up -d
 
@@ -8,5 +8,4 @@ start cmd /k "cd backend && .\mvnw spring-boot:run"
 echo Iniciando Frontend Angular
 start cmd /k "cd frontend && npm start"
 
-echo Iniciando Frontend React
-start cmd /k "cd frontend-react && npm run dev"
+
