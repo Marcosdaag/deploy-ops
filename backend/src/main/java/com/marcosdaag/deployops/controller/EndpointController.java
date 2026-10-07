@@ -1,6 +1,7 @@
 package com.marcosdaag.deployops.controller;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
+import com.marcosdaag.deployops.dto.EndpointResponseDTO;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.service.EndpointManagerService;
 import jakarta.validation.Valid;
@@ -19,8 +20,8 @@ public class EndpointController {
 
     // GET: http://localhost:8080/api/endpoints
     @GetMapping
-    public List<ServiceEntity> getEndpoints() {
-        return endpointManager.getAllEndpoints();
+    public List<EndpointResponseDTO> getEndpoints() {
+        return endpointManager.getDashboardData();
     }
 
     // POST: http://localhost:8080/api/endpoints?name=Google&url=https://google.com
@@ -33,6 +34,6 @@ public class EndpointController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEndpoint(@PathVariable Long id) {
         endpointManager.deleteEndpoint(id);
-        return ResponseEntity.noContent().build(); // Devuelve un 204 No Content (Éxito sin cuerpo)
+        return ResponseEntity.noContent().build(); // Devuelve un 204 No Content, preticion exitosa pero sin body
     }
 }

@@ -1,6 +1,7 @@
 package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
+import com.marcosdaag.deployops.dto.EndpointResponseDTO;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.repository.IncidentRepository;
@@ -21,6 +22,9 @@ public class EndpointManagerService {
     @Autowired
     private IncidentRepository incidentRepository;
 
+    @Autowired
+    private MetricsService metricsService;
+
     // Crea un "servicio" o endpoint a vigilar
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
         ServiceEntity newEndpoint = new ServiceEntity();
@@ -38,6 +42,14 @@ public class EndpointManagerService {
     // Lista todos los endpoints a vigilar
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
+    }
+
+    public List<EndpointResponseDTO> getDashboardData() {
+        List<ServiceEntity> services = serviceRepository.findAll();
+        return services.stream().map(service -> {
+            double uptime = metricsService.calculateUptimePercentage(service);
+            return new EndpointResponseDTO(service, uptime);
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     // Evalúa qué hacer con el resultado del pingeo y gestiona incidentes

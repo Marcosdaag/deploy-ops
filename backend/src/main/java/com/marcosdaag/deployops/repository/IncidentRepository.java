@@ -5,8 +5,13 @@ import com.marcosdaag.deployops.model.ServiceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> {
     // Busca el incidente de un servicio específico que tenga un estado específico (ej: "UP")
     IncidentEntity findByServiceAndStatus(ServiceEntity service, String status);
+
+    // Devuelve la lista completa de incidentes de un servicio
+    List<IncidentEntity> findByService(ServiceEntity service);
 }

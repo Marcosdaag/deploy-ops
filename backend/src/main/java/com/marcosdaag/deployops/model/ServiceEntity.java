@@ -9,7 +9,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "services")
 public class ServiceEntity {
-    // Getters y Setters
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,5 +20,5 @@ public class ServiceEntity {
     private String url;
 
     @Column(nullable = false)
-    private String status; // UP, DOWN, DEGRADED
+    private String status;
 }
