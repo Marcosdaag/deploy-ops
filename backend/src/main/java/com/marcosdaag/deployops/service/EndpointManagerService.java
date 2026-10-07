@@ -1,9 +1,11 @@
 package com.marcosdaag.deployops.service;
 
+import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.ServiceRepository;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,13 +22,17 @@ public class EndpointManagerService {
     private IncidentRepository incidentRepository;
 
     // Crea un "servicio" o endpoint a vigilar
-    public ServiceEntity createEndpoint(String name, String url) {
+    public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
         ServiceEntity newEndpoint = new ServiceEntity();
-        newEndpoint.setName(name);
-        newEndpoint.setUrl(url);
+        newEndpoint.setName(dto.getName());
+        newEndpoint.setUrl(dto.getUrl());
         newEndpoint.setStatus("UP"); // Por defecto lo seteamos en UP
 
         return serviceRepository.save(newEndpoint);
+    }
+
+    public void deleteEndpoint(Long id) {
+        serviceRepository.deleteById(id);
     }
 
     // Lista todos los endpoints a vigilar
