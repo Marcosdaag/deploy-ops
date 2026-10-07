@@ -1,31 +1,66 @@
 package com.marcosdaag.deployops.service;
 
+import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
+import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.ServiceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class EndpointManagerService {
+    // Inyecciones
+    @Autowired
+    private ServiceRepository serviceRepository;
 
     @Autowired
-    private ServiceRepository serviceRepository; // Inyeccion del REPOSITORIO JPA
+    private IncidentRepository incidentRepository;
 
-    // Creamos un "servicio" o endpoint a vigilar
+    // Crea un "servicio" o endpoint a vigilar
     public ServiceEntity createEndpoint(String name, String url) {
         ServiceEntity newEndpoint = new ServiceEntity();
         newEndpoint.setName(name);
         newEndpoint.setUrl(url);
         newEndpoint.setStatus("UP"); // Por defecto lo seteamos en UP
 
-        // Mediante JPA guardamos nuestro nuevo servicio
         return serviceRepository.save(newEndpoint);
     }
 
-    // Metodo JPA para listar todos los endpoints
+    // Lista todos los endpoints a vigilar
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
+    }
+
+    // Evalúa qué hacer con el resultado del pingeo y gestiona incidentes
+    public void processPingResult(ServiceEntity service, boolean isAlive) {
+
+        if (isAlive && "DOWN".equals(service.getStatus())) {
+            // ESTABA CAÍDO Y REVIVIÓ
+            service.setStatus("UP");
+            serviceRepository.save(service);
+
+            // Buscamos el incidente abierto y lo cerramos
+            IncidentEntity incident = incidentRepository.findByServiceAndStatus(service, "ONGOING");
+            if (incident != null) {
+                incident.setResolvedAt(LocalDateTime.now());
+                incident.setStatus("RESOLVED");
+                incidentRepository.save(incident);
+            }
+
+        } else if (!isAlive && "UP".equals(service.getStatus())) {
+            // ESTABA VIVO Y SE CAYÓ
+            service.setStatus("DOWN");
+            serviceRepository.save(service);
+
+            // Registramos un nuevo incidente en la base de datos
+            IncidentEntity newIncident = new IncidentEntity();
+            newIncident.setService(service);
+            newIncident.setStatus("ONGOING");
+            newIncident.setStartedAt(LocalDateTime.now());
+            incidentRepository.save(newIncident);
+        }
     }
 }
