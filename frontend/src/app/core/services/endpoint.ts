@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment'; // Ajusta la ruta si es necesario
-import { EndpointResponse } from '../models/endpoint.interface'; // Ajusta la ruta si es necesario
+import { environment } from '../../../environments/environment';
+import { EndpointResponse } from '../models/endpoint.interface';
 
 // Con el injectable y root definimos que este servicio va a ser un singleton
 @Injectable({
