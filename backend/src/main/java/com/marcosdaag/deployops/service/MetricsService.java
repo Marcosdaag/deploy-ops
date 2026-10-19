@@ -3,7 +3,7 @@ package com.marcosdaag.deployops.service;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.repository.IncidentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -11,46 +11,58 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class MetricsService {
 
-    @Autowired
-    private IncidentRepository incidentRepository;
+    private final IncidentRepository incidentRepository;
 
-    // Calcula el porcentaje de Uptime (disponibilidad) de los últimos 30 días
+    /**
+     * Calcula el porcentaje de Uptime (disponibilidad) de los últimos 30 días.
+     * Si el servicio fue creado hace menos de 30 días, la ventana de cálculo
+     * se ajusta a la antigüedad real del servicio para no distorsionar la métrica.
+     */
     public double calculateUptimePercentage(ServiceEntity service) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime thirtyDaysAgo = now.minusDays(30);
 
-        // Asumimos una ventana de tiempo de 30 días
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        long totalMinutesIn30Days = 30 * 24 * 60; // 43.200 minutos
+        // Determinamos el inicio real de la ventana de monitoreo
+        LocalDateTime windowStart = (service.getCreatedAt() != null && service.getCreatedAt().isAfter(thirtyDaysAgo))
+                ? service.getCreatedAt()
+                : thirtyDaysAgo;
+
+        long totalWindowMinutes = Duration.between(windowStart, now).toMinutes();
+
+        // Si el servicio se acaba de crear hace menos de 1 minuto
+        if (totalWindowMinutes <= 0) {
+            return 100.0;
+        }
+
+        // Consultamos directamente en base de datos los incidentes dentro de la ventana
+        List<IncidentEntity> incidents = incidentRepository.findByServiceAndStartedAtAfter(service, windowStart);
+
         long totalDowntimeMinutes = 0;
 
-        // Necesitamos buscar TODOS los incidentes de este servicio.
-        List<IncidentEntity> incidents = incidentRepository.findByService(service);
-
         for (IncidentEntity incident : incidents) {
+            LocalDateTime incidentStart = incident.getStartedAt().isBefore(windowStart)
+                    ? windowStart
+                    : incident.getStartedAt();
 
-            // Si el incidente empezó hace más de 30 días, lo ignoramos para la métrica actual
-            if (incident.getStartedAt().isBefore(thirtyDaysAgo)) {
-                continue;
-            }
+            LocalDateTime incidentEnd = (incident.getResolvedAt() != null)
+                    ? incident.getResolvedAt()
+                    : now;
 
-            // Calculamos el final del incidente (si sigue ONGOING, calculamos hasta el minuto actual)
-            LocalDateTime endTime = (incident.getResolvedAt() != null) ? incident.getResolvedAt() : LocalDateTime.now();
-
-            // Calculamos cuántos minutos duró el apagón
-            Duration duration = Duration.between(incident.getStartedAt(), endTime);
+            Duration duration = Duration.between(incidentStart, incidentEnd);
             totalDowntimeMinutes += duration.toMinutes();
         }
 
-        // Si estuvo caído más tiempo que el total (ej: acabamos de crearlo y ya está caído), devolvemos 0%
-        if (totalDowntimeMinutes >= totalMinutesIn30Days) {
+        if (totalDowntimeMinutes >= totalWindowMinutes) {
             return 0.0;
         }
 
-        // Fórmula de Uptime: ((Total - Caída) / Total) * 100
-        double uptime = ((double) (totalMinutesIn30Days - totalDowntimeMinutes) / totalMinutesIn30Days) * 100;
+        double uptime = ((double) (totalWindowMinutes - totalDowntimeMinutes) / totalWindowMinutes) * 100.0;
+        double rounded = Math.round(uptime * 100.0) / 100.0;
 
-        // Redondeamos a 2 decimales (ej: 99.99%)
-        return Math.round(uptime * 100.0) / 100.0;
+        // Aseguramos que siempre esté acotado entre 0.0 y 100.0
+        return Math.max(0.0, Math.min(100.0, rounded));
     }
 }

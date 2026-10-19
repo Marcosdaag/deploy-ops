@@ -1,0 +1,61 @@
+name: Backend CI (Spring Boot)
+
+# 1. ¿CUÁNDO SE DISPARA?
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - "backend/**" # Solo corre si hubo cambios en la carpeta backend
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - "backend/**"
+
+# 2. ¿QUÉ TAREAS EJECUTA?
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # GitHub alquila una máquina Linux limpia
+
+    # Levantamos un Postgres temporal dentro de GitHub Actions
+    # para que el test @SpringBootTest también pueda validar las tablas reales
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: adminpassword
+          POSTGRES_DB: deployops_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Le indicamos que todos los comandos se ejecuten dentro de la carpeta /backend
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      # Paso 1: Descarga el código de tu repositorio en la máquina de GitHub
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      # Paso 2: Instala Java 21 y guarda en caché las librerías de Maven para que sea rápido
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      # Paso 3: Da permisos de ejecución a Maven en Linux
+      - name: Dar permisos de ejecución a mvnw
+        run: chmod +x ./mvnw
+
+      # Paso 4: Corre tus tests unitarios (JUnit + Mockito) y de contexto
+      - name: Ejecutar Tests con Maven
+        run: ./mvnw test

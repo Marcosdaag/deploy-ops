@@ -1,22 +1,30 @@
 package com.marcosdaag.deployops.dto;
 
 import com.marcosdaag.deployops.model.ServiceEntity;
+import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import lombok.Getter;
+
+import java.time.LocalDateTime;
 
 @Getter
 public class EndpointResponseDTO {
-    private Long id;
-    private String name;
-    private String url;
-    private String status;
-    private double uptimePercentage; // La metrica
+    private final Long id;
+    private final String name;
+    private final String url;
+    private final ServiceStatus status;
+    private final int consecutiveFailures;
+    private final LocalDateTime lastCheckedAt;
+    private final LocalDateTime createdAt;
+    private final double uptimePercentage;
 
-    // Constructor que convierte una Entidad en un DTO
     public EndpointResponseDTO(ServiceEntity entity, double uptimePercentage) {
         this.id = entity.getId();
         this.name = entity.getName();
         this.url = entity.getUrl();
         this.status = entity.getStatus();
+        this.consecutiveFailures = entity.getConsecutiveFailures();
+        this.lastCheckedAt = entity.getLastCheckedAt();
+        this.createdAt = entity.getCreatedAt();
         this.uptimePercentage = uptimePercentage;
     }
 }

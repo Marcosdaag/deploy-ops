@@ -5,7 +5,8 @@ import com.marcosdaag.deployops.dto.EndpointResponseDTO;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.service.EndpointManagerService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,27 +14,30 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/endpoints")
+@RequiredArgsConstructor
 public class EndpointController {
 
-    @Autowired
-    private EndpointManagerService endpointManager; // Inyectamos al servicio
+    private final EndpointManagerService endpointManager;
 
     // GET: http://localhost:8080/api/endpoints
     @GetMapping
-    public List<EndpointResponseDTO> getEndpoints() {
-        return endpointManager.getDashboardData();
+    public ResponseEntity<List<EndpointResponseDTO>> getEndpoints() {
+        return ResponseEntity.ok(endpointManager.getDashboardData());
     }
 
-    // POST: http://localhost:8080/api/endpoints?name=Google&url=https://google.com
+    // POST: http://localhost:8080/api/endpoints
     @PostMapping
-    public ResponseEntity<ServiceEntity> createEndpoint(@Valid @RequestBody EndpointCreateDTO dto) {
+    public ResponseEntity<EndpointResponseDTO> createEndpoint(@Valid @RequestBody EndpointCreateDTO dto) {
         ServiceEntity created = endpointManager.createEndpoint(dto);
-        return ResponseEntity.ok(created);
+        // Al crearse, su disponibilidad inicial es del 100%
+        EndpointResponseDTO response = new EndpointResponseDTO(created, 100.0);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
-    // DELETE: Borrar por ID
+
+    // DELETE: http://localhost:8080/api/endpoints/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEndpoint(@PathVariable Long id) {
         endpointManager.deleteEndpoint(id);
-        return ResponseEntity.noContent().build(); // Devuelve un 204 No Content, preticion exitosa pero sin body
+        return ResponseEntity.noContent().build();
     }
 }
