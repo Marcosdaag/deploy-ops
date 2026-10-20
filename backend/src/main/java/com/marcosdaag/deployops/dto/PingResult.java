@@ -1,8 +1,5 @@
 package com.marcosdaag.deployops.dto;
 
-/**
- * Representa el resultado detallado de un chequeo HTTP.
- */
 public record PingResult(
         boolean isAlive,
         int statusCode,
