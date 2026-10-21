@@ -26,7 +26,7 @@ public class IncidentEntity {
 
     private LocalDateTime resolvedAt;
 
-    // Relación: Muchos incidentes pertenecen a UN servicio
+    // Relacion, Muchos incidentes pertenecen a UN servicio
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     private ServiceEntity service;

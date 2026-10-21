@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
+import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,53 +17,55 @@ public class MetricsService {
 
     private final IncidentRepository incidentRepository;
 
-    /**
-     * Calcula el porcentaje de Uptime (disponibilidad) de los últimos 30 días.
-     * Si el servicio fue creado hace menos de 30 días, la ventana de cálculo
-     * se ajusta a la antigüedad real del servicio para no distorsionar la métrica.
-     */
+    // Calcula el porcentaje de Uptime de los ultimos 30 dias
     public double calculateUptimePercentage(ServiceEntity service) {
+        // Si todavia no se le hizo el primer ping, devolvemos 0%
+        if (service.getStatus() == ServiceStatus.PENDING && service.getLastCheckedAt() == null) {
+            return 0.0;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime thirtyDaysAgo = now.minusDays(30);
 
-        // Determinamos el inicio real de la ventana de monitoreo
+        // Si el servicio se creo hace menos de 30 dias, calculamos desde su fecha de creacion
         LocalDateTime windowStart = (service.getCreatedAt() != null && service.getCreatedAt().isAfter(thirtyDaysAgo))
                 ? service.getCreatedAt()
                 : thirtyDaysAgo;
 
-        long totalWindowMinutes = Duration.between(windowStart, now).toMinutes();
+        long totalWindowSeconds = Duration.between(windowStart, now).toSeconds();
 
-        // Si el servicio se acaba de crear hace menos de 1 minuto
-        if (totalWindowMinutes <= 0) {
-            return 100.0;
+        if (totalWindowSeconds <= 0) {
+            return service.getStatus() == ServiceStatus.DOWN ? 0.0 : 100.0;
         }
 
-        // Consultamos directamente en base de datos los incidentes dentro de la ventana
-        List<IncidentEntity> incidents = incidentRepository.findByServiceAndStartedAtAfter(service, windowStart);
+        // Buscamos los incidentes de este servicio dentro de la ventana de tiempo
+        List<IncidentEntity> incidents = incidentRepository.findOverlappingIncidents(service, windowStart);
 
-        long totalDowntimeMinutes = 0;
+        long totalDowntimeSeconds = 0;
 
         for (IncidentEntity incident : incidents) {
-            LocalDateTime incidentStart = incident.getStartedAt().isBefore(windowStart)
+            LocalDateTime effectiveStart = incident.getStartedAt().isBefore(windowStart)
                     ? windowStart
                     : incident.getStartedAt();
 
-            LocalDateTime incidentEnd = (incident.getResolvedAt() != null)
+            // Si sigue ONGOING, calculamos hasta el momento actual
+            LocalDateTime effectiveEnd = (incident.getResolvedAt() != null && incident.getResolvedAt().isBefore(now))
                     ? incident.getResolvedAt()
                     : now;
 
-            Duration duration = Duration.between(incidentStart, incidentEnd);
-            totalDowntimeMinutes += duration.toMinutes();
+            if (effectiveEnd.isAfter(effectiveStart)) {
+                totalDowntimeSeconds += Duration.between(effectiveStart, effectiveEnd).toSeconds();
+            }
         }
 
-        if (totalDowntimeMinutes >= totalWindowMinutes) {
+        if (totalDowntimeSeconds >= totalWindowSeconds) {
             return 0.0;
         }
 
-        double uptime = ((double) (totalWindowMinutes - totalDowntimeMinutes) / totalWindowMinutes) * 100.0;
+        // Formula de Uptime: ((Total - Caida) / Total) * 100
+        double uptime = ((double) (totalWindowSeconds - totalDowntimeSeconds) / totalWindowSeconds) * 100.0;
         double rounded = Math.round(uptime * 100.0) / 100.0;
 
-        // Aseguramos que siempre esté acotado entre 0.0 y 100.0
         return Math.max(0.0, Math.min(100.0, rounded));
     }
 }

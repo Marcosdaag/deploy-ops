@@ -29,8 +29,8 @@ public class EndpointController {
     @PostMapping
     public ResponseEntity<EndpointResponseDTO> createEndpoint(@Valid @RequestBody EndpointCreateDTO dto) {
         ServiceEntity created = endpointManager.createEndpoint(dto);
-        // Al crearse, su disponibilidad inicial es del 100%
-        EndpointResponseDTO response = new EndpointResponseDTO(created, 100.0);
+        // Al crearse en estado PENDING, su uptime inicial es 0.0 hasta ejecutar el primer check
+        EndpointResponseDTO response = new EndpointResponseDTO(created, 0.0);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

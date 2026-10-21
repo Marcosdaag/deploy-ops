@@ -1,5 +1,7 @@
 package com.marcosdaag.deployops.service;
 
+import com.marcosdaag.deployops.dto.EndpointCreateDTO;
+import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -34,6 +37,9 @@ class EndpointManagerServiceTest {
     @Mock
     private MetricsService metricsService;
 
+    @Spy
+    private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
+
     @InjectMocks
     private EndpointManagerService endpointManagerService;
 
@@ -51,7 +57,26 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("1er fallo: Transiciona de HEALTHY a DEGRADED sin abrir incidente (Tolerancia a fallos)")
+    @DisplayName("Al crear un servicio arranca en PENDING y bloquea localhost")
+    void whenCreatingEndpoint_shouldInitializeAsPendingAndBlockLocalhost() {
+        EndpointCreateDTO validDto = new EndpointCreateDTO();
+        validDto.setName("GitHub API");
+        validDto.setUrl("https://api.github.com");
+
+        when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ServiceEntity created = endpointManagerService.createEndpoint(validDto);
+        assertEquals(ServiceStatus.PENDING, created.getStatus());
+
+        EndpointCreateDTO ssrfDto = new EndpointCreateDTO();
+        ssrfDto.setName("Servidor Interno");
+        ssrfDto.setUrl("http://localhost:8080/actuator");
+
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(ssrfDto));
+    }
+
+    @Test
+    @DisplayName("1er fallo: pasa de HEALTHY a DEGRADED sin abrir incidente")
     void whenPingFailsOnce_shouldTransitionToDegradedWithoutOpeningIncident() {
         endpointManagerService.processPingResult(service, false);
 
@@ -65,7 +90,7 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("2do fallo consecutivo: Permanece en DEGRADED sin abrir incidente")
+    @DisplayName("2do fallo seguido: sigue en DEGRADED sin abrir incidente")
     void whenPingFailsTwiceConsecutively_shouldRemainDegraded() {
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(1);
@@ -78,10 +103,12 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("3er fallo consecutivo: Transiciona a DOWN y abre un nuevo incidente ONGOING")
+    @DisplayName("3er fallo seguido: pasa a DOWN y abre incidente ONGOING")
     void whenPingFailsThreeTimes_shouldTransitionToDownAndOpenIncident() {
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(2);
+        when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING))
+                .thenReturn(Optional.empty());
 
         endpointManagerService.processPingResult(service, false);
 
@@ -99,7 +126,7 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("Falsa alarma: Un éxito mientras está en DEGRADED regresa inmediatamente a HEALTHY")
+    @DisplayName("Falsa alarma: si esta en DEGRADED y responde bien, vuelve a HEALTHY")
     void whenDegradedServiceSucceeds_shouldRecoverDirectlyToHealthy() {
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(2);
@@ -113,7 +140,7 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("1er éxito tras caída: Transiciona de DOWN a RECOVERING manteniendo el incidente abierto")
+    @DisplayName("1er exito tras caida: pasa de DOWN a RECOVERING")
     void whenDownServiceSucceedsOnce_shouldTransitionToRecovering() {
         service.setStatus(ServiceStatus.DOWN);
         service.setConsecutiveFailures(3);
@@ -127,7 +154,7 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("2do éxito consecutivo tras caída: Transiciona a HEALTHY y cierra el incidente activo (RESOLVED)")
+    @DisplayName("2do exito seguido tras caida: vuelve a HEALTHY y cierra el incidente")
     void whenRecoveringServiceSucceedsSecondTime_shouldTransitionToHealthyAndCloseIncident() {
         service.setStatus(ServiceStatus.RECOVERING);
         service.setConsecutiveSuccesses(1);
@@ -152,7 +179,7 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("Recaída: Un fallo durante el estado RECOVERING devuelve inmediatamente a DOWN")
+    @DisplayName("Recaida: si falla estando en RECOVERING vuelve a DOWN")
     void whenRecoveringServiceFails_shouldRelapseToDown() {
         service.setStatus(ServiceStatus.RECOVERING);
         service.setConsecutiveSuccesses(1);
@@ -162,5 +189,19 @@ class EndpointManagerServiceTest {
         assertEquals(ServiceStatus.DOWN, service.getStatus());
         assertEquals(1, service.getConsecutiveFailures());
         assertEquals(0, service.getConsecutiveSuccesses());
+    }
+
+    @Test
+    @DisplayName("Borrado: elimina primero los incidentes y luego el servicio, o tira 404 si no existe")
+    void whenDeletingEndpoint_shouldDeleteIncidentsFirstOrThrow404() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+
+        endpointManagerService.deleteEndpoint(1L);
+
+        verify(incidentRepository).deleteByServiceId(1L);
+        verify(serviceRepository).deleteById(1L);
+
+        when(serviceRepository.existsById(999L)).thenReturn(false);
+        assertThrows(ResourceNotFoundException.class, () -> endpointManagerService.deleteEndpoint(999L));
     }
 }

@@ -9,52 +9,48 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class HttpMonitorService {
 
     private final RestTemplate restTemplate;
 
+    // Configuramos RestTemplate con timeouts para que una URL colgada no trabe el servidor
     public HttpMonitorService() {
-        // Configuramos timeouts estrictos para no bloquear los hilos del scheduler
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
         factory.setReadTimeout(Duration.ofSeconds(5));
         this.restTemplate = new RestTemplate(factory);
     }
 
-    /**
-     * Ejecuta una petición HTTP capturando latencia en ms, código de respuesta y errores.
-     */
+    // Hace la peticion HTTP y mide cuanto tarda en responder
     public PingResult ping(String url) {
-        long startTime = System.currentTimeMillis();
+        long startNano = System.nanoTime();
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            long elapsed = System.currentTimeMillis() - startTime;
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
             int statusCode = response.getStatusCode().value();
             boolean isAlive = response.getStatusCode().is2xxSuccessful();
 
             return isAlive
-                    ? PingResult.success(statusCode, elapsed)
-                    : PingResult.failure(statusCode, elapsed, "Código de respuesta no exitoso: " + statusCode);
+                    ? PingResult.success(statusCode, elapsedMs)
+                    : PingResult.failure(statusCode, elapsedMs, "Codigo de respuesta: " + statusCode);
 
         } catch (HttpStatusCodeException e) {
-            // El servidor respondió pero con error 4xx o 5xx
-            long elapsed = System.currentTimeMillis() - startTime;
-            return PingResult.failure(e.getStatusCode().value(), elapsed, "HTTP error: " + e.getStatusCode().value());
+            // Respondio pero con error 4xx o 5xx
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+            return PingResult.failure(e.getStatusCode().value(), elapsedMs, "HTTP error: " + e.getStatusCode().value());
         } catch (ResourceAccessException e) {
-            // Timeout de conexión, lectura o DNS no resuelto
-            long elapsed = System.currentTimeMillis() - startTime;
-            return PingResult.failure(0, elapsed, "Timeout o fallo de conectividad");
+            // Timeout o la URL no existe
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+            return PingResult.failure(0, elapsedMs, "Timeout o fallo de conexion");
         } catch (Exception e) {
-            long elapsed = System.currentTimeMillis() - startTime;
-            return PingResult.failure(0, elapsed, "Error al chequear servicio: " + e.getMessage());
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+            return PingResult.failure(0, elapsedMs, "Error al chequear servicio");
         }
     }
 
-    /**
-     * Helper retrocompatible que retorna únicamente si el servicio está operativo.
-     */
     public boolean isUrlAlive(String url) {
         return ping(url).isAlive();
     }

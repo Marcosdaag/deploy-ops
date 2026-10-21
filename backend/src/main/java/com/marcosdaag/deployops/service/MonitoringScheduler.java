@@ -19,14 +19,10 @@ public class MonitoringScheduler {
     private final EndpointManagerService endpointManager;
     private final HttpMonitorService httpMonitor;
 
-    /**
-     * Tarea programada que ejecuta health checks periódicos.
-     * fixedDelay = 60000 garantiza que pasen 60s tras TERMINAR la ejecución previa,
-     * evitando acumulación o solapamiento de tareas en caso de lentitud en la red.
-     */
+    // Cada 1 minuto (60s despues de terminar el anterior) chequea todos los servicios
     @Scheduled(fixedDelay = 60000)
     public void checkAllServices() {
-        logger.info("Iniciando ciclo de monitoreo de servicios...");
+        logger.info("CRON verificando el estado de los servicios.");
 
         List<ServiceEntity> services = endpointManager.getAllEndpoints();
 
@@ -35,20 +31,20 @@ public class MonitoringScheduler {
                 PingResult result = httpMonitor.ping(service.getUrl());
 
                 if (result.isAlive()) {
-                    logger.info("✅ [HTTP {} - {}ms] {} ({}) responde correctamente.",
-                            result.statusCode(), result.responseTimeMs(), service.getName(), service.getUrl());
+                    logger.info("[UP - {}ms] {} ({}) responde correctamente.",
+                            result.responseTimeMs(), service.getName(), service.getUrl());
                 } else {
-                    logger.warn("⚠️ [FALLO - {}ms] {} ({}): {}",
+                    logger.error("[DOWN - {}ms] {} ({}) fallo: {}",
                             result.responseTimeMs(), service.getName(), service.getUrl(), result.errorMessage());
                 }
 
                 endpointManager.processPingResult(service, result.isAlive());
 
             } catch (Exception e) {
-                logger.error("Error inesperado al monitorear servicio {}: {}", service.getName(), e.getMessage());
+                logger.error("Error al chequear servicio {}: {}", service.getName(), e.getMessage());
             }
         }
 
-        logger.info("Ciclo de monitoreo finalizado. Servicios evaluados: {}", services.size());
+        logger.info("CRON verificacion terminada.");
     }
 }

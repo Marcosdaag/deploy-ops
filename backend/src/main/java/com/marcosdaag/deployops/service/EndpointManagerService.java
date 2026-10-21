@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
@@ -24,17 +25,21 @@ public class EndpointManagerService {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointManagerService.class);
 
+    // Inyecciones por constructor
     private final ServiceRepository serviceRepository;
     private final IncidentRepository incidentRepository;
     private final MetricsService metricsService;
+    private final UrlSecurityValidator urlSecurityValidator;
 
-    // Crea un nuevo servicio monitoreado
+    // Crea un "servicio" o endpoint a vigilar
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
+        urlSecurityValidator.validatePublicUrl(dto.getUrl());
+
         ServiceEntity newEndpoint = new ServiceEntity();
-        newEndpoint.setName(dto.getName());
-        newEndpoint.setUrl(dto.getUrl());
-        newEndpoint.setStatus(ServiceStatus.HEALTHY);
+        newEndpoint.setName(dto.getName().trim());
+        newEndpoint.setUrl(dto.getUrl().trim());
+        newEndpoint.setStatus(ServiceStatus.PENDING); // Arranca en PENDING hasta el primer ping
         newEndpoint.setConsecutiveFailures(0);
         newEndpoint.setConsecutiveSuccesses(0);
         newEndpoint.setCreatedAt(LocalDateTime.now());
@@ -42,11 +47,18 @@ public class EndpointManagerService {
         return serviceRepository.save(newEndpoint);
     }
 
+    // Borra el servicio y sus incidentes asociados
     @Transactional
     public void deleteEndpoint(Long id) {
+        if (!serviceRepository.existsById(id)) {
+            throw new ResourceNotFoundException("No se encontro el servicio con ID: " + id);
+        }
+
+        incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
     }
 
+    // Lista todos los endpoints a vigilar
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
     }
@@ -61,15 +73,7 @@ public class EndpointManagerService {
                 .toList();
     }
 
-    /**
-     * Máquina de Estados para procesar el resultado de cada ping:
-     * - HEALTHY -> DEGRADED (1 fallo)
-     * - DEGRADED -> DOWN (3 fallos consecutivos, abre incidente)
-     * - DEGRADED -> HEALTHY (1 éxito, falsa alarma)
-     * - DOWN -> RECOVERING (1er éxito)
-     * - RECOVERING -> DOWN (1 fallo, recaída)
-     * - RECOVERING -> HEALTHY (2 éxitos consecutivos, cierra incidente)
-     */
+    // Evalua que hacer con el resultado del pingeo y gestiona incidentes
     @Transactional
     public void processPingResult(ServiceEntity service, boolean isAlive) {
         service.setLastCheckedAt(LocalDateTime.now());
@@ -88,23 +92,30 @@ public class EndpointManagerService {
         service.setConsecutiveSuccesses(service.getConsecutiveSuccesses() + 1);
 
         switch (service.getStatus()) {
+            case PENDING -> {
+                logger.info("Primer ping exitoso en {}. Pasa a HEALTHY.", service.getName());
+                service.setStatus(ServiceStatus.HEALTHY);
+            }
             case DEGRADED -> {
-                logger.info("Servicio {} recuperado de estado degradado (falsa alarma). Volviendo a HEALTHY.", service.getName());
+                // Era falsa alarma, vuelve a estar sano
+                logger.info("Servicio {} recuperado de estado degradado. Volviendo a HEALTHY.", service.getName());
                 service.setStatus(ServiceStatus.HEALTHY);
             }
             case DOWN -> {
-                logger.info("Servicio {} respondió por primera vez tras la caída. Pasando a RECOVERING.", service.getName());
+                // Estaba caido y respondio por primera vez
+                logger.info("Servicio {} respondio tras la caida. Pasando a RECOVERING.", service.getName());
                 service.setStatus(ServiceStatus.RECOVERING);
             }
             case RECOVERING -> {
+                // Con 2 exitos seguidos confirmamos que levanto y cerramos el incidente
                 if (service.getConsecutiveSuccesses() >= 2) {
-                    logger.info("Servicio {} confirmó 2 éxitos consecutivos. Cerrando incidente y volviendo a HEALTHY.", service.getName());
+                    logger.info("Servicio {} confirmo 2 exitos seguidos. Cerrando incidente.", service.getName());
                     service.setStatus(ServiceStatus.HEALTHY);
                     closeActiveIncident(service);
                 }
             }
             case HEALTHY -> {
-                // Sigue funcionando correctamente
+                // Sigue funcionando bien
             }
         }
     }
@@ -114,30 +125,37 @@ public class EndpointManagerService {
         service.setConsecutiveFailures(service.getConsecutiveFailures() + 1);
 
         switch (service.getStatus()) {
-            case HEALTHY -> {
-                logger.warn("Primer fallo detectado en {}. Marcando como DEGRADED.", service.getName());
+            case PENDING, HEALTHY -> {
+                // Al primer fallo lo pasamos a DEGRADED (sin abrir incidente todavia)
+                logger.warn("Primer fallo en {}. Marcando como DEGRADED.", service.getName());
                 service.setStatus(ServiceStatus.DEGRADED);
             }
             case DEGRADED -> {
+                // Si llega a 3 fallos seguidos, se considera caido y abrimos incidente
                 if (service.getConsecutiveFailures() >= 3) {
-                    logger.error("Servicio {} acumuló 3 fallos consecutivos. Marcando como DOWN y abriendo incidente.", service.getName());
+                    logger.error("Servicio {} acumulo 3 fallos seguidos. Marcando como DOWN y abriendo incidente.", service.getName());
                     service.setStatus(ServiceStatus.DOWN);
                     openNewIncident(service);
                 } else {
-                    logger.warn("Servicio {} continúa fallando (intento {}/3).", service.getName(), service.getConsecutiveFailures());
+                    logger.warn("Servicio {} sigue fallando (intento {}/3).", service.getName(), service.getConsecutiveFailures());
                 }
             }
             case RECOVERING -> {
-                logger.warn("Servicio {} recayó durante su recuperación. Volviendo a DOWN.", service.getName());
+                // Estaba recuperandose pero volvio a fallar
+                logger.warn("Servicio {} volvio a caer. Volviendo a DOWN.", service.getName());
                 service.setStatus(ServiceStatus.DOWN);
             }
             case DOWN -> {
-                // Ya se encuentra en estado caído con incidente abierto
+                // Ya esta caido y con incidente abierto
             }
         }
     }
 
     private void openNewIncident(ServiceEntity service) {
+        if (incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING).isPresent()) {
+            return;
+        }
+
         IncidentEntity newIncident = new IncidentEntity();
         newIncident.setService(service);
         newIncident.setStatus(IncidentStatus.ONGOING);

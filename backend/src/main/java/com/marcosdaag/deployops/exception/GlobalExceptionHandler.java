@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
 
+// Atrapa los errores de toda la API y devuelve siempre un JSON prolijo
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    // Errores de validacion del DTO (@Valid) -> devuelve 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(MethodArgumentNotValidException ex) {
         List<String> errors = ex.getBindingResult()
@@ -27,17 +29,38 @@ public class GlobalExceptionHandler {
 
         ErrorResponseDTO response = ErrorResponseDTO.of(
                 HttpStatus.BAD_REQUEST.value(),
-                "Error de validación en la solicitud",
+                "Error de validacion en la solicitud",
                 errors
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    /**
-     * Captura cualquier otra excepción no controlada en la aplicación.
-     * Devuelve HTTP 500 Internal Server Error.
-     */
+    // Errores de negocio o URLs internas prohibidas -> devuelve 400
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponseDTO response = ErrorResponseDTO.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "Solicitud rechazada",
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    // Cuando buscan o quieren borrar un servicio que no existe -> devuelve 404
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        ErrorResponseDTO response = ErrorResponseDTO.of(
+                HttpStatus.NOT_FOUND.value(),
+                "Recurso no encontrado",
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    // Cualquier otro error inesperado -> devuelve 500 sin exponer datos internos de la DB
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGlobalException(Exception ex) {
         logger.error("Error no controlado en el servidor: ", ex);
@@ -45,7 +68,7 @@ public class GlobalExceptionHandler {
         ErrorResponseDTO response = ErrorResponseDTO.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Error interno del servidor",
-                ex.getMessage() != null ? ex.getMessage() : "Ocurrió un error inesperado"
+                "Ocurrio un error inesperado. Por favor, intente mas tarde."
         );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
