@@ -6,80 +6,66 @@ Este documento detalla la estructura lógica de los datos y las reglas exactas q
 
 ## 1. Esquema de Base de Datos (ERD)
 
-La información se estructura de manera relacional para mantener un historial preciso de incidentes, pings y configuraciones, aislado por usuario.
+### 1.1. Esquema Implementado en Producción (v1.0)
+El modelo relacional persistido en PostgreSQL (Supabase / Docker local) vincula los servicios monitoreados con su historial de incidentes:
 
 ```mermaid
 erDiagram
-    USER ||--o{ SERVICE : owns
-    SERVICE ||--o{ ENVIRONMENT : has
     SERVICE ||--o{ INCIDENT : experiences
-    ENVIRONMENT ||--o| HEALTH_CHECK_CONFIG : configured_by
-    ENVIRONMENT ||--o{ CHECK_RESULT : generates
 
-    USER {
-        UUID id PK
-        string email
-        string password
-    }
-    
     SERVICE {
-        UUID id PK
-        UUID user_id FK
-        string name "Ej: API Pagos"
-        string repository_url
+        bigint id PK
+        string name "VARCHAR(100)"
+        string url "VARCHAR(500)"
+        string status "PENDING, HEALTHY, DEGRADED, DOWN, RECOVERING"
+        int consecutive_failures
+        int consecutive_successes
+        bigint last_response_time_ms
+        timestamp created_at
+        timestamp last_checked_at
     }
-    
-    ENVIRONMENT {
-        UUID id PK
-        UUID service_id FK
-        string name "Ej: Production, Staging"
-        string base_url
-    }
-    
-    HEALTH_CHECK_CONFIG {
-        UUID id PK
-        UUID environment_id FK
-        string endpoint "Ej: /api/health"
-        int interval_seconds
-        int expected_status "Ej: 200"
-    }
-    
+
     INCIDENT {
-        UUID id PK
-        UUID service_id FK
-        string status "OPEN o RESOLVED"
-        datetime started_at
-        datetime resolved_at
+        bigint id PK
+        bigint service_id FK
+        string status "ONGOING, RESOLVED"
+        timestamp started_at
+        timestamp resolved_at
     }
 ```
+
+### 1.2. Extensiones Proyectadas (Roadmap Futuro)
+En fases posteriores con autenticación activa, se incorporarán las entidades `USER` (propietario) y `ENVIRONMENT` (ambientes Staging, Production).
 
 ---
 
 ## 2. Máquina de Estados del Monitoreo
 
-El sistema no genera incidentes al primer fallo de red para evitar los "falsos positivos" o parpadeos temporales. Sigue un flujo riguroso de confirmación, integrado con el sistema de Alertas Push y Email.
+El sistema no genera incidentes al primer fallo de red para evitar los "falsos positivos" o parpadeos temporales. Sigue un flujo riguroso de confirmación:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> HEALTHY
-    
+    [*] --> PENDING : Alta del servicio (POST)
+
+    PENDING --> HEALTHY : 1er ping exitoso
+    PENDING --> DEGRADED : 1er ping fallido
+
     HEALTHY --> DEGRADED : 1 Fallo de red
     DEGRADED --> HEALTHY : 1 Éxito (Era falsa alarma)
-    
+
     DEGRADED --> DOWN : 2 Fallos más consecutivos (3 en total)
     note right of DOWN
       El sistema abre un 'Incidente'.
-      Dispara Push Notification al
-      móvil y avisa por WebSockets.
+      (Estado: ONGOING, fecha startedAt)
     end note
-    
+
     DOWN --> RECOVERING : 1er Éxito tras la caída
     RECOVERING --> DOWN : 1 Fallo (Recaída)
-    
+
     RECOVERING --> HEALTHY : 2do Éxito consecutivo
     note right of HEALTHY
       El sistema cierra el 'Incidente'.
-      (Estado: RESOLVED)
+      (Estado: RESOLVED, fecha resolvedAt)
     end note
 ```
 
@@ -87,18 +73,26 @@ stateDiagram-v2
 
 ## 3. Reglas Críticas del Sistema
 
-### 3.1. Confirmación de Caídas (Tolerancia a fallos)
-*   **Regla:** Un solo *timeout* o error HTTP 500 no marca el servicio como `DOWN`.
-*   **Comportamiento:** Pasa a un estado de alerta temporal (`DEGRADED`). Solo si el fallo persiste durante 3 ciclos de comprobación consecutivos, el servicio se considera caído oficialmente. En ese instante se abre un incidente y se disparan las alarmas a los clientes Web y Móvil.
+### 3.1. Estado Inicial Honesto
+* **Regla:** Al crear un servicio (`POST /api/endpoints`), el sistema no asume disponibilidad perfecta antes de chequearlo.
+* **Comportamiento:** Se registra con estado `PENDING` y `uptimePercentage = 0.0`. En la primera ejecución del Scheduler pasa a `HEALTHY` si responde correctamente o a `DEGRADED` si falla.
 
-### 3.2. Cierre de Incidentes
-*   **Regla:** Un incidente en estado `OPEN` solo puede pasar a `RESOLVED` si el sistema comprueba y certifica la estabilidad del servicio.
-*   **Comportamiento:** Requiere 2 respuestas `HTTP 200 OK` consecutivas para confirmar que el servicio levantó y no fue solo un reinicio intermitente.
+### 3.2. Confirmación de Caídas (Tolerancia a fallos)
+* **Regla:** Un solo *timeout* o error HTTP no marca el servicio como `DOWN`.
+* **Comportamiento:** Pasa a un estado de alerta temporal (`DEGRADED`). Solo si el fallo persiste durante 3 ciclos de comprobación consecutivos, el servicio se considera caído oficialmente y se persiste un `IncidentEntity` con estado `ONGOING`.
 
-### 3.3. Reportes Periódicos
-*   **Regla:** El cliente debe recibir analíticas sin intervención manual.
-*   **Comportamiento:** Un proceso `Cron` lee el historial de estados de la semana, calcula el porcentaje de *Uptime* (ej. 99.9%), inyecta estos datos en una plantilla PDF generada al vuelo y se la envía al usuario por email de forma automática.
+### 3.3. Cierre de Incidentes por Estabilidad
+* **Regla:** Un incidente en estado `ONGOING` solo puede pasar a `RESOLVED` tras confirmar que el servicio está estable.
+* **Comportamiento:** Requiere 2 respuestas `HTTP 200 OK` consecutivas (`DOWN` $\rightarrow$ `RECOVERING` $\rightarrow$ `HEALTHY`). Al segundo éxito, se estampa la fecha `resolvedAt`.
 
-### 3.4. Aislamiento por Usuario (Multi-tenancy básico)
-*   **Regla:** Un usuario no puede ver ni modificar los servicios de otro.
-*   **Comportamiento:** Todas las consultas SQL que extraen datos deben ir filtradas por el `user_id` del token JWT actual del usuario que hizo la petición. La única excepción son los servicios marcados explícitamente como "globales" para la *landing page* pública.
+### 3.4. Protección contra Ataques SSRF (Server-Side Request Forgery)
+* **Regla:** La API no puede ser utilizada para escanear redes internas o infraestructura cloud privada.
+* **Comportamiento:** `UrlSecurityValidator` rechaza esquemas que no sean `http`/`https`, nombres de host locales (`localhost`, `*.local`, `*.internal`), IPs privadas (10.x, 192.168.x, 172.16-31.x) y endpoints de metadatos cloud (`169.254.169.254`).
+
+### 3.5. Integridad Referencial y Borrado Seguro
+* **Regla:** Al eliminar un servicio (`DELETE /api/endpoints/{id}`), no deben quedar incidentes huérfanos ni errores de clave foránea en la base de datos.
+* **Comportamiento:** La operación se ejecuta bajo una transacción atómica (`@Transactional`): verifica la existencia del ID (404 si no existe), elimina primero los incidentes asociados en `IncidentRepository` y finalmente elimina el servicio.
+
+### 3.6. Cálculo Preciso de Disponibilidad (Uptime) sin N+1
+* **Regla:** El cálculo de disponibilidad debe reflejar la ventana real con precisión de segundos sin degradar el rendimiento de la base de datos.
+* **Comportamiento:** Se calculan los segundos de caída acumulados recortando incidentes que cruzan el inicio de la ventana de 30 días (`findOverlappingIncidents`). En consultas de listado múltiple, se procesa en una única consulta SQL en lote (`findOverlappingIncidentsForServices`) agrupada en memoria.

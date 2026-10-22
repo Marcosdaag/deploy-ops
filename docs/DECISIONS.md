@@ -27,11 +27,11 @@ Este documento registra las decisiones arquitectónicas y técnicas más relevan
 
 ## ADR 03: PostgreSQL como Motor de Persistencia Relacional
 
-* **Contexto:** Necesitamos guardar datos estáticos (usuarios, servicios) y datos temporales de alta frecuencia (el historial de pings y latencias).
-* **Decisión:** Centralizar todo en **PostgreSQL**, utilizando **Supabase** para producción y contenedores Docker para el desarrollo local.
+* **Contexto:** Necesitamos guardar datos estáticos (servicios) y datos temporales de alta frecuencia (el historial de pings, latencias e incidentes).
+* **Decisión:** Centralizar todo en **PostgreSQL**, utilizando **Supabase** (Session Pooler IPv4) para producción y contenedores Docker para el desarrollo local.
 * **Justificación:**
-  * El modelo de datos es puramente relacional: un incidente le pertenece a un servicio, y un servicio tiene entornos. Usar SQL asegura que no queden datos "huérfanos" gracias a las claves foráneas (Foreign Keys).
-  * PostgreSQL es lo suficientemente robusto para manejar tablas históricas grandes en caso de decidir particionar la tabla de métricas en el futuro.
+  * El modelo de datos es puramente relacional: un incidente le pertenece a un servicio con integridad referencial garantizada por claves foráneas (*Foreign Keys*).
+  * Supabase en la nube no caduca a los 30 días y ofrece compatibilidad estándar con Spring Data JPA y Hibernate.
 
 ---
 
@@ -56,7 +56,7 @@ Para evitar la sobreingeniería y mantener el foco en la calidad del código, es
 ## ADR 06: Reportes PDF y Tareas Programadas (Scheduled Tasks)
 
 * **Contexto:** Los usuarios necesitan un resumen del estado de sus servicios sin tener que entrar a la aplicación todos los días.
-* **Decisión:** Implementar un motor de tareas programadas (`@Scheduled` o Quartz) en Spring Boot que, de forma periódica, recopile las métricas de la base de datos, genere un reporte en PDF y lo envíe por correo electrónico (JavaMailSender).
+* **Decisión:** Implementar un motor de tareas programadas (`@Scheduled` con `fixedDelay`) en Spring Boot que, de forma periódica, recopile las métricas de la base de datos, genere un reporte en PDF y lo envíe por correo electrónico.
 * **Justificación:**
   * Transforma el sistema de un "dashboard pasivo" a una herramienta verdaderamente "proactiva".
   * Demuestra capacidades técnicas corporativas en el manejo de archivos generados al vuelo (PDFs) y la ejecución asíncrona programada (Cron).
@@ -69,4 +69,25 @@ Para evitar la sobreingeniería y mantener el foco en la calidad del código, es
 * **Decisión:** Construir el ecosistema cliente utilizando **Angular** para la plataforma Web, y proyectar una aplicación móvil nativa utilizando **Angular Native** (`ng-native`).
 * **Justificación:**
   * Evita la experiencia "emulada" y pesada de los WebViews (como Ionic), garantizando un rendimiento puro y acceso directo a las Notificaciones Push del teléfono (FCM/APNs).
-  * Permite reutilizar la lógica, la inyección de dependencias y el conocimiento del framework (Angular) en ambas plataformas, demostrando un diseño de frontend altamente escalable.
+  * Permite reutilizar la lógica, la inyección de dependencias y el conocimiento del framework (Angular) en ambas plataformas.
+
+---
+
+## ADR 08: Mitigación de SSRF (Server-Side Request Forgery) en el Validador de URLs
+
+* **Contexto:** Dado que la API pública acepta una URL arbitraria para que el servidor le haga peticiones periódicas, existe el riesgo de que un atacante suministre URLs internas (`localhost`, `127.0.0.1`, `169.254.169.254`) para escanear servicios locales o la red privada del proveedor Cloud (Render).
+* **Decisión:** Implementar un componente de validación estricto (`UrlSecurityValidator`) antes de persistir o consultar cualquier URL.
+* **Justificación:**
+  * Bloquea esquemas no seguros (permite únicamente `http` y `https`).
+  * Bloquea nombres de dominio locales y endpoints de metadatos cloud.
+  * Resuelve la dirección IP mediante `InetAddress` y rechaza direcciones de loopback, site-local y link-local.
+
+---
+
+## ADR 09: Optimización de Consultas en Lote (Solución al Problema N+1)
+
+* **Contexto:** Al listar todos los endpoints en el dashboard (`GET /api/endpoints`), calcular el Uptime individualmente por cada servicio dentro del bucle provocaba una consulta SQL extra a la tabla `incidents` por cada elemento ($N+1$ queries).
+* **Decisión:** Diseñar una consulta JPQL en lote (`findOverlappingIncidentsForServices`) en `IncidentRepository` que traiga todos los incidentes relevantes de la ventana en un único viaje de red.
+* **Justificación:**
+  * Reduce la latencia de red entre el backend (Render) y la base de datos (Supabase) al pasar de $N+1$ viajes a exactamente 2 viajes fijos.
+  * Agrupa los incidentes en memoria (`Map<Long, List<IncidentEntity>>`) de forma eficiente con la API Streams de Java.
