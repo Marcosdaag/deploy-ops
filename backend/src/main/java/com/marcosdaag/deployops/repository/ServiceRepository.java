@@ -4,8 +4,13 @@ import com.marcosdaag.deployops.model.ServiceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
-    // JPA no tiene por defecto un findbyname, si tiene un buscador por ID. Por esa razon creamos uno
-    ServiceEntity findByName(String name);
+
+    Optional<ServiceEntity> findByName(String name);
+
+    // Permite comprobar si ya existe un servicio con la misma URL
+    boolean existsByUrl(String url);
 }

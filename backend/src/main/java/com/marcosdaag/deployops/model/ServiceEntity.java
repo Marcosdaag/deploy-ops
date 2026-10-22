@@ -17,10 +17,10 @@ public class ServiceEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String url;
 
     // Guarda el texto del enum en la base de datos (PENDING, HEALTHY, etc.)
@@ -34,6 +34,9 @@ public class ServiceEntity {
 
     @Column(nullable = false)
     private int consecutiveSuccesses = 0;
+
+    // Latencia en milisegundos del ultimo ping realizado
+    private Long lastResponseTimeMs;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -28,7 +28,8 @@ public class HttpMonitorService {
     public PingResult ping(String url) {
         long startNano = System.nanoTime();
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            // Usamos Void.class para no descargar el cuerpo HTML a la RAM, solo leemos el status code
+            ResponseEntity<Void> response = restTemplate.getForEntity(url, Void.class);
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
             int statusCode = response.getStatusCode().value();
             boolean isAlive = response.getStatusCode().is2xxSuccessful();

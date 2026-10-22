@@ -38,7 +38,7 @@ public class MonitoringScheduler {
                             result.responseTimeMs(), service.getName(), service.getUrl(), result.errorMessage());
                 }
 
-                endpointManager.processPingResult(service, result.isAlive());
+                endpointManager.processPingResult(service, result);
 
             } catch (Exception e) {
                 logger.error("Error al chequear servicio {}: {}", service.getName(), e.getMessage());

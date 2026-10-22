@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,11 +36,19 @@ public class EndpointManagerService {
     // Crea un "servicio" o endpoint a vigilar
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
-        urlSecurityValidator.validatePublicUrl(dto.getUrl());
+        String cleanUrl = dto.getUrl().trim();
+
+        // 1. Validamos que la URL sea segura y no apunte a redes internas (SSRF)
+        urlSecurityValidator.validatePublicUrl(cleanUrl);
+
+        // 2. Validamos que no se registre dos veces la misma URL
+        if (serviceRepository.existsByUrl(cleanUrl)) {
+            throw new IllegalArgumentException("Ya existe un servicio registrado con esa URL.");
+        }
 
         ServiceEntity newEndpoint = new ServiceEntity();
         newEndpoint.setName(dto.getName().trim());
-        newEndpoint.setUrl(dto.getUrl().trim());
+        newEndpoint.setUrl(cleanUrl);
         newEndpoint.setStatus(ServiceStatus.PENDING); // Arranca en PENDING hasta el primer ping
         newEndpoint.setConsecutiveFailures(0);
         newEndpoint.setConsecutiveSuccesses(0);
@@ -63,11 +73,14 @@ public class EndpointManagerService {
         return serviceRepository.findAll();
     }
 
+    // Carga los datos del dashboard calculando los uptimes en bloque (evita problema N+1)
     public List<EndpointResponseDTO> getDashboardData() {
         List<ServiceEntity> services = serviceRepository.findAll();
+        Map<Long, Double> uptimes = metricsService.calculateUptimesForServices(services);
+
         return services.stream()
                 .map(service -> {
-                    double uptime = metricsService.calculateUptimePercentage(service);
+                    double uptime = uptimes.getOrDefault(service.getId(), 0.0);
                     return new EndpointResponseDTO(service, uptime);
                 })
                 .toList();
@@ -75,10 +88,17 @@ public class EndpointManagerService {
 
     // Evalua que hacer con el resultado del pingeo y gestiona incidentes
     @Transactional
-    public void processPingResult(ServiceEntity service, boolean isAlive) {
-        service.setLastCheckedAt(LocalDateTime.now());
+    public void processPingResult(ServiceEntity service, PingResult pingResult) {
+        // Evitamos condicion de carrera: si el servicio fue borrado mientras viajaba el ping, no lo resucitamos
+        if (service.getId() != null && !serviceRepository.existsById(service.getId())) {
+            logger.warn("El servicio {} (ID {}) ya no existe en la base de datos. Se descarta la actualizacion.", service.getName(), service.getId());
+            return;
+        }
 
-        if (isAlive) {
+        service.setLastCheckedAt(LocalDateTime.now());
+        service.setLastResponseTimeMs(pingResult.responseTimeMs());
+
+        if (pingResult.isAlive()) {
             handleSuccessfulPing(service);
         } else {
             handleFailedPing(service);

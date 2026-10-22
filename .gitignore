@@ -1,0 +1,6 @@
+# Archivos temporales e informes internos
+DeployOps.pdf
+
+# Variables de entorno locales
+.env
+.env.local

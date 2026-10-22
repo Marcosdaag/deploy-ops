@@ -1,6 +1,7 @@
 package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
+import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
@@ -45,6 +46,9 @@ class EndpointManagerServiceTest {
 
     private ServiceEntity service;
 
+    private final PingResult successPing = PingResult.success(200, 120L);
+    private final PingResult failedPing = PingResult.failure(500, 300L, "Internal Server Error");
+
     @BeforeEach
     void setUp() {
         service = new ServiceEntity();
@@ -57,32 +61,40 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("Al crear un servicio arranca en PENDING y bloquea localhost")
-    void whenCreatingEndpoint_shouldInitializeAsPendingAndBlockLocalhost() {
+    @DisplayName("Al crear un servicio arranca en PENDING, bloquea localhost y rechaza URLs duplicadas")
+    void whenCreatingEndpoint_shouldInitializeAsPendingAndBlockInvalidUrls() {
         EndpointCreateDTO validDto = new EndpointCreateDTO();
         validDto.setName("GitHub API");
         validDto.setUrl("https://api.github.com");
 
+        when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(false);
         when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ServiceEntity created = endpointManagerService.createEndpoint(validDto);
         assertEquals(ServiceStatus.PENDING, created.getStatus());
 
+        // SSRF hacia localhost debe fallar
         EndpointCreateDTO ssrfDto = new EndpointCreateDTO();
         ssrfDto.setName("Servidor Interno");
         ssrfDto.setUrl("http://localhost:8080/actuator");
-
         assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(ssrfDto));
+
+        // URL duplicada debe fallar
+        when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(validDto));
     }
 
     @Test
-    @DisplayName("1er fallo: pasa de HEALTHY a DEGRADED sin abrir incidente")
+    @DisplayName("1er fallo: pasa de HEALTHY a DEGRADED sin abrir incidente y guarda latencia")
     void whenPingFailsOnce_shouldTransitionToDegradedWithoutOpeningIncident() {
-        endpointManagerService.processPingResult(service, false);
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+
+        endpointManagerService.processPingResult(service, failedPing);
 
         assertEquals(ServiceStatus.DEGRADED, service.getStatus());
         assertEquals(1, service.getConsecutiveFailures());
         assertEquals(0, service.getConsecutiveSuccesses());
+        assertEquals(300L, service.getLastResponseTimeMs());
         assertNotNull(service.getLastCheckedAt());
 
         verify(serviceRepository).save(service);
@@ -92,10 +104,11 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("2do fallo seguido: sigue en DEGRADED sin abrir incidente")
     void whenPingFailsTwiceConsecutively_shouldRemainDegraded() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(1);
 
-        endpointManagerService.processPingResult(service, false);
+        endpointManagerService.processPingResult(service, failedPing);
 
         assertEquals(ServiceStatus.DEGRADED, service.getStatus());
         assertEquals(2, service.getConsecutiveFailures());
@@ -105,12 +118,13 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("3er fallo seguido: pasa a DOWN y abre incidente ONGOING")
     void whenPingFailsThreeTimes_shouldTransitionToDownAndOpenIncident() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(2);
         when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING))
                 .thenReturn(Optional.empty());
 
-        endpointManagerService.processPingResult(service, false);
+        endpointManagerService.processPingResult(service, failedPing);
 
         assertEquals(ServiceStatus.DOWN, service.getStatus());
         assertEquals(3, service.getConsecutiveFailures());
@@ -128,24 +142,27 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("Falsa alarma: si esta en DEGRADED y responde bien, vuelve a HEALTHY")
     void whenDegradedServiceSucceeds_shouldRecoverDirectlyToHealthy() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(2);
 
-        endpointManagerService.processPingResult(service, true);
+        endpointManagerService.processPingResult(service, successPing);
 
         assertEquals(ServiceStatus.HEALTHY, service.getStatus());
         assertEquals(0, service.getConsecutiveFailures());
         assertEquals(1, service.getConsecutiveSuccesses());
+        assertEquals(120L, service.getLastResponseTimeMs());
         verify(incidentRepository, never()).save(any(IncidentEntity.class));
     }
 
     @Test
     @DisplayName("1er exito tras caida: pasa de DOWN a RECOVERING")
     void whenDownServiceSucceedsOnce_shouldTransitionToRecovering() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DOWN);
         service.setConsecutiveFailures(3);
 
-        endpointManagerService.processPingResult(service, true);
+        endpointManagerService.processPingResult(service, successPing);
 
         assertEquals(ServiceStatus.RECOVERING, service.getStatus());
         assertEquals(0, service.getConsecutiveFailures());
@@ -156,6 +173,7 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("2do exito seguido tras caida: vuelve a HEALTHY y cierra el incidente")
     void whenRecoveringServiceSucceedsSecondTime_shouldTransitionToHealthyAndCloseIncident() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.RECOVERING);
         service.setConsecutiveSuccesses(1);
 
@@ -168,7 +186,7 @@ class EndpointManagerServiceTest {
         when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING))
                 .thenReturn(Optional.of(ongoingIncident));
 
-        endpointManagerService.processPingResult(service, true);
+        endpointManagerService.processPingResult(service, successPing);
 
         assertEquals(ServiceStatus.HEALTHY, service.getStatus());
         assertEquals(2, service.getConsecutiveSuccesses());
@@ -181,10 +199,11 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("Recaida: si falla estando en RECOVERING vuelve a DOWN")
     void whenRecoveringServiceFails_shouldRelapseToDown() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.RECOVERING);
         service.setConsecutiveSuccesses(1);
 
-        endpointManagerService.processPingResult(service, false);
+        endpointManagerService.processPingResult(service, failedPing);
 
         assertEquals(ServiceStatus.DOWN, service.getStatus());
         assertEquals(1, service.getConsecutiveFailures());
@@ -203,5 +222,15 @@ class EndpointManagerServiceTest {
 
         when(serviceRepository.existsById(999L)).thenReturn(false);
         assertThrows(ResourceNotFoundException.class, () -> endpointManagerService.deleteEndpoint(999L));
+    }
+
+    @Test
+    @DisplayName("Condicion de carrera: si el servicio fue borrado durante el ping, se descarta el guardado")
+    void whenServiceWasDeletedDuringPing_shouldNotSave() {
+        when(serviceRepository.existsById(1L)).thenReturn(false);
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(serviceRepository, never()).save(any(ServiceEntity.class));
     }
 }

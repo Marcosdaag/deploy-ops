@@ -23,9 +23,13 @@ public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> 
 
     List<IncidentEntity> findByServiceAndStartedAtAfter(ServiceEntity service, LocalDateTime startedAt);
 
-    // Trae los incidentes que estuvieron activos dentro de la ventana de tiempo
+    // Trae los incidentes que estuvieron activos dentro de la ventana de tiempo para un solo servicio
     @Query("SELECT i FROM IncidentEntity i WHERE i.service = :service AND (i.resolvedAt IS NULL OR i.resolvedAt > :windowStart)")
     List<IncidentEntity> findOverlappingIncidents(@Param("service") ServiceEntity service, @Param("windowStart") LocalDateTime windowStart);
+
+    // Consulta en lote para evitar el problema de N+1 queries al listar el dashboard
+    @Query("SELECT i FROM IncidentEntity i WHERE i.service IN :services AND (i.resolvedAt IS NULL OR i.resolvedAt > :windowStart)")
+    List<IncidentEntity> findOverlappingIncidentsForServices(@Param("services") List<ServiceEntity> services, @Param("windowStart") LocalDateTime windowStart);
 
     // Borra los incidentes asociados a un servicio antes de borrar el servicio
     void deleteByServiceId(Long serviceId);

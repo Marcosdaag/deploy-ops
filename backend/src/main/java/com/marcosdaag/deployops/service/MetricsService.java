@@ -9,7 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,29 +18,62 @@ public class MetricsService {
 
     private final IncidentRepository incidentRepository;
 
-    // Calcula el porcentaje de Uptime de los ultimos 30 dias
+    // Calcula el porcentaje de Uptime de un servicio consultando sus incidentes individuales
     public double calculateUptimePercentage(ServiceEntity service) {
-        // Si todavia no se le hizo el primer ping, devolvemos 0%
         if (service.getStatus() == ServiceStatus.PENDING && service.getLastCheckedAt() == null) {
             return 0.0;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime thirtyDaysAgo = now.minusDays(30);
-
-        // Si el servicio se creo hace menos de 30 dias, calculamos desde su fecha de creacion
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         LocalDateTime windowStart = (service.getCreatedAt() != null && service.getCreatedAt().isAfter(thirtyDaysAgo))
                 ? service.getCreatedAt()
                 : thirtyDaysAgo;
 
+        List<IncidentEntity> incidents = incidentRepository.findOverlappingIncidents(service, windowStart);
+        return calculateUptimeFromIncidents(service, incidents, windowStart);
+    }
+
+    // Calcula los uptimes de todos los servicios en una sola consulta grupal para evitar el problema N+1
+    public Map<Long, Double> calculateUptimesForServices(List<ServiceEntity> services) {
+        if (services.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        List<IncidentEntity> allIncidents = incidentRepository.findOverlappingIncidentsForServices(services, thirtyDaysAgo);
+
+        // Agrupamos los incidentes por el ID de cada servicio en memoria
+        Map<Long, List<IncidentEntity>> incidentsByServiceId = allIncidents.stream()
+                .filter(i -> i.getService() != null && i.getService().getId() != null)
+                .collect(Collectors.groupingBy(i -> i.getService().getId()));
+
+        Map<Long, Double> result = new HashMap<>();
+        for (ServiceEntity service : services) {
+            if (service.getStatus() == ServiceStatus.PENDING && service.getLastCheckedAt() == null) {
+                result.put(service.getId(), 0.0);
+                continue;
+            }
+
+            LocalDateTime windowStart = (service.getCreatedAt() != null && service.getCreatedAt().isAfter(thirtyDaysAgo))
+                    ? service.getCreatedAt()
+                    : thirtyDaysAgo;
+
+            List<IncidentEntity> serviceIncidents = incidentsByServiceId.getOrDefault(service.getId(), Collections.emptyList());
+            double uptime = calculateUptimeFromIncidents(service, serviceIncidents, windowStart);
+            result.put(service.getId(), uptime);
+        }
+
+        return result;
+    }
+
+    // Metodo auxiliar para hacer la cuenta matematica del Uptime
+    private double calculateUptimeFromIncidents(ServiceEntity service, List<IncidentEntity> incidents, LocalDateTime windowStart) {
+        LocalDateTime now = LocalDateTime.now();
         long totalWindowSeconds = Duration.between(windowStart, now).toSeconds();
 
         if (totalWindowSeconds <= 0) {
             return service.getStatus() == ServiceStatus.DOWN ? 0.0 : 100.0;
         }
-
-        // Buscamos los incidentes de este servicio dentro de la ventana de tiempo
-        List<IncidentEntity> incidents = incidentRepository.findOverlappingIncidents(service, windowStart);
 
         long totalDowntimeSeconds = 0;
 
@@ -48,7 +82,6 @@ public class MetricsService {
                     ? windowStart
                     : incident.getStartedAt();
 
-            // Si sigue ONGOING, calculamos hasta el momento actual
             LocalDateTime effectiveEnd = (incident.getResolvedAt() != null && incident.getResolvedAt().isBefore(now))
                     ? incident.getResolvedAt()
                     : now;
@@ -62,7 +95,7 @@ public class MetricsService {
             return 0.0;
         }
 
-        // Formula de Uptime: ((Total - Caida) / Total) * 100
+        // Formula: ((Total - Caida) / Total) * 100
         double uptime = ((double) (totalWindowSeconds - totalDowntimeSeconds) / totalWindowSeconds) * 100.0;
         double rounded = Math.round(uptime * 100.0) / 100.0;
 
