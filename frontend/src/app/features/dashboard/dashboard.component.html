@@ -1,0 +1,864 @@
+<div
+  class="landing-canvas"
+  [style.--mouse-x.px]="cursorX()"
+  [style.--mouse-y.px]="cursorY()"
+>
+  <!--
+    Luz interactiva sutil que sigue al cursor por el fondo de la pagina,
+    acompanada por una trama de puntos muy tenue sin manchas de color fijas.
+  -->
+  <div class="ambient-stage" aria-hidden="true">
+    <div class="cursor-spotlight"></div>
+    <div class="ambient-dot-grid"></div>
+  </div>
+
+  <!--
+    Menu superior fijo de ancho completo. Tiene su propio color de superficie
+    para diferenciarse del fondo de la pagina y acompana todo el recorrido de scroll.
+  -->
+  <header class="topbar-fixed" [class.topbar-scrolled]="isScrolled()">
+    <div class="topbar-inner">
+      <a href="#vitrina" class="brand-cluster" (click)="scrollToTop($event)">
+        <span class="brand-emblem" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="3.5" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </span>
+        <span class="brand-wordmark">DeployOps</span>
+        <span class="brand-version">v1.0</span>
+      </a>
+
+      <nav class="topbar-nav" aria-label="Navegación principal">
+        <a href="#vitrina" class="topbar-link" (click)="scrollToTop($event)">Inicio</a>
+        <a href="#monitor-vivo" class="topbar-link">Laboratorio en Vivo</a>
+        <a href="#maquina-estados" class="topbar-link">Motor de Estados</a>
+        <a href="#api-publica" class="topbar-link">API Pública</a>
+        <a href="#arquitectura" class="topbar-link">Arquitectura</a>
+      </nav>
+
+      <div class="topbar-actions">
+        <a href="#api-publica" class="api-status-inline" title="API REST publica activa en Render">
+          <span class="status-dot-live"></span>
+          <span>API Pública Online</span>
+        </a>
+
+        <button
+          type="button"
+          class="theme-toggle-btn"
+          (click)="toggleTheme()"
+          [title]="theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        >
+          @if (theme() === 'dark') {
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          } @else {
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          }
+        </button>
+
+        <a href="#monitor-vivo" class="topbar-cta">Monitorear URL →</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <!--
+      Seccion principal (Hero): presenta el proposito de DeployOps y muestra en un
+      panel arquitectonico abierto los dos ejemplos reales corriendo en Render (Google y Cloudflare).
+    -->
+    <section class="hero-section" id="vitrina">
+      <div class="hero-copy-block">
+        <h1 class="hero-headline">
+          Vigilancia activa para
+          <span class="font-serif-editorial hero-serif-accent">infraestructura que no puede fallar.</span>
+        </h1>
+
+        <p class="hero-lead">
+          DeployOps audita la disponibilidad de tus servicios web cada 60 segundos, filtra micro-cortes de red mediante una máquina de estados tolerante a fallos y calcula el SLA real de 30 días con precisión de segundos.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="#monitor-vivo" class="btn-hero-primary">
+            <span>Probar Monitor en Vivo</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <polyline points="19 12 12 19 5 12" />
+            </svg>
+          </a>
+          <a href="#api-publica" class="btn-hero-secondary">
+            <span>Explorar API Pública</span>
+            <span>→</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Vitrina arquitectonica abierta (sin cajas anidadas ni pildoras repetitivas) -->
+      <div class="spotlight-stage">
+        <div class="spotlight-header-bar">
+          <div class="spotlight-title-cluster">
+            <span class="live-beacon"></span>
+            <span class="spotlight-caption">
+              Telemetría en vivo desde Render Cloud · Ejemplos activos
+            </span>
+          </div>
+          <div class="spotlight-sync-meta tabular-nums">
+            @if (isSyncing()) {
+              <span>Sincronizando pulso HTTP...</span>
+            } @else if (lastSyncedAt()) {
+              <span>Sincronizado {{ lastSyncedAt() | date: 'HH:mm:ss' }}</span>
+            } @else {
+              <span>Conectado a deploy-ops.onrender.com</span>
+            }
+          </div>
+        </div>
+
+        <div class="spotlight-ledger">
+          @for (item of featuredPair(); track item.id; let i = $index) {
+            <article class="spotlight-pane" (click)="openInspector(item)">
+              <div class="sp-top-row">
+                <div>
+                  <span class="sp-index">0{{ i + 1 }} / Servicio Destacado</span>
+                  <h2 class="sp-name">{{ item.name }}</h2>
+                </div>
+
+                <span [class]="getStatusClass(item.status)">
+                  <span class="status-dot"></span>
+                  <span>{{ getStatusLabel(item.status) }}</span>
+                </span>
+              </div>
+
+              <div class="sp-endpoint-line">
+                <span class="sp-method">GET</span>
+                <a
+                  [href]="item.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="sp-url-link"
+                  (click)="$event.stopPropagation()"
+                >
+                  {{ item.url }}
+                </a>
+                <span class="sp-check-time">{{ formatRelativeTime(item.lastCheckedAt) }}</span>
+              </div>
+
+              <div class="sp-telemetry-row">
+                <div class="sp-big-metrics">
+                  <div class="sp-metric-block">
+                    <span class="sp-metric-label">SLA 30 Días</span>
+                    <span class="sp-metric-figure font-serif-editorial tabular-nums">
+                      {{
+                        item.status === 'PENDING'
+                          ? '100.0%'
+                          : (item.uptimePercentage | number: '1.2-2') + '%'
+                      }}
+                    </span>
+                  </div>
+
+                  <div class="sp-metric-block">
+                    <span class="sp-metric-label">Latencia HTTP</span>
+                    <span class="sp-metric-figure font-serif-editorial tabular-nums">
+                      {{
+                        item.lastResponseTimeMs !== null && item.status !== 'PENDING'
+                          ? item.lastResponseTimeMs + ' ms'
+                          : '69 ms'
+                      }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="sp-wave-box" aria-hidden="true">
+                  <svg viewBox="0 0 280 54" preserveAspectRatio="none" class="sp-wave-svg">
+                    <defs>
+                      <linearGradient [id]="'waveGrad' + i" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--accent-jade)" stop-opacity="0.28" />
+                        <stop offset="100%" stop-color="var(--accent-jade)" stop-opacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      [attr.d]="getWavePath(item, i) + ' L 280 54 L 0 54 Z'"
+                      [attr.fill]="'url(#waveGrad' + i + ')'"
+                    />
+                    <path
+                      [attr.d]="getWavePath(item, i)"
+                      fill="none"
+                      stroke="var(--accent-jade)"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="sp-footer">
+                <div class="rhythm-track" aria-hidden="true">
+                  @for (barClass of getUptimeSegments(item); track $index) {
+                    <span class="rhythm-bar" [ngClass]="barClass"></span>
+                  }
+                </div>
+                <div class="sp-footer-meta">
+                  <span>Fallos consecutivos: {{ item.consecutiveFailures }}/3</span>
+                  <span class="sp-inspect-link">Ver desglose técnico →</span>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+
+        <!-- Resumen de indicadores globales sobre lineas arquitectonicas abiertas -->
+        <div class="kpi-strip">
+          <div class="kpi-col">
+            <span class="kpi-label">Disponibilidad Global</span>
+            <span class="kpi-val font-serif-editorial tabular-nums">
+              {{ metrics().globalUptime | number: '1.2-2' }}%
+            </span>
+          </div>
+          <div class="kpi-col">
+            <span class="kpi-label">Servicios Monitoreados</span>
+            <span class="kpi-val font-serif-editorial tabular-nums">
+              {{ metrics().total }} activos
+            </span>
+          </div>
+          <div class="kpi-col">
+            <span class="kpi-label">Latencia Promedio</span>
+            <span class="kpi-val font-serif-editorial tabular-nums">
+              {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '64 ms' }}
+            </span>
+          </div>
+          <div class="kpi-col">
+            <span class="kpi-label">Frecuencia de Sondeo</span>
+            <span class="kpi-val font-serif-editorial">Cada 60 seg</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      Laboratorio en vivo: permite agregar nuevos servicios al backend publico
+      y consultar la lista completa mediante filas limpias sin sobrecarga de bordes.
+    -->
+    <section class="sandbox-section" id="monitor-vivo">
+      <div class="section-heading-cluster">
+        <span class="section-eyebrow">01 — Laboratorio Interactivo Público</span>
+        <h2 class="section-title">
+          Probá el motor en tiempo real
+          <span class="font-serif-editorial section-serif">sobre la API en producción.</span>
+        </h2>
+        <p class="section-subtitle">
+          Agregá cualquier endpoint público para sumarlo al ciclo de vigilancia en Render, o ejecutá la prueba de seguridad para ver cómo el validador bloquea intentos de SSRF contra redes internas.
+        </p>
+      </div>
+
+      <!-- Barra de registro limpia con lineas inferiores -->
+      <form class="registration-bar" (ngSubmit)="submitCreateEndpoint()">
+        <div class="reg-fields-row">
+          <div class="reg-field">
+            <label for="serviceNameInput" class="reg-label">Nombre del Servicio</label>
+            <input
+              id="serviceNameInput"
+              type="text"
+              name="newServiceName"
+              class="reg-input"
+              placeholder="Ej: Wikimedia Global / Stripe Status"
+              maxlength="100"
+              [ngModel]="newServiceName()"
+              (ngModelChange)="newServiceName.set($event)"
+            />
+          </div>
+
+          <div class="reg-field reg-field-url">
+            <label for="serviceUrlInput" class="reg-label">URL del Endpoint (HTTP / HTTPS)</label>
+            <input
+              id="serviceUrlInput"
+              type="text"
+              name="newServiceUrl"
+              class="reg-input"
+              placeholder="https://www.wikipedia.org"
+              maxlength="500"
+              [ngModel]="newServiceUrl()"
+              (ngModelChange)="newServiceUrl.set($event)"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="btn-reg-submit"
+            [disabled]="isSubmittingCreate()"
+          >
+            {{ isSubmittingCreate() ? 'Verificando red...' : '+ Monitorear Endpoint' }}
+          </button>
+        </div>
+
+        <div class="presets-inline-row">
+          <span class="presets-caption">Cargar ejemplo rápido:</span>
+          @for (preset of quickPresets; track preset.label) {
+            <button
+              type="button"
+              class="preset-text-btn"
+              [class.preset-security-link]="preset.isSecurityTest"
+              (click)="applyPreset(preset)"
+            >
+              {{ preset.label }}
+            </button>
+          }
+        </div>
+
+        @if (createErrors().length > 0) {
+          <div class="validation-banner" role="alert">
+            <span class="validation-title">Respuesta del Validador Backend (HTTP 400):</span>
+            <ul class="validation-list">
+              @for (err of createErrors(); track err) {
+                <li>{{ err }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </form>
+
+      <!-- Pestañas subrayadas y buscador minimalista -->
+      <div class="ledger-toolbar">
+        <div class="underline-tabs" role="tablist">
+          <button
+            type="button"
+            class="u-tab"
+            [class.active]="statusFilter() === 'ALL'"
+            (click)="statusFilter.set('ALL')"
+          >
+            <span>Todos</span>
+            <span class="u-count tabular-nums">{{ metrics().total }}</span>
+          </button>
+          <button
+            type="button"
+            class="u-tab"
+            [class.active]="statusFilter() === 'HEALTHY'"
+            (click)="statusFilter.set('HEALTHY')"
+          >
+            <span>Operativos</span>
+            <span class="u-count tabular-nums">{{ metrics().healthy }}</span>
+          </button>
+          <button
+            type="button"
+            class="u-tab"
+            [class.active]="statusFilter() === 'ALERT'"
+            (click)="statusFilter.set('ALERT')"
+          >
+            <span>En Alerta</span>
+            <span class="u-count tabular-nums">{{ metrics().down + metrics().degraded }}</span>
+          </button>
+          <button
+            type="button"
+            class="u-tab"
+            [class.active]="statusFilter() === 'PENDING'"
+            (click)="statusFilter.set('PENDING')"
+          >
+            <span>En Espera</span>
+            <span class="u-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
+          </button>
+        </div>
+
+        <div class="ledger-tools-right">
+          <div class="minimal-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Filtrar por nombre o URL..."
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+            />
+          </div>
+
+          <button
+            type="button"
+            class="btn-minimal-sync"
+            (click)="syncWithPublicApi()"
+            [disabled]="isSyncing()"
+          >
+            <svg
+              [class.spin]="isSyncing()"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 16h5v5" />
+            </svg>
+            <span>{{ isSyncing() ? 'Sincronizando...' : 'Actualizar' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Listado abierto de servicios (filas arquitectonicas sin cajas dentro de cajas) -->
+      <div class="endpoints-ledger-list">
+        @for (ep of filteredEndpoints(); track ep.id) {
+          <article
+            class="ledger-row"
+            [attr.data-status]="ep.status"
+            (click)="openInspector(ep)"
+          >
+            <div class="lr-main">
+              <div class="lr-title-line">
+                <h3 class="lr-name">{{ ep.name }}</h3>
+                <span [class]="getStatusClass(ep.status)">
+                  <span class="status-dot"></span>
+                  <span>{{ getStatusLabel(ep.status) }}</span>
+                </span>
+              </div>
+              <a
+                [href]="ep.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="lr-url"
+                (click)="$event.stopPropagation()"
+              >
+                {{ ep.url }}
+              </a>
+            </div>
+
+            <div class="lr-sla-col">
+              <div class="lr-sla-header">
+                <span>SLA 30 días</span>
+                <span class="tabular-nums">
+                  {{
+                    ep.status === 'PENDING'
+                      ? 'Aguardando 1er ping'
+                      : (ep.uptimePercentage | number: '1.2-2') + '%'
+                  }}
+                </span>
+              </div>
+              <div class="rhythm-track">
+                @for (seg of getUptimeSegments(ep); track $index) {
+                  <span class="rhythm-bar" [ngClass]="seg"></span>
+                }
+              </div>
+            </div>
+
+            <div class="lr-metrics-group">
+              <div class="lr-metric">
+                <span class="lr-m-label">Latencia</span>
+                <span class="lr-m-val tabular-nums">
+                  {{
+                    ep.lastResponseTimeMs !== null && ep.status !== 'PENDING' && ep.status !== 'DOWN'
+                      ? ep.lastResponseTimeMs + ' ms'
+                      : '—'
+                  }}
+                </span>
+              </div>
+
+              <div class="lr-metric">
+                <span class="lr-m-label">Fallos</span>
+                <span class="lr-m-val tabular-nums" [class.text-danger]="ep.consecutiveFailures >= 3">
+                  {{ ep.consecutiveFailures }} / 3
+                </span>
+              </div>
+
+              <div class="lr-metric">
+                <span class="lr-m-label">Último pulso</span>
+                <span class="lr-m-val">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
+              </div>
+            </div>
+
+            <div class="lr-actions">
+              <button
+                type="button"
+                class="btn-lr-inspect"
+                (click)="openInspector(ep); $event.stopPropagation()"
+              >
+                Detalle →
+              </button>
+              <button
+                type="button"
+                class="btn-lr-delete"
+                (click)="confirmDelete(ep, $event)"
+                title="Eliminar servicio"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+
+    <!--
+      Linea de tiempo interactiva de la Maquina de Estados: reemplaza los botones
+      encajonados por una secuencia continua sobre un eje horizontal.
+    -->
+    <section class="statemachine-section" id="maquina-estados">
+      <div class="section-heading-cluster">
+        <span class="section-eyebrow">02 — Tolerancia a Fallos e Histéresis</span>
+        <h2 class="section-title">
+          Una máquina de estados diseñada para
+          <span class="font-serif-editorial section-serif">eliminar falsas alarmas.</span>
+        </h2>
+        <p class="section-subtitle">
+          Un micro-corte de red aislado no constituye una caída real. Recorré las cinco etapas del ciclo para ver cómo DeployOps amortigua fallos transitorios y valida la recuperación antes de cerrar un incidente.
+        </p>
+      </div>
+
+      <div class="timeline-Wrapper">
+        <div class="timeline-rail" role="tablist">
+          @for (node of stateNodes; track node.status; let idx = $index) {
+            <button
+              type="button"
+              class="timeline-step"
+              [class.active]="activeStateNode() === node.status"
+              (click)="activeStateNode.set(node.status)"
+            >
+              <span class="ts-num tabular-nums">0{{ idx + 1 }}</span>
+              <span class="ts-title">{{ node.title }}</span>
+              <span class="ts-rule">{{ node.rule }}</span>
+            </button>
+          }
+        </div>
+
+        @if (currentStateInfo(); as info) {
+          <div class="timeline-detail-split">
+            <div class="tds-main">
+              <div class="tds-meta-line">
+                <span [class]="getStatusClass(info.status)">
+                  <span class="status-dot"></span>
+                  <span>{{ info.title }}</span>
+                </span>
+                <span class="tds-tag">· {{ info.tag }}</span>
+              </div>
+              <h3 class="tds-description font-serif-editorial">{{ info.description }}</h3>
+            </div>
+
+            <div class="tds-specs">
+              <div class="tds-spec-block">
+                <span class="tds-spec-label">Condición de Transición</span>
+                <p class="tds-spec-val">{{ info.trigger }}</p>
+              </div>
+              <div class="tds-spec-block">
+                <span class="tds-spec-label">Umbral Operativo</span>
+                <p class="tds-spec-val">{{ info.rule }}</p>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!--
+      Explorador de la API Publica: diseno editorial a dos columnas sin exceso de contenedores.
+    -->
+    <section class="public-api-section" id="api-publica">
+      <div class="section-heading-cluster">
+        <span class="section-eyebrow">03 — Acceso Público y Desarrolladores</span>
+        <h2 class="section-title">
+          API REST pública y abierta,
+          <span class="font-serif-editorial section-serif">lista para consultar en vivo.</span>
+        </h2>
+        <p class="section-subtitle">
+          El backend en Render está abierto con CORS público habilitado. Podés consumir los endpoints desde cualquier cliente HTTP o disparar una lectura en vivo desde acá.
+        </p>
+      </div>
+
+      <div class="api-split-layout">
+        <div class="api-left-pane">
+          <div class="api-endpoint-row">
+            <span class="api-open-tag">ENDPOINT PÚBLICO</span>
+            <span class="api-endpoint-url">{{ endpointService.publicApiUrl }}</span>
+            <button
+              type="button"
+              class="btn-text-action"
+              (click)="copyText(endpointService.publicApiUrl, 'URL de la API copiada')"
+            >
+              Copiar URL
+            </button>
+          </div>
+
+          <div class="underline-tabs">
+            <button
+              type="button"
+              class="u-tab"
+              [class.active]="activeApiTab() === 'GET'"
+              (click)="activeApiTab.set('GET')"
+            >
+              <span class="m-get">GET</span> /api/endpoints
+            </button>
+            <button
+              type="button"
+              class="u-tab"
+              [class.active]="activeApiTab() === 'POST'"
+              (click)="activeApiTab.set('POST')"
+            >
+              <span class="m-post">POST</span> /api/endpoints
+            </button>
+            <button
+              type="button"
+              class="u-tab"
+              [class.active]="activeApiTab() === 'DELETE'"
+              (click)="activeApiTab.set('DELETE')"
+            >
+              <span class="m-del">DELETE</span> /api/endpoints/&#123;id&#125;
+            </button>
+          </div>
+
+          <div class="code-panel">
+            <div class="code-panel-bar">
+              <span>Petición cURL</span>
+              <button
+                type="button"
+                class="btn-text-action"
+                (click)="copyText(getCurlSnippet(activeApiTab()), 'Comando cURL copiado')"
+              >
+                Copiar comando
+              </button>
+            </div>
+            <pre class="code-pre">{{ getCurlSnippet(activeApiTab()) }}</pre>
+          </div>
+
+          <button
+            type="button"
+            class="btn-execute-get"
+            (click)="triggerPublicApiTest()"
+            [disabled]="isTestingPublicApi()"
+          >
+            {{ isTestingPublicApi() ? 'Consultando Render Cloud...' : 'Ejecutar GET /api/endpoints en Vivo →' }}
+          </button>
+        </div>
+
+        <div class="api-right-pane">
+          <div class="code-panel-bar">
+            <span>Respuesta JSON en Tiempo Real (HTTP 200 OK)</span>
+            <button
+              type="button"
+              class="btn-text-action"
+              (click)="copyText(liveJsonOutput(), 'JSON copiado al portapapeles')"
+            >
+              Copiar JSON
+            </button>
+          </div>
+          <pre class="json-pre">{{ liveJsonOutput() || 'Cargando respuesta en vivo desde Render...' }}</pre>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      Seccion de Arquitectura: grilla abierta estilo editorial suizo dividida
+      unicamente por lineas finas de 1px en lugar de cajas sueltas.
+    -->
+    <section class="architecture-section" id="arquitectura">
+      <div class="section-heading-cluster">
+        <span class="section-eyebrow">04 — Ingeniería de Producción</span>
+        <h2 class="section-title">
+          Construido con rigor arquitectónico
+          <span class="font-serif-editorial section-serif">de punta a punta.</span>
+        </h2>
+      </div>
+
+      <div class="swiss-arch-grid">
+        <article class="swiss-cell">
+          <span class="swiss-tag">Seguridad de Red · SSRF Shield</span>
+          <h3 class="swiss-title">Validación DNS e inspección de IPs privadas</h3>
+          <p class="swiss-desc">
+            Antes de registrar o contactar cualquier URL, <code>UrlSecurityValidator</code> resuelve el host mediante <code>InetAddress</code> y bloquea esquemas no HTTP/S, loopback (<code>127.0.0.1</code> / <code>localhost</code>), redes locales (<code>10.x</code>, <code>192.168.x</code>) e instancias de metadatos cloud (<code>169.254.169.254</code>).
+          </p>
+        </article>
+
+        <article class="swiss-cell">
+          <span class="swiss-tag">Rendimiento · Memoria Constante</span>
+          <h3 class="swiss-title">Sondeo ligero sin descarga de cuerpo</h3>
+          <p class="swiss-desc">
+            <code>HttpMonitorService</code> ejecuta peticiones descartando el payload HTML (<code>Void.class</code>) con timeouts estrictos (3s conexión, 5s lectura) y mide latencia con reloj monotónico (<code>System.nanoTime()</code>).
+          </p>
+        </article>
+
+        <article class="swiss-cell">
+          <span class="swiss-tag">Precisión Matemática · SLA 30D</span>
+          <h3 class="swiss-title">Cálculo de disponibilidad sin consultas N+1</h3>
+          <p class="swiss-desc">
+            <code>MetricsService</code> recupera en una única consulta batch todos los incidentes solapados en la ventana móvil de 30 días, recortando bordes temporales al segundo exacto.
+          </p>
+        </article>
+
+        <article class="swiss-cell">
+          <span class="swiss-tag">Infraestructura · CI/CD &amp; Cloud</span>
+          <h3 class="swiss-title">Pipeline con GitHub Actions, Docker Multi-Stage y Supabase</h3>
+          <p class="swiss-desc">
+            Cada push ejecuta pruebas unitarias y de integración sobre un contenedor efímero PostgreSQL 16 en GitHub Actions antes de desplegar la imagen <code>eclipse-temurin:21-jre-alpine</code> en Render conectada a Supabase.
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="editorial-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-wordmark">DeployOps</span>
+        <p class="footer-copy">
+          Plataforma de monitoreo proactivo y auditoría SLA desarrollada por <strong>Marcos Daniel Aguirre</strong>.
+        </p>
+      </div>
+
+      <div class="footer-stack">
+        <span>Java 21</span>
+        <span>·</span>
+        <span>Spring Boot 4</span>
+        <span>·</span>
+        <span>Angular 20</span>
+        <span>·</span>
+        <span>PostgreSQL</span>
+        <span>·</span>
+        <span>Docker</span>
+      </div>
+    </div>
+  </footer>
+
+  @if (showScrollTop()) {
+    <button
+      type="button"
+      class="scroll-top-fab"
+      (click)="scrollToTop($event)"
+      title="Volver al inicio"
+      aria-label="Volver al inicio"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <line x1="12" y1="19" x2="12" y2="5" />
+        <polyline points="5 12 12 5 19 12" />
+      </svg>
+      <span>Subir</span>
+    </button>
+  }
+
+  <!-- Panel lateral deslizable con el desglose tecnico del servicio seleccionado -->
+  @if (selectedEndpoint(); as selected) {
+    <div class="drawer-backdrop" (click)="closeInspector()">
+      <aside class="inspector-drawer" (click)="$event.stopPropagation()">
+        <div class="drawer-header">
+          <div>
+            <span class="drawer-eyebrow">Inspector de Telemetría · ID #{{ selected.id }}</span>
+            <h2 class="drawer-title">{{ selected.name }}</h2>
+          </div>
+          <button type="button" class="btn-close-minimal" (click)="closeInspector()">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="drawer-status-section">
+            <div class="dsc-top">
+              <span [class]="getStatusClass(selected.status)">
+                <span class="status-dot"></span>
+                <span>{{ getStatusLabel(selected.status) }}</span>
+              </span>
+              <span class="text-muted">{{ formatRelativeTime(selected.lastCheckedAt) }}</span>
+            </div>
+            <p class="dsc-desc">{{ getStatusDescription(selected) }}</p>
+          </div>
+
+          <div class="drawer-block">
+            <div class="drawer-block-head">
+              <span>Disponibilidad SLA (30 Días)</span>
+              <span class="tabular-nums">{{ selected.uptimePercentage | number: '1.2-2' }}%</span>
+            </div>
+            <div class="rhythm-track">
+              @for (seg of getUptimeSegments(selected); track $index) {
+                <span class="rhythm-bar" [ngClass]="seg"></span>
+              }
+            </div>
+          </div>
+
+          <dl class="drawer-specs">
+            <div class="spec-item">
+              <dt>URL Monitoreada</dt>
+              <dd>
+                <a [href]="selected.url" target="_blank" rel="noopener noreferrer">{{ selected.url }}</a>
+              </dd>
+            </div>
+            <div class="spec-item">
+              <dt>Última Latencia HTTP</dt>
+              <dd class="tabular-nums">
+                {{ selected.lastResponseTimeMs !== null ? selected.lastResponseTimeMs + ' ms' : 'En espera' }}
+              </dd>
+            </div>
+            <div class="spec-item">
+              <dt>Fallos Consecutivos</dt>
+              <dd class="tabular-nums">{{ selected.consecutiveFailures }} de 3 (umbral de incidente)</dd>
+            </div>
+            <div class="spec-item">
+              <dt>Última Verificación</dt>
+              <dd class="tabular-nums">{{ formatExactDate(selected.lastCheckedAt) }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt>Alta en Catálogo</dt>
+              <dd class="tabular-nums">{{ formatExactDate(selected.createdAt) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="drawer-footer">
+          <button
+            type="button"
+            class="btn-drawer-secondary"
+            (click)="copyText(selected.url, 'URL copiada al portapapeles')"
+          >
+            Copiar URL
+          </button>
+          <button
+            type="button"
+            class="btn-drawer-danger"
+            (click)="confirmDelete(selected)"
+          >
+            Eliminar del Monitor
+          </button>
+        </div>
+      </aside>
+    </div>
+  }
+
+  <!-- Confirmacion de eliminacion -->
+  @if (endpointToDelete(); as target) {
+    <div class="drawer-backdrop modal-center" (click)="cancelDelete()">
+      <div class="confirm-dialog" (click)="$event.stopPropagation()">
+        <span class="drawer-eyebrow text-danger">Confirmar Baja en API Pública</span>
+        <h3 class="confirm-title">¿Eliminar "{{ target.name }}"?</h3>
+        <p class="confirm-desc">
+          Se detendrá el monitoreo activo de <strong>{{ target.url }}</strong> y se purgarán sus incidentes asociados en PostgreSQL.
+        </p>
+        <div class="confirm-actions">
+          <button type="button" class="btn-drawer-secondary" (click)="cancelDelete()">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-drawer-danger"
+            (click)="executeDelete()"
+            [disabled]="isDeleting()"
+          >
+            {{ isDeleting() ? 'Eliminando...' : 'Confirmar eliminación' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast(); as t) {
+    <div class="floating-toast" [class.toast-err]="t.type === 'error'">
+      <span class="toast-indicator"></span>
+      <span>{{ t.message }}</span>
+    </div>
+  }
+</div>

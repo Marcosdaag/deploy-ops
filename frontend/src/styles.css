@@ -1,1 +1,126 @@
-/* You can add global styles to this file, and also import other style files */
+/*
+ * Paleta y variables globales de DeployOps.
+ * Usamos dos temas bien diferenciados (Oscuro Carbono y Claro Papel) sin caer
+ * en degradados fijos ni colores saturados.
+ */
+:root,
+[data-theme='dark'] {
+  --bg-canvas: #0b0c0b;
+  --bg-topbar: rgba(18, 20, 19, 0.92);
+  --bg-surface: #121413;
+  --bg-surface-alt: #171a18;
+  --bg-input: #0e100f;
+
+  --text-primary: #f3f0e8;
+  --text-secondary: #a8a69e;
+  --text-muted: #706e67;
+
+  --accent-gold: #d4ab6a;
+  --accent-gold-subtle: rgba(212, 171, 106, 0.12);
+  --accent-jade: #2eb87e;
+  --accent-jade-subtle: rgba(46, 184, 126, 0.12);
+
+  --cta-bg: #f3f0e8;
+  --cta-fg: #0b0c0b;
+  --cta-hover: #e2ddd1;
+
+  --border-hairline: rgba(243, 240, 232, 0.09);
+  --border-strong: rgba(243, 240, 232, 0.18);
+  --border-accent: rgba(212, 171, 106, 0.42);
+
+  --status-healthy: #38c988;
+  --status-degraded: #e59a38;
+  --status-down: #e25252;
+  --status-recovering: #5db8b8;
+  --status-pending: #8a8880;
+
+  --cursor-glow: rgba(212, 171, 106, 0.065);
+  --shadow-subtle: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --backdrop-overlay: rgba(5, 6, 5, 0.72);
+}
+
+[data-theme='light'] {
+  --bg-canvas: #f6f4ef;
+  --bg-topbar: rgba(236, 233, 225, 0.94);
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #efece4;
+  --bg-input: #ffffff;
+
+  --text-primary: #161614;
+  --text-secondary: #55534c;
+  --text-muted: #858379;
+
+  --accent-gold: #966822;
+  --accent-gold-subtle: rgba(150, 104, 34, 0.1);
+  --accent-jade: #167c52;
+  --accent-jade-subtle: rgba(22, 124, 82, 0.1);
+
+  --cta-bg: #161614;
+  --cta-fg: #f6f4ef;
+  --cta-hover: #2d2c28;
+
+  --border-hairline: rgba(22, 22, 20, 0.1);
+  --border-strong: rgba(22, 22, 20, 0.2);
+  --border-accent: rgba(150, 104, 34, 0.4);
+
+  --status-healthy: #167c52;
+  --status-degraded: #c47414;
+  --status-down: #c42b2b;
+  --status-recovering: #22767c;
+  --status-pending: #7a786f;
+
+  --cursor-glow: rgba(150, 104, 34, 0.075);
+  --shadow-subtle: 0 12px 28px rgba(22, 22, 20, 0.08);
+  --backdrop-overlay: rgba(22, 22, 20, 0.42);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.font-serif-editorial {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
