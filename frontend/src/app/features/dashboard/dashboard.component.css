@@ -80,16 +80,12 @@
   color: var(--text-primary);
 }
 
-.brand-emblem {
+.brand-icon-img {
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background-color: var(--accent-gold-subtle);
+  object-fit: cover;
   border: 1px solid var(--border-accent);
-  color: var(--accent-gold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .brand-wordmark {
@@ -139,12 +135,21 @@
   text-decoration: none;
 }
 
+.api-status-inline.api-status-connecting {
+  color: var(--accent-gold);
+}
+
 .status-dot-live {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background-color: var(--status-healthy);
   box-shadow: 0 0 0 3px var(--accent-jade-subtle);
+}
+
+.api-status-inline.api-status-connecting .status-dot-live {
+  background-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px var(--accent-gold-subtle);
 }
 
 .theme-toggle-btn {

@@ -19,12 +19,13 @@
   <header class="topbar-fixed" [class.topbar-scrolled]="isScrolled()">
     <div class="topbar-inner">
       <a href="#vitrina" class="brand-cluster" (click)="scrollToTop($event)">
-        <span class="brand-emblem" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="12" cy="12" r="3.5" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-          </svg>
-        </span>
+        <img
+          src="deployops-icon.png"
+          alt="DeployOps"
+          class="brand-icon-img"
+          width="28"
+          height="28"
+        />
         <span class="brand-wordmark">DeployOps</span>
         <span class="brand-version">v1.0</span>
       </a>
@@ -38,9 +39,14 @@
       </nav>
 
       <div class="topbar-actions">
-        <a href="#api-publica" class="api-status-inline" title="API REST publica activa en Render">
+        <a
+          href="#api-publica"
+          class="api-status-inline"
+          [class.api-status-connecting]="!lastSyncedAt()"
+          title="Estado de conexion en tiempo real con el backend en Render"
+        >
           <span class="status-dot-live"></span>
-          <span>API Pública Online</span>
+          <span>{{ lastSyncedAt() ? 'Conectado a Render' : 'Conectando con Render...' }}</span>
         </a>
 
         <button
