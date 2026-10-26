@@ -73,6 +73,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly activeApiTab = signal<ApiMethodTab>('GET');
   readonly liveJsonOutput = signal<string>('');
   readonly isTestingPublicApi = signal<boolean>(false);
+  readonly apiLastLatencyMs = signal<number | null>(null);
+  readonly apiPulseActive = signal<boolean>(false);
 
   readonly toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
   readonly nowTick = signal<number>(Date.now());
@@ -224,6 +226,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   syncWithPublicApi(): void {
     this.isSyncing.set(true);
+    const startMs = performance.now();
 
     this.endpointService.getEndpoints().subscribe({
       next: (data) => {
@@ -233,6 +236,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           return;
         }
 
+        this.apiLastLatencyMs.set(Math.round(performance.now() - startMs));
         this.endpoints.set(data);
         this.lastSyncedAt.set(new Date());
         this.isSyncing.set(false);
@@ -279,6 +283,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.createErrors.set([]);
   }
 
+  clearCreateErrors(): void {
+    this.createErrors.set([]);
+  }
+
   submitCreateEndpoint(): void {
     const name = this.newServiceName().trim();
     const url = this.newServiceUrl().trim();
@@ -304,10 +312,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.newServiceUrl.set('');
         this.isSubmittingCreate.set(false);
         this.liveJsonOutput.set(JSON.stringify(this.endpoints(), null, 2));
-        this.showToast(
-          'success',
-          `"${created.name}" registrado en la API pública. Primer chequeo en <60s.`
-        );
+        this.showToast('success', `${created.name} sumado al monitor`);
       },
       error: (err) => {
         this.createErrors.set(this.endpointService.extractErrorMessages(err));
@@ -340,7 +345,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.isDeleting.set(false);
         this.endpointToDelete.set(null);
         this.liveJsonOutput.set(JSON.stringify(this.endpoints(), null, 2));
-        this.showToast('success', `Servicio "${target.name}" eliminado de la API pública.`);
+        this.showToast('success', `${target.name} quitado del listado`);
       },
       error: (err) => {
         const msg = this.endpointService.extractErrorMessages(err)[0];
@@ -361,16 +366,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   triggerPublicApiTest(): void {
     this.isTestingPublicApi.set(true);
+    this.apiPulseActive.set(false);
+    const startMs = performance.now();
+
     this.endpointService.getEndpoints().subscribe({
       next: (data) => {
+        this.apiLastLatencyMs.set(Math.round(performance.now() - startMs));
         this.endpoints.set(data);
+        this.lastSyncedAt.set(new Date());
         this.liveJsonOutput.set(JSON.stringify(data, null, 2));
         this.isTestingPublicApi.set(false);
-        this.showToast('success', 'Respuesta JSON en vivo recibida desde Render (200 OK).');
+        this.apiPulseActive.set(true);
+        setTimeout(() => this.apiPulseActive.set(false), 900);
       },
       error: (err) => {
         const msg = this.endpointService.extractErrorMessages(err);
-        this.liveJsonOutput.set(JSON.stringify({ status: 'ERROR', messages: msg }, null, 2));
+        this.liveJsonOutput.set(JSON.stringify({ status: 400, messages: msg }, null, 2));
         this.isTestingPublicApi.set(false);
       }
     });
@@ -401,7 +412,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.toastTimeoutId) clearTimeout(this.toastTimeoutId);
     this.toastTimeoutId = setTimeout(() => {
       this.toast.set(null);
-    }, 4000);
+    }, 3200);
   }
 
   getStatusLabel(status: ServiceStatus): string {

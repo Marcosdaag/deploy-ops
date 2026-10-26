@@ -85,7 +85,7 @@
       panel arquitectonico abierto los dos ejemplos reales corriendo en Render (Google y Cloudflare).
     -->
     <section class="hero-section" id="vitrina">
-      <div class="hero-copy-block">
+      <div class="hero-copy-block reveal-up">
         <h1 class="hero-headline">
           Vigilancia activa para
           <span class="font-serif-editorial hero-serif-accent">infraestructura que no puede fallar.</span>
@@ -105,13 +105,13 @@
           </a>
           <a href="#api-publica" class="btn-hero-secondary">
             <span>Explorar API Pública</span>
-            <span>→</span>
+            <span class="arrow-shift">→</span>
           </a>
         </div>
       </div>
 
-      <!-- Vitrina arquitectonica abierta (sin cajas anidadas ni pildoras repetitivas) -->
-      <div class="spotlight-stage">
+      <!-- Vitrina arquitectonica abierta con animacion de pulso en las curvas SVG -->
+      <div class="spotlight-stage reveal-up reveal-delay-1">
         <div class="spotlight-header-bar">
           <div class="spotlight-title-cluster">
             <span class="live-beacon"></span>
@@ -121,11 +121,11 @@
           </div>
           <div class="spotlight-sync-meta tabular-nums">
             @if (isSyncing()) {
-              <span>Sincronizando pulso HTTP...</span>
+              <span>Actualizando lectura...</span>
             } @else if (lastSyncedAt()) {
-              <span>Sincronizado {{ lastSyncedAt() | date: 'HH:mm:ss' }}</span>
+              <span>Última lectura {{ lastSyncedAt() | date: 'HH:mm:ss' }}</span>
             } @else {
-              <span>Conectado a deploy-ops.onrender.com</span>
+              <span>Conectando con deploy-ops.onrender.com</span>
             }
           </div>
         </div>
@@ -188,7 +188,7 @@
                   <svg viewBox="0 0 280 54" preserveAspectRatio="none" class="sp-wave-svg">
                     <defs>
                       <linearGradient [id]="'waveGrad' + i" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="var(--accent-jade)" stop-opacity="0.28" />
+                        <stop offset="0%" stop-color="var(--accent-jade)" stop-opacity="0.26" />
                         <stop offset="100%" stop-color="var(--accent-jade)" stop-opacity="0.0" />
                       </linearGradient>
                     </defs>
@@ -197,10 +197,20 @@
                       [attr.fill]="'url(#waveGrad' + i + ')'"
                     />
                     <path
+                      class="wave-base-line"
                       [attr.d]="getWavePath(item, i)"
                       fill="none"
                       stroke="var(--accent-jade)"
+                      stroke-opacity="0.35"
                       stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      class="wave-flow-line"
+                      [attr.d]="getWavePath(item, i)"
+                      fill="none"
+                      stroke="var(--accent-jade)"
+                      stroke-width="2.2"
                       stroke-linecap="round"
                     />
                   </svg>
@@ -215,14 +225,16 @@
                 </div>
                 <div class="sp-footer-meta">
                   <span>Fallos consecutivos: {{ item.consecutiveFailures }}/3</span>
-                  <span class="sp-inspect-link">Ver desglose técnico →</span>
+                  <span class="sp-inspect-link">
+                    <span>Ver desglose técnico</span>
+                    <span class="arrow-shift">→</span>
+                  </span>
                 </div>
               </div>
             </article>
           }
         </div>
 
-        <!-- Resumen de indicadores globales sobre lineas arquitectonicas abiertas -->
         <div class="kpi-strip">
           <div class="kpi-col">
             <span class="kpi-label">Disponibilidad Global</span>
@@ -252,7 +264,7 @@
 
     <!--
       Laboratorio en vivo: permite agregar nuevos servicios al backend publico
-      y consultar la lista completa mediante filas limpias sin sobrecarga de bordes.
+      y muestra cualquier aviso de validacion de forma natural e integrada debajo del input.
     -->
     <section class="sandbox-section" id="monitor-vivo">
       <div class="section-heading-cluster">
@@ -262,11 +274,10 @@
           <span class="font-serif-editorial section-serif">sobre la API en producción.</span>
         </h2>
         <p class="section-subtitle">
-          Agregá cualquier endpoint público para sumarlo al ciclo de vigilancia en Render, o ejecutá la prueba de seguridad para ver cómo el validador bloquea intentos de SSRF contra redes internas.
+          Agregá cualquier endpoint público para sumarlo al ciclo de vigilancia en Render, o ejecutá la prueba de seguridad para ver cómo el servidor rechaza direcciones internas.
         </p>
       </div>
 
-      <!-- Barra de registro limpia con lineas inferiores -->
       <form class="registration-bar" (ngSubmit)="submitCreateEndpoint()">
         <div class="reg-fields-row">
           <div class="reg-field">
@@ -279,7 +290,7 @@
               placeholder="Ej: Wikimedia Global / Stripe Status"
               maxlength="100"
               [ngModel]="newServiceName()"
-              (ngModelChange)="newServiceName.set($event)"
+              (ngModelChange)="newServiceName.set($event); clearCreateErrors()"
             />
           </div>
 
@@ -293,7 +304,7 @@
               placeholder="https://www.wikipedia.org"
               maxlength="500"
               [ngModel]="newServiceUrl()"
-              (ngModelChange)="newServiceUrl.set($event)"
+              (ngModelChange)="newServiceUrl.set($event); clearCreateErrors()"
             />
           </div>
 
@@ -302,7 +313,7 @@
             class="btn-reg-submit"
             [disabled]="isSubmittingCreate()"
           >
-            {{ isSubmittingCreate() ? 'Verificando red...' : '+ Monitorear Endpoint' }}
+            {{ isSubmittingCreate() ? 'Verificando...' : '+ Monitorear Endpoint' }}
           </button>
         </div>
 
@@ -321,18 +332,22 @@
         </div>
 
         @if (createErrors().length > 0) {
-          <div class="validation-banner" role="alert">
-            <span class="validation-title">Respuesta del Validador Backend (HTTP 400):</span>
-            <ul class="validation-list">
-              @for (err of createErrors(); track err) {
-                <li>{{ err }}</li>
-              }
-            </ul>
+          <div class="inline-feedback-row" role="status">
+            <div class="if-content">
+              <svg class="if-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span class="if-message">{{ createErrors().join(' · ') }}</span>
+            </div>
+            <button type="button" class="if-dismiss" (click)="clearCreateErrors()">
+              Ocultar ✕
+            </button>
           </div>
         }
       </form>
 
-      <!-- Pestañas subrayadas y buscador minimalista -->
       <div class="ledger-toolbar">
         <div class="underline-tabs" role="tablist">
           <button
@@ -412,7 +427,6 @@
         </div>
       </div>
 
-      <!-- Listado abierto de servicios (filas arquitectonicas sin cajas dentro de cajas) -->
       <div class="endpoints-ledger-list">
         @for (ep of filteredEndpoints(); track ep.id) {
           <article
@@ -488,7 +502,8 @@
                 class="btn-lr-inspect"
                 (click)="openInspector(ep); $event.stopPropagation()"
               >
-                Detalle →
+                <span>Detalle</span>
+                <span class="arrow-shift">→</span>
               </button>
               <button
                 type="button"
@@ -508,8 +523,7 @@
     </section>
 
     <!--
-      Linea de tiempo interactiva de la Maquina de Estados: reemplaza los botones
-      encajonados por una secuencia continua sobre un eje horizontal.
+      Linea de tiempo interactiva de la Maquina de Estados con transicion suave entre etapas.
     -->
     <section class="statemachine-section" id="maquina-estados">
       <div class="section-heading-cluster">
@@ -523,7 +537,7 @@
         </p>
       </div>
 
-      <div class="timeline-Wrapper">
+      <div class="timeline-wrapper">
         <div class="timeline-rail" role="tablist">
           @for (node of stateNodes; track node.status; let idx = $index) {
             <button
@@ -568,7 +582,8 @@
     </section>
 
     <!--
-      Explorador de la API Publica: diseno editorial a dos columnas sin exceso de contenedores.
+      Explorador de la API Publica: muestra la latencia y el codigo 200 OK integrados
+      en el propio visor JSON sin disparar alertas emergentes innecesarias.
     -->
     <section class="public-api-section" id="api-publica">
       <div class="section-heading-cluster">
@@ -590,7 +605,7 @@
             <button
               type="button"
               class="btn-text-action"
-              (click)="copyText(endpointService.publicApiUrl, 'URL de la API copiada')"
+              (click)="copyText(endpointService.publicApiUrl, 'URL copiada')"
             >
               Copiar URL
             </button>
@@ -643,22 +658,29 @@
             (click)="triggerPublicApiTest()"
             [disabled]="isTestingPublicApi()"
           >
-            {{ isTestingPublicApi() ? 'Consultando Render Cloud...' : 'Ejecutar GET /api/endpoints en Vivo →' }}
+            <span>{{ isTestingPublicApi() ? 'Consultando servidor...' : 'Consultar endpoint en vivo' }}</span>
+            <span class="arrow-shift">→</span>
           </button>
         </div>
 
-        <div class="api-right-pane">
+        <div class="api-right-pane" [class.panel-refreshed]="apiPulseActive()">
           <div class="code-panel-bar">
-            <span>Respuesta JSON en Tiempo Real (HTTP 200 OK)</span>
+            <div class="api-resp-status">
+              <span class="status-dot-live"></span>
+              <span>200 OK</span>
+              @if (apiLastLatencyMs() !== null) {
+                <span class="resp-latency tabular-nums">· {{ apiLastLatencyMs() }} ms</span>
+              }
+            </div>
             <button
               type="button"
               class="btn-text-action"
-              (click)="copyText(liveJsonOutput(), 'JSON copiado al portapapeles')"
+              (click)="copyText(liveJsonOutput(), 'JSON copiado')"
             >
               Copiar JSON
             </button>
           </div>
-          <pre class="json-pre">{{ liveJsonOutput() || 'Cargando respuesta en vivo desde Render...' }}</pre>
+          <pre class="json-pre">{{ liveJsonOutput() || 'Conectando con Render...' }}</pre>
         </div>
       </div>
     </section>
@@ -819,7 +841,7 @@
           <button
             type="button"
             class="btn-drawer-secondary"
-            (click)="copyText(selected.url, 'URL copiada al portapapeles')"
+            (click)="copyText(selected.url, 'URL copiada')"
           >
             Copiar URL
           </button>
@@ -839,7 +861,7 @@
   @if (endpointToDelete(); as target) {
     <div class="drawer-backdrop modal-center" (click)="cancelDelete()">
       <div class="confirm-dialog" (click)="$event.stopPropagation()">
-        <span class="drawer-eyebrow text-danger">Confirmar Baja en API Pública</span>
+        <span class="drawer-eyebrow text-danger">Confirmar Baja</span>
         <h3 class="confirm-title">¿Eliminar "{{ target.name }}"?</h3>
         <p class="confirm-desc">
           Se detendrá el monitoreo activo de <strong>{{ target.url }}</strong> y se purgarán sus incidentes asociados en PostgreSQL.
@@ -862,7 +884,7 @@
   }
 
   @if (toast(); as t) {
-    <div class="floating-toast" [class.toast-err]="t.type === 'error'">
+    <div class="subtle-toast" [class.toast-err]="t.type === 'error'">
       <span class="toast-indicator"></span>
       <span>{{ t.message }}</span>
     </div>

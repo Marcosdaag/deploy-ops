@@ -145,11 +145,59 @@
   border-radius: 50%;
   background-color: var(--status-healthy);
   box-shadow: 0 0 0 3px var(--accent-jade-subtle);
+  animation: beaconPulse 2.8s ease-in-out infinite;
 }
 
 .api-status-inline.api-status-connecting .status-dot-live {
   background-color: var(--accent-gold);
   box-shadow: 0 0 0 3px var(--accent-gold-subtle);
+}
+
+/*
+ * Micro-animaciones sutiles de entrada y pulso en vivo.
+ * Acompañan la lectura sin sobrecargar la estructura arquitectonica.
+ */
+@keyframes beaconPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-up {
+  animation: revealUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.12s;
+}
+
+.arrow-shift {
+  display: inline-block;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-hero-primary:hover .arrow-shift,
+.spotlight-pane:hover .arrow-shift,
+.ledger-row:hover .arrow-shift,
+.btn-execute-get:hover .arrow-shift {
+  transform: translateX(4px);
 }
 
 .theme-toggle-btn {
@@ -323,6 +371,7 @@ section {
   height: 8px;
   border-radius: 50%;
   background-color: var(--accent-jade);
+  animation: beaconPulse 2.8s ease-in-out infinite;
 }
 
 .spotlight-caption {
@@ -465,6 +514,24 @@ section {
   overflow: visible;
 }
 
+.wave-base-line {
+  opacity: 0.25;
+}
+
+.wave-flow-line {
+  stroke-dasharray: 85 195;
+  animation: waveFlow 3.4s linear infinite;
+}
+
+@keyframes waveFlow {
+  from {
+    stroke-dashoffset: 280;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .sp-footer {
   display: flex;
   flex-direction: column;
@@ -482,6 +549,11 @@ section {
 .rhythm-bar {
   border-radius: 1px;
   height: 100%;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.rhythm-bar:hover {
+  transform: scaleY(1.55);
 }
 
 .bar-healthy {
@@ -746,25 +818,63 @@ section {
   border-bottom-color: var(--status-degraded);
 }
 
-.validation-banner {
-  padding: 0.9rem 1.15rem;
-  border-left: 3px solid var(--status-down);
-  background-color: rgba(226, 82, 82, 0.08);
-  color: var(--status-down);
+/*
+ * Feedback en linea bajo el formulario de alta:
+ * Evitamos la caja de alerta roja estridente y mostramos una fila limpia
+ * integrada en la misma estructura con boton para descartar.
+ */
+.inline-feedback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.95rem;
+  border-left: 2px solid var(--status-degraded);
+  background-color: var(--accent-gold-subtle);
+  border-radius: 0 4px 4px 0;
+  animation: revealUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.validation-title {
+.if-content {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.if-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--status-degraded);
+  color: #0b0c0b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.if-message {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.if-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display: block;
-  margin-bottom: 0.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.validation-list {
-  padding-left: 1.1rem;
-  font-size: 0.85rem;
+.if-dismiss:hover {
+  color: var(--text-primary);
 }
 
 /* Barra de pestañas subrayadas */
@@ -1051,6 +1161,7 @@ section {
   grid-template-columns: 1.5fr 1fr;
   gap: 3rem;
   align-items: start;
+  animation: revealUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .tds-main {
@@ -1220,6 +1331,26 @@ section {
   border-radius: 6px;
   overflow: hidden;
   gap: 0;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.api-right-pane.panel-refreshed {
+  border-color: var(--accent-jade);
+  box-shadow: 0 0 0 1px var(--accent-jade-subtle);
+}
+
+.api-resp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--status-healthy);
+}
+
+.resp-latency {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .json-pre {
@@ -1229,7 +1360,7 @@ section {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.77rem;
   line-height: 1.55;
-  color: var(--status-healthy);
+  color: var(--text-primary);
 }
 
 /* Grilla Suiza de Arquitectura */
@@ -1532,31 +1663,34 @@ section {
   margin-top: 0.5rem;
 }
 
-.floating-toast {
+.subtle-toast {
   position: fixed;
-  bottom: 4.8rem;
+  bottom: 4.6rem;
   right: 1.65rem;
   z-index: 80;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.72rem 1.15rem;
+  gap: 0.55rem;
+  padding: 0.6rem 0.95rem;
   border-radius: 6px;
-  background-color: var(--cta-bg);
-  color: var(--cta-fg);
+  background-color: var(--bg-topbar);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
   box-shadow: var(--shadow-subtle);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 500;
+  animation: revealUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .toast-indicator {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background-color: var(--accent-jade);
 }
 
-.floating-toast.toast-err .toast-indicator {
+.subtle-toast.toast-err .toast-indicator {
   background-color: var(--status-down);
 }
 
