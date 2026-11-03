@@ -2191,3 +2191,105 @@ section {
 .w-100 {
   width: 100%;
 }
+
+.active-guard-card {
+  margin-bottom: 24px;
+  padding: 16px 18px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ag-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ag-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ag-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-jade);
+  box-shadow: 0 0 0 3px rgba(46, 184, 126, 0.2);
+  animation: pulse-ring 2s infinite ease-out;
+}
+
+.ag-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-guard-active {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--accent-jade-subtle);
+  color: var(--accent-jade);
+  border: 1px solid rgba(46, 184, 126, 0.3);
+}
+
+.ag-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.ag-desc strong {
+  color: var(--text-primary);
+}
+
+.btn-ag-test {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-ag-test:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-alt);
+}
+
+.btn-ag-test:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 184, 126, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(46, 184, 126, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 184, 126, 0);
+  }
+}

@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class EndpointManagerService {
     private final UrlSecurityValidator urlSecurityValidator;
     private final HttpMonitorService httpMonitorService;
     private final SseNotificationService sseNotificationService;
+    private final EmailAlertService emailAlertService;
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
@@ -230,6 +232,27 @@ public class EndpointManagerService {
         }
     }
 
+    public void triggerTestAlert(Long serviceId, String currentUserEmail) {
+        ServiceEntity service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + serviceId));
+
+        if (service.getUser() != null && currentUserEmail != null) {
+            if (!service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para disparar alertas en este endpoint.");
+            }
+        }
+
+        String recipientEmail = (currentUserEmail != null && !currentUserEmail.isBlank())
+                ? currentUserEmail
+                : (service.getUser() != null ? service.getUser().getEmail() : null);
+
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            throw new IllegalArgumentException("No hay una direccion de correo electronico asociada para enviar la alerta.");
+        }
+
+        emailAlertService.sendTestAlert(recipientEmail, service.getName(), service.getUrl());
+    }
+
     private void openNewIncident(ServiceEntity service) {
         incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING)
                 .ifPresentOrElse(
@@ -239,7 +262,16 @@ public class EndpointManagerService {
                             incident.setService(service);
                             incident.setStatus(IncidentStatus.ONGOING);
                             incident.setStartedAt(LocalDateTime.now());
-                            incidentRepository.save(incident);
+                            IncidentEntity saved = incidentRepository.save(incident);
+
+                            if (service.getUser() != null && service.getUser().getEmail() != null) {
+                                emailAlertService.sendIncidentOpenedAlert(
+                                        service.getUser().getEmail(),
+                                        service.getName(),
+                                        service.getUrl(),
+                                        saved.getStartedAt()
+                                );
+                            }
                         }
                 );
     }
@@ -249,7 +281,18 @@ public class EndpointManagerService {
                 .ifPresent(incident -> {
                     incident.setStatus(IncidentStatus.RESOLVED);
                     incident.setResolvedAt(LocalDateTime.now());
-                    incidentRepository.save(incident);
+                    IncidentEntity saved = incidentRepository.save(incident);
+
+                    if (service.getUser() != null && service.getUser().getEmail() != null) {
+                        long durationSeconds = Duration.between(saved.getStartedAt(), saved.getResolvedAt()).getSeconds();
+                        emailAlertService.sendIncidentResolvedAlert(
+                                service.getUser().getEmail(),
+                                service.getName(),
+                                service.getUrl(),
+                                durationSeconds,
+                                saved.getResolvedAt()
+                        );
+                    }
                 });
     }
 

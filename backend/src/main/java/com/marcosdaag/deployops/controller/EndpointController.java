@@ -62,6 +62,13 @@ public class EndpointController {
         return ResponseEntity.ok(endpointManager.triggerManualPing(id));
     }
 
+    @PostMapping("/{id}/test-alert")
+    public ResponseEntity<Void> triggerTestAlert(@PathVariable Long id, Authentication authentication) {
+        String email = getEmailFromAuth(authentication);
+        endpointManager.triggerTestAlert(id, email);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamDashboard() {
         return sseNotificationService.createEmitter();

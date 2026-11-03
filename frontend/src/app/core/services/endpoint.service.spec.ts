@@ -93,6 +93,14 @@ describe('EndpointService', () => {
     req.flush(mockResponse);
   });
 
+  it('deberia disparar una alerta de prueba mediante POST a /{id}/test-alert', () => {
+    service.triggerTestAlert(1).subscribe();
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/test-alert`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+  });
+
   it('deberia extraer los mensajes de error devueltos por GlobalExceptionHandler (ej. bloqueo SSRF)', () => {
     const errorResponse = new HttpErrorResponse({
       status: 400,

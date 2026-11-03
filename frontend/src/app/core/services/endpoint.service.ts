@@ -36,6 +36,10 @@ export class EndpointService {
     return this.http.post<EndpointResponse>(`${this.publicApiUrl}/${serviceId}/ping`, {});
   }
 
+  triggerTestAlert(serviceId: number): Observable<void> {
+    return this.http.post<void>(`${this.publicApiUrl}/${serviceId}/test-alert`, {});
+  }
+
   getDashboardStream(): Observable<EndpointResponse[]> {
     return new Observable<EndpointResponse[]>((observer) => {
       if (typeof window === 'undefined' || typeof EventSource === 'undefined') {

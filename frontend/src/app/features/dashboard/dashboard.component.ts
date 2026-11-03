@@ -72,6 +72,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly selectedEndpointIncidents = signal<IncidentResponse[]>([]);
   readonly isLoadingIncidents = signal<boolean>(false);
   readonly isTriggeringPing = signal<boolean>(false);
+  readonly isTestingAlert = signal<boolean>(false);
 
   readonly endpointToDelete = signal<EndpointResponse | null>(null);
   readonly isDeleting = signal<boolean>(false);
@@ -400,6 +401,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: () => {
         this.selectedEndpointIncidents.set([]);
         this.isLoadingIncidents.set(false);
+      }
+    });
+  }
+
+  triggerTestAlert(endpoint: EndpointResponse): void {
+    if (this.isTestingAlert()) return;
+    this.isTestingAlert.set(true);
+    this.endpointService.triggerTestAlert(endpoint.id).subscribe({
+      next: () => {
+        this.isTestingAlert.set(false);
+        const email = this.authService.currentUser()?.email || 'tu correo';
+        this.showToast('success', `Alerta de prueba enviada a ${email}`);
+      },
+      error: () => {
+        this.isTestingAlert.set(false);
+        this.showToast('error', 'No se pudo enviar la alerta de prueba');
       }
     });
   }

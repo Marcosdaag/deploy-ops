@@ -112,4 +112,24 @@ describe('DashboardComponent', () => {
     component.closeAuthModal();
     expect(component.isAuthModalOpen()).toBeFalse();
   });
+
+  it('deberia disparar una alerta de prueba y mostrar toast de exito', () => {
+    component.authService.currentUser.set({
+      id: 1,
+      name: 'Marcos',
+      email: 'marcos@test.com',
+      role: 'ROLE_USER',
+      provider: 'LOCAL'
+    });
+
+    component.triggerTestAlert(mockEndpoints[1]);
+    expect(component.isTestingAlert()).toBeTrue();
+
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/2/test-alert`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+
+    expect(component.isTestingAlert()).toBeFalse();
+    expect(component.toast()?.type).toBe('success');
+  });
 });

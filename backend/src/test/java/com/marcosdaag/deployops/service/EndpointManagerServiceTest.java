@@ -53,6 +53,9 @@ class EndpointManagerServiceTest {
     @Mock
     private SseNotificationService sseNotificationService;
 
+    @Mock
+    private EmailAlertService emailAlertService;
+
     @Spy
     private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
 
@@ -404,5 +407,99 @@ class EndpointManagerServiceTest {
         assertEquals(1, data.size());
         assertEquals("Mi App", data.get(0).getName());
         assertTrue(data.get(0).isOwner());
+    }
+
+    @Test
+    @DisplayName("Despacha alerta por correo cuando un servicio con usuario abre un incidente")
+    void whenUserServiceFailsConsecutively_shouldSendIncidentEmail() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setUser(owner);
+        service.setStatus(ServiceStatus.DEGRADED);
+        service.setConsecutiveFailures(2); // Al fallar pasa a 3 -> DOWN
+
+        when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING)).thenReturn(Optional.empty());
+        when(incidentRepository.save(any(IncidentEntity.class))).thenAnswer(i -> {
+            IncidentEntity inc = i.getArgument(0);
+            inc.setId(100L);
+            inc.setStartedAt(LocalDateTime.now());
+            return inc;
+        });
+
+        endpointManagerService.processPingResult(service, failedPing);
+
+        assertEquals(ServiceStatus.DOWN, service.getStatus());
+        verify(emailAlertService).sendIncidentOpenedAlert(
+                eq("owner@example.com"),
+                eq("API Pagos"),
+                eq("https://api.pagos.com/health"),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("Despacha alerta de recuperacion cuando un servicio con usuario cierra un incidente")
+    void whenUserServiceRecovers_shouldSendRecoveryEmail() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setUser(owner);
+        service.setStatus(ServiceStatus.RECOVERING);
+        service.setConsecutiveSuccesses(1); // Al tener exito pasa a 2 -> HEALTHY
+
+        IncidentEntity activeInc = new IncidentEntity();
+        activeInc.setId(50L);
+        activeInc.setService(service);
+        activeInc.setStatus(IncidentStatus.ONGOING);
+        activeInc.setStartedAt(LocalDateTime.now().minusMinutes(5));
+
+        when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING)).thenReturn(Optional.of(activeInc));
+        when(incidentRepository.save(any(IncidentEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        assertEquals(ServiceStatus.HEALTHY, service.getStatus());
+        verify(emailAlertService).sendIncidentResolvedAlert(
+                eq("owner@example.com"),
+                eq("API Pagos"),
+                eq("https://api.pagos.com/health"),
+                anyLong(),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("Dispara alerta de prueba exitosamente para el propietario del endpoint")
+    void whenTriggerTestAlertByOwner_shouldSucceed() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+
+        service.setUser(owner);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertDoesNotThrow(() -> endpointManagerService.triggerTestAlert(1L, "owner@example.com"));
+        verify(emailAlertService).sendTestAlert("owner@example.com", "API Pagos", "https://api.pagos.com/health");
+    }
+
+    @Test
+    @DisplayName("Rechaza disparo de alerta de prueba si el usuario no es el propietario")
+    void whenTriggerTestAlertByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+
+        service.setUser(owner);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertThrows(SecurityException.class, () -> endpointManagerService.triggerTestAlert(1L, "intruder@example.com"));
+        verify(emailAlertService, never()).sendTestAlert(any(), any(), any());
     }
 }
