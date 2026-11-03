@@ -53,6 +53,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly isAuthSubmitting = signal<boolean>(false);
   readonly authErrors = signal<string[]>([]);
 
+  readonly isProfileModalOpen = signal<boolean>(false);
+  readonly profileSlugInput = signal<string>('');
+  readonly isUpdatingSlug = signal<boolean>(false);
+  readonly profileSlugSuccess = signal<string | null>(null);
+  readonly profileSlugError = signal<string | null>(null);
+
   readonly endpoints = signal<EndpointResponse[]>(INITIAL_SHOWCASE_ENDPOINTS);
   readonly isSyncing = signal<boolean>(false);
   readonly lastSyncedAt = signal<Date | null>(null);
@@ -968,6 +974,48 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.authService.logout();
     this.syncWithPublicApi();
     this.showToast('success', 'Sesión cerrada correctamente');
+  }
+
+  openProfileModal(): void {
+    const user = this.authService.currentUser();
+    this.profileSlugInput.set(user?.publicSlug || '');
+    this.profileSlugSuccess.set(null);
+    this.profileSlugError.set(null);
+    this.isProfileModalOpen.set(true);
+  }
+
+  closeProfileModal(): void {
+    this.isProfileModalOpen.set(false);
+  }
+
+  updateProfileSlug(): void {
+    const slug = this.profileSlugInput().trim();
+    if (slug.length < 3) {
+      this.profileSlugError.set('El slug debe tener al menos 3 caracteres.');
+      return;
+    }
+    this.isUpdatingSlug.set(true);
+    this.profileSlugError.set(null);
+    this.profileSlugSuccess.set(null);
+
+    this.endpointService.updateUserSlug(slug).subscribe({
+      next: (res) => {
+        this.isUpdatingSlug.set(false);
+        const curr = this.authService.currentUser();
+        if (curr) {
+          const updated = { ...curr, publicSlug: res.slug };
+          this.authService.currentUser.set(updated);
+          localStorage.setItem('deployops_auth_user', JSON.stringify(updated));
+        }
+        this.profileSlugSuccess.set(`Slug actualizado a "${res.slug}"`);
+        this.showToast('success', 'URL pública actualizada');
+      },
+      error: (err) => {
+        this.isUpdatingSlug.set(false);
+        const msg = this.endpointService.extractErrorMessages(err)[0];
+        this.profileSlugError.set(msg || 'Error al actualizar el slug');
+      }
+    });
   }
 
   private resetAuthForm(): void {

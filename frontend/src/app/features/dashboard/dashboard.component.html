@@ -50,7 +50,7 @@
             <span>Status Page</span>
           </a>
           <div class="user-pill-container">
-            <div class="user-pill" [title]="authService.currentUser()?.email">
+            <div class="user-pill clickable" (click)="openProfileModal()" [title]="'Perfil de ' + authService.currentUser()?.email">
               <span class="user-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</span>
               <span class="user-name">{{ authService.currentUser()?.name }}</span>
             </div>
@@ -1443,6 +1443,83 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  @if (isProfileModalOpen()) {
+    <div class="drawer-backdrop modal-center" (click)="closeProfileModal()">
+      <div class="confirm-dialog profile-modal" (click)="$event.stopPropagation()">
+        <div class="profile-modal-header">
+          <div class="pm-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</div>
+          <div class="pm-user-info">
+            <h3 class="pm-name">{{ authService.currentUser()?.name }}</h3>
+            <span class="pm-email">{{ authService.currentUser()?.email }}</span>
+          </div>
+          <button type="button" class="btn-close-minimal" (click)="closeProfileModal()">✕</button>
+        </div>
+
+        <div class="profile-modal-body">
+          <div class="pm-stat-row">
+            <div class="pm-stat-box">
+              <span class="pm-stat-label">Endpoints Propios</span>
+              <span class="pm-stat-val tabular-nums">{{ myEndpointsCount() }}</span>
+            </div>
+            <div class="pm-stat-box">
+              <span class="pm-stat-label">Rol de Cuenta</span>
+              <span class="pm-stat-val">{{ authService.currentUser()?.role === 'ROLE_ADMIN' ? 'Admin' : 'Developer' }}</span>
+            </div>
+          </div>
+
+          <div class="pm-slug-section">
+            <label class="pm-field-label">Slug de tu Status Page Pública</label>
+            <div class="pm-slug-input-wrap">
+              <span class="pm-slug-prefix">/status/</span>
+              <input
+                type="text"
+                class="pm-slug-input"
+                [ngModel]="profileSlugInput()"
+                (ngModelChange)="profileSlugInput.set($event)"
+                placeholder="mi-organizacion"
+              />
+              <button
+                type="button"
+                class="btn-pm-save"
+                (click)="updateProfileSlug()"
+                [disabled]="isUpdatingSlug()"
+              >
+                {{ isUpdatingSlug() ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+            @if (profileSlugSuccess(); as ok) {
+              <span class="pm-success-msg">{{ ok }}</span>
+            }
+            @if (profileSlugError(); as err) {
+              <span class="pm-error-msg">{{ err }}</span>
+            }
+          </div>
+
+          <div class="pm-actions">
+            <a
+              [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']"
+              target="_blank"
+              class="btn-pm-view-status"
+              (click)="closeProfileModal()"
+            >
+              <span>Ver mi Status Page Pública</span>
+              <span class="arrow-shift">↗</span>
+            </a>
+            <button type="button" class="btn-pm-copy-link" (click)="copyStatusPageLink()">
+              Copiar Enlace
+            </button>
+          </div>
+        </div>
+
+        <div class="profile-modal-footer">
+          <button type="button" class="btn-drawer-danger w-100" (click)="logout(); closeProfileModal()">
+            Cerrar Sesión
+          </button>
+        </div>
       </div>
     </div>
   }

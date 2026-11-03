@@ -251,4 +251,48 @@ describe('DashboardComponent', () => {
     expect(component.isSendingReportEmail()).toBeFalse();
     expect(component.toast()?.type).toBe('success');
   });
+
+  it('deberia abrir y cerrar el modal de perfil de usuario', () => {
+    component.authService.currentUser.set({
+      id: 1,
+      name: 'Marcos',
+      email: 'marcos@test.com',
+      role: 'ROLE_USER',
+      provider: 'LOCAL',
+      publicSlug: 'marcos-dev'
+    });
+
+    component.openProfileModal();
+    expect(component.isProfileModalOpen()).toBeTrue();
+    expect(component.profileSlugInput()).toBe('marcos-dev');
+
+    component.closeProfileModal();
+    expect(component.isProfileModalOpen()).toBeFalse();
+  });
+
+  it('deberia actualizar el slug de la status page desde el perfil', () => {
+    component.authService.currentUser.set({
+      id: 1,
+      name: 'Marcos',
+      email: 'marcos@test.com',
+      role: 'ROLE_USER',
+      provider: 'LOCAL',
+      publicSlug: 'marcos-dev'
+    });
+
+    component.openProfileModal();
+    component.profileSlugInput.set('marcos-prod');
+    component.updateProfileSlug();
+
+    expect(component.isUpdatingSlug()).toBeTrue();
+
+    const req = httpMock.expectOne((r) => r.url.includes('/api/status/slug'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ slug: 'marcos-prod' });
+    req.flush({ slug: 'marcos-prod' });
+
+    expect(component.isUpdatingSlug()).toBeFalse();
+    expect(component.authService.currentUser()?.publicSlug).toBe('marcos-prod');
+    expect(component.profileSlugSuccess()).toContain('marcos-prod');
+  });
 });

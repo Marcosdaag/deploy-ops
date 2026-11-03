@@ -26,5 +26,6 @@ public class EndpointCreateDTO {
     @Size(max = 1000, message = "Los headers personalizados no pueden superar los 1000 caracteres.")
     private String customHeaders;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("isPublicStatus")
     private boolean isPublicStatus = false;
 }

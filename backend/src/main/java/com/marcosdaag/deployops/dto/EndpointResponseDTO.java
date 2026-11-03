@@ -1,5 +1,6 @@
 package com.marcosdaag.deployops.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import lombok.Getter;
@@ -17,9 +18,16 @@ public class EndpointResponseDTO {
     private final LocalDateTime lastCheckedAt;
     private final LocalDateTime createdAt;
     private final double uptimePercentage;
+
+    @JsonProperty("isProtected")
     private final boolean isProtected;
+
+    @JsonProperty("isOwner")
     private final boolean isOwner;
+
     private final String ownerEmail;
+
+    @JsonProperty("isPublicStatus")
     private final boolean isPublicStatus;
     private final String httpMethod;
     private final Integer expectedStatusCode;
