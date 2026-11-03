@@ -4,10 +4,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { EndpointService } from './endpoint.service';
 import { EndpointResponse } from '../models/endpoint.model';
 
-/*
- * Pruebas unitarias del servicio HTTP: verificamos que arme bien las peticiones
- * hacia la API publica y que extraiga correctamente los errores del backend.
- */
 describe('EndpointService', () => {
   let service: EndpointService;
   let httpMock: HttpTestingController;

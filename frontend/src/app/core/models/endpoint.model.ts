@@ -1,9 +1,5 @@
 export type ServiceStatus = 'PENDING' | 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'RECOVERING';
 
-/*
- * Contratos de datos que espejan exactamente los DTOs de nuestro backend en Spring Boot.
- * Cualquier cambio en EndpointResponseDTO o ErrorResponseDTO se refleja aca.
- */
 export interface EndpointResponse {
   id: number;
   name: string;

@@ -19,22 +19,18 @@ public class EndpointController {
 
     private final EndpointManagerService endpointManager;
 
-    // GET: http://localhost:8080/api/endpoints
     @GetMapping
     public ResponseEntity<List<EndpointResponseDTO>> getEndpoints() {
         return ResponseEntity.ok(endpointManager.getDashboardData());
     }
 
-    // POST: http://localhost:8080/api/endpoints
     @PostMapping
     public ResponseEntity<EndpointResponseDTO> createEndpoint(@Valid @RequestBody EndpointCreateDTO dto) {
         ServiceEntity created = endpointManager.createEndpoint(dto);
-        // Al crearse en estado PENDING, su uptime inicial es 0.0 hasta ejecutar el primer check
         EndpointResponseDTO response = new EndpointResponseDTO(created, 0.0);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // DELETE: http://localhost:8080/api/endpoints/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEndpoint(@PathVariable Long id) {
         endpointManager.deleteEndpoint(id);

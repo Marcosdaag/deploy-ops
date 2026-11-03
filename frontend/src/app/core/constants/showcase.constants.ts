@@ -16,10 +16,6 @@ export interface StateNodeInfo {
   trigger: string;
 }
 
-/*
- * Datos iniciales que mostramos al instante mientras el backend en Render
- * responde la primera consulta, asi la pagina nunca arranca vacia.
- */
 export const INITIAL_SHOWCASE_ENDPOINTS: EndpointResponse[] = [
   {
     id: 2,
@@ -45,10 +41,6 @@ export const INITIAL_SHOWCASE_ENDPOINTS: EndpointResponse[] = [
   }
 ];
 
-/*
- * Accesos rapidos para que cualquiera que visite la pagina pueda probar
- * el monitor con un clic, incluyendo un caso para disparar el filtro anti-SSRF.
- */
 export const QUICK_PRESETS: QuickPreset[] = [
   { label: 'Wikipedia', name: 'Wikimedia Global Portal', url: 'https://www.wikipedia.org' },
   { label: 'Google', name: 'Google Search', url: 'https://www.google.com' },
@@ -61,10 +53,6 @@ export const QUICK_PRESETS: QuickPreset[] = [
   }
 ];
 
-/*
- * Explicacion paso a paso de nuestra maquina de estados. Sirve para mostrar
- * en la landing como evitamos falsas alarmas ante micro-cortes de red.
- */
 export const STATE_MACHINE_STEPS: StateNodeInfo[] = [
   {
     status: 'PENDING',

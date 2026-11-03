@@ -7,7 +7,6 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Locale;
 
-// Valida que no nos pasen URLs locales (localhost o IPs privadas) para evitar ataques SSRF
 @Component
 public class UrlSecurityValidator {
 
@@ -35,7 +34,6 @@ public class UrlSecurityValidator {
 
         String normalizedHost = host.toLowerCase(Locale.ROOT);
 
-        // Bloqueamos localhost y direcciones internas
         if (normalizedHost.equals("localhost")
                 || normalizedHost.endsWith(".local")
                 || normalizedHost.endsWith(".internal")

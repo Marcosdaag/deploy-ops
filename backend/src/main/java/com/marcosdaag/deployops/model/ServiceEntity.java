@@ -23,19 +23,16 @@ public class ServiceEntity {
     @Column(nullable = false, length = 500)
     private String url;
 
-    // Guarda el texto del enum en la base de datos (PENDING, HEALTHY, etc.)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ServiceStatus status = ServiceStatus.PENDING;
 
-    // Contadores para saber cuantas veces seguidas fallo o respondio bien
     @Column(nullable = false)
     private int consecutiveFailures = 0;
 
     @Column(nullable = false)
     private int consecutiveSuccesses = 0;
 
-    // Latencia en milisegundos del ultimo ping realizado
     private Long lastResponseTimeMs;
 
     @Column(nullable = false, updatable = false)

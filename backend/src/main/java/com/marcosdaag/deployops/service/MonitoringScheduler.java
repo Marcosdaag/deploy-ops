@@ -19,7 +19,6 @@ public class MonitoringScheduler {
     private final EndpointManagerService endpointManager;
     private final HttpMonitorService httpMonitor;
 
-    // Cada 1 minuto (60s despues de terminar el anterior) chequea todos los servicios
     @Scheduled(fixedDelay = 60000)
     public void checkAllServices() {
         logger.info("CRON verificando el estado de los servicios.");

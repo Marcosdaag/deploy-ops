@@ -11,6 +11,5 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
 
     Optional<ServiceEntity> findByName(String name);
 
-    // Permite comprobar si ya existe un servicio con la misma URL
     boolean existsByUrl(String url);
 }

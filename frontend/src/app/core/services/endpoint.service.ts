@@ -8,11 +8,6 @@ import {
   EndpointResponse
 } from '../models/endpoint.model';
 
-/*
- * Servicio encargado de hablar con nuestra API publica en Render.
- * Centraliza las peticiones GET, POST y DELETE, y traduce los errores del
- * GlobalExceptionHandler para mostrarlos limpios en pantalla.
- */
 @Injectable({
   providedIn: 'root'
 })

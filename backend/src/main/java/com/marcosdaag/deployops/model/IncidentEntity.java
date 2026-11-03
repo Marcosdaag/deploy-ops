@@ -19,14 +19,13 @@ public class IncidentEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private IncidentStatus status; // ONGOING, RESOLVED
+    private IncidentStatus status;
 
     @Column(nullable = false)
     private LocalDateTime startedAt;
 
     private LocalDateTime resolvedAt;
 
-    // Relacion, Muchos incidentes pertenecen a UN servicio
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     private ServiceEntity service;

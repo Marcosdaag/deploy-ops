@@ -5,10 +5,6 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { routes } from './app.routes';
 
-/*
- * Test base de la aplicacion para verificar que el contenedor raiz
- * y el sistema de rutas levanten sin errores.
- */
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({

@@ -15,7 +15,7 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // Limpiamos espacios y barras finales por si la URL en variables de entorno trae un "/" al final
+        // Normaliza origenes eliminando barras finales
         String[] cleanOrigins = Arrays.stream(allowedOrigins)
                 .map(origin -> origin.trim().replaceAll("/+$", ""))
                 .filter(origin -> !origin.isEmpty())

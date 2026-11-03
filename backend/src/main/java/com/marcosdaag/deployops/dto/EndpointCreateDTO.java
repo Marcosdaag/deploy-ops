@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.URL;
 
-// En este DTO validamos los datos para registrar nuevos servicios
 @Setter
 @Getter
 public class EndpointCreateDTO {

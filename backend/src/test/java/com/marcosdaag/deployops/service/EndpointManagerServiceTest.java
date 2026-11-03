@@ -73,13 +73,11 @@ class EndpointManagerServiceTest {
         ServiceEntity created = endpointManagerService.createEndpoint(validDto);
         assertEquals(ServiceStatus.PENDING, created.getStatus());
 
-        // SSRF hacia localhost debe fallar
         EndpointCreateDTO ssrfDto = new EndpointCreateDTO();
         ssrfDto.setName("Servidor Interno");
         ssrfDto.setUrl("http://localhost:8080/actuator");
         assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(ssrfDto));
 
-        // URL duplicada debe fallar
         when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(true);
         assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(validDto));
     }

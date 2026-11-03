@@ -18,7 +18,6 @@ public class MetricsService {
 
     private final IncidentRepository incidentRepository;
 
-    // Calcula el porcentaje de Uptime de un servicio consultando sus incidentes individuales
     public double calculateUptimePercentage(ServiceEntity service) {
         if (service.getStatus() == ServiceStatus.PENDING && service.getLastCheckedAt() == null) {
             return 0.0;
@@ -33,7 +32,7 @@ public class MetricsService {
         return calculateUptimeFromIncidents(service, incidents, windowStart);
     }
 
-    // Calcula los uptimes de todos los servicios en una sola consulta grupal para evitar el problema N+1
+    // Procesa uptimes en lote para evitar consultas N+1
     public Map<Long, Double> calculateUptimesForServices(List<ServiceEntity> services) {
         if (services.isEmpty()) {
             return Collections.emptyMap();
@@ -42,7 +41,6 @@ public class MetricsService {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         List<IncidentEntity> allIncidents = incidentRepository.findOverlappingIncidentsForServices(services, thirtyDaysAgo);
 
-        // Agrupamos los incidentes por el ID de cada servicio en memoria
         Map<Long, List<IncidentEntity>> incidentsByServiceId = allIncidents.stream()
                 .filter(i -> i.getService() != null && i.getService().getId() != null)
                 .collect(Collectors.groupingBy(i -> i.getService().getId()));
@@ -66,7 +64,6 @@ public class MetricsService {
         return result;
     }
 
-    // Metodo auxiliar para hacer la cuenta matematica del Uptime
     private double calculateUptimeFromIncidents(ServiceEntity service, List<IncidentEntity> incidents, LocalDateTime windowStart) {
         LocalDateTime now = LocalDateTime.now();
         long totalWindowSeconds = Duration.between(windowStart, now).toSeconds();

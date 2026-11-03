@@ -16,7 +16,6 @@ public class HttpMonitorService {
 
     private final RestTemplate restTemplate;
 
-    // Configuramos RestTemplate con timeouts para que una URL colgada no trabe el servidor
     public HttpMonitorService() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
@@ -24,11 +23,10 @@ public class HttpMonitorService {
         this.restTemplate = new RestTemplate(factory);
     }
 
-    // Hace la peticion HTTP y mide cuanto tarda en responder
     public PingResult ping(String url) {
         long startNano = System.nanoTime();
         try {
-            // Usamos Void.class para no descargar el cuerpo HTML a la RAM, solo leemos el status code
+            // Void.class evita descargar el payload a memoria
             ResponseEntity<Void> response = restTemplate.getForEntity(url, Void.class);
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
             int statusCode = response.getStatusCode().value();
@@ -39,7 +37,6 @@ public class HttpMonitorService {
                     : PingResult.failure(statusCode, elapsedMs, "Codigo de respuesta: " + statusCode);
 
         } catch (HttpStatusCodeException e) {
-            // Respondio pero con error 4xx o 5xx
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
             return PingResult.failure(e.getStatusCode().value(), elapsedMs, "HTTP error: " + e.getStatusCode().value());
         } catch (ResourceAccessException e) {

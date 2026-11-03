@@ -110,8 +110,7 @@
         </div>
       </div>
 
-      <!-- Vitrina arquitectonica abierta con animacion de pulso en las curvas SVG -->
-      <div class="spotlight-stage reveal-up reveal-delay-1">
+            <div class="spotlight-stage reveal-up reveal-delay-1">
         <div class="spotlight-header-bar">
           <div class="spotlight-title-cluster">
             <span class="live-beacon"></span>
@@ -773,8 +772,7 @@
     </button>
   }
 
-  <!-- Panel lateral deslizable con el desglose tecnico del servicio seleccionado -->
-  @if (selectedEndpoint(); as selected) {
+    @if (selectedEndpoint(); as selected) {
     <div class="drawer-backdrop" (click)="closeInspector()">
       <aside class="inspector-drawer" (click)="$event.stopPropagation()">
         <div class="drawer-header">
@@ -857,8 +855,7 @@
     </div>
   }
 
-  <!-- Confirmacion de eliminacion -->
-  @if (endpointToDelete(); as target) {
+    @if (endpointToDelete(); as target) {
     <div class="drawer-backdrop modal-center" (click)="cancelDelete()">
       <div class="confirm-dialog" (click)="$event.stopPropagation()">
         <span class="drawer-eyebrow text-danger">Confirmar Baja</span>

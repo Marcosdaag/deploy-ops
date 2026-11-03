@@ -27,21 +27,17 @@ public class EndpointManagerService {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointManagerService.class);
 
-    // Inyecciones por constructor
     private final ServiceRepository serviceRepository;
     private final IncidentRepository incidentRepository;
     private final MetricsService metricsService;
     private final UrlSecurityValidator urlSecurityValidator;
 
-    // Crea un "servicio" o endpoint a vigilar
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
         String cleanUrl = dto.getUrl().trim();
 
-        // 1. Validamos que la URL sea segura y no apunte a redes internas (SSRF)
         urlSecurityValidator.validatePublicUrl(cleanUrl);
 
-        // 2. Validamos que no se registre dos veces la misma URL
         if (serviceRepository.existsByUrl(cleanUrl)) {
             throw new IllegalArgumentException("Ya existe un servicio registrado con esa URL.");
         }
@@ -49,7 +45,7 @@ public class EndpointManagerService {
         ServiceEntity newEndpoint = new ServiceEntity();
         newEndpoint.setName(dto.getName().trim());
         newEndpoint.setUrl(cleanUrl);
-        newEndpoint.setStatus(ServiceStatus.PENDING); // Arranca en PENDING hasta el primer ping
+        newEndpoint.setStatus(ServiceStatus.PENDING);
         newEndpoint.setConsecutiveFailures(0);
         newEndpoint.setConsecutiveSuccesses(0);
         newEndpoint.setCreatedAt(LocalDateTime.now());
@@ -57,7 +53,6 @@ public class EndpointManagerService {
         return serviceRepository.save(newEndpoint);
     }
 
-    // Borra el servicio y sus incidentes asociados
     @Transactional
     public void deleteEndpoint(Long id) {
         if (!serviceRepository.existsById(id)) {
@@ -68,12 +63,11 @@ public class EndpointManagerService {
         serviceRepository.deleteById(id);
     }
 
-    // Lista todos los endpoints a vigilar
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
     }
 
-    // Carga los datos del dashboard calculando los uptimes en bloque (evita problema N+1)
+    // Precalcula uptimes en lote para evitar consultas N+1
     public List<EndpointResponseDTO> getDashboardData() {
         List<ServiceEntity> services = serviceRepository.findAll();
         Map<Long, Double> uptimes = metricsService.calculateUptimesForServices(services);
@@ -86,10 +80,9 @@ public class EndpointManagerService {
                 .toList();
     }
 
-    // Evalua que hacer con el resultado del pingeo y gestiona incidentes
     @Transactional
     public void processPingResult(ServiceEntity service, PingResult pingResult) {
-        // Evitamos condicion de carrera: si el servicio fue borrado mientras viajaba el ping, no lo resucitamos
+        // Descarta actualizacion si el servicio fue eliminado durante el ping
         if (service.getId() != null && !serviceRepository.existsById(service.getId())) {
             logger.warn("El servicio {} (ID {}) ya no existe en la base de datos. Se descarta la actualizacion.", service.getName(), service.getId());
             return;
@@ -117,17 +110,15 @@ public class EndpointManagerService {
                 service.setStatus(ServiceStatus.HEALTHY);
             }
             case DEGRADED -> {
-                // Era falsa alarma, vuelve a estar sano
-                logger.info("Servicio {} recuperado de estado degradado. Volviendo a HEALTHY.", service.getName());
+                    logger.info("Servicio {} recuperado de estado degradado. Volviendo a HEALTHY.", service.getName());
                 service.setStatus(ServiceStatus.HEALTHY);
             }
             case DOWN -> {
-                // Estaba caido y respondio por primera vez
-                logger.info("Servicio {} respondio tras la caida. Pasando a RECOVERING.", service.getName());
+                    logger.info("Servicio {} respondio tras la caida. Pasando a RECOVERING.", service.getName());
                 service.setStatus(ServiceStatus.RECOVERING);
             }
             case RECOVERING -> {
-                // Con 2 exitos seguidos confirmamos que levanto y cerramos el incidente
+                // 2 exitos consecutivos confirman recuperacion y cierran el incidente
                 if (service.getConsecutiveSuccesses() >= 2) {
                     logger.info("Servicio {} confirmo 2 exitos seguidos. Cerrando incidente.", service.getName());
                     service.setStatus(ServiceStatus.HEALTHY);
@@ -135,8 +126,7 @@ public class EndpointManagerService {
                 }
             }
             case HEALTHY -> {
-                // Sigue funcionando bien
-            }
+                }
         }
     }
 
@@ -146,8 +136,7 @@ public class EndpointManagerService {
 
         switch (service.getStatus()) {
             case PENDING, HEALTHY -> {
-                // Al primer fallo lo pasamos a DEGRADED (sin abrir incidente todavia)
-                logger.warn("Primer fallo en {}. Marcando como DEGRADED.", service.getName());
+                    logger.warn("Primer fallo en {}. Marcando como DEGRADED.", service.getName());
                 service.setStatus(ServiceStatus.DEGRADED);
             }
             case DEGRADED -> {

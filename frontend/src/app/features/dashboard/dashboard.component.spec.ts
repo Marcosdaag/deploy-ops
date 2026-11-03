@@ -4,10 +4,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { DashboardComponent } from './dashboard.component';
 import { EndpointResponse } from '../../core/models/endpoint.model';
 
-/*
- * Pruebas unitarias de la pantalla principal: validamos el calculo reactivo
- * de las metricas globales (SLA, latencia promedio) y los filtros de estado.
- */
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
   let fixture: ComponentFixture<DashboardComponent>;

@@ -39,10 +39,6 @@ type ApiMethodTab = 'GET' | 'POST' | 'DELETE';
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly endpointService = inject(EndpointService);
 
-  /*
-   * Estado general de la pagina: guardamos la lista de endpoints que vienen de Render,
-   * el tema elegido (oscuro o claro) y la posicion del mouse para el brillo suave del fondo.
-   */
   readonly endpoints = signal<EndpointResponse[]>(INITIAL_SHOWCASE_ENDPOINTS);
   readonly isSyncing = signal<boolean>(false);
   readonly lastSyncedAt = signal<Date | null>(null);
@@ -53,10 +49,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly cursorX = signal<number>(-500);
   readonly cursorY = signal<number>(-500);
 
-  /*
-   * Estado para los controles interactivos: filtros del listado, formulario para
-   * dar de alta nuevos servicios, panel lateral de detalle y explorador de la API.
-   */
   readonly searchQuery = signal<string>('');
   readonly statusFilter = signal<StatusFilter>('ALL');
 
@@ -87,11 +79,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private hasAttemptedAutoSeed = false;
 
-  /*
-   * Propiedades calculadas (computed): se actualizan solas cada vez que llega una
-   * respuesta nueva del backend. Arman los dos ejemplos principales, el resumen de
-   * metricas globales y la lista filtrada.
-   */
   readonly featuredPair = computed<EndpointResponse[]>(() => {
     const list = this.endpoints();
     if (list.length >= 2) return list.slice(0, 2);

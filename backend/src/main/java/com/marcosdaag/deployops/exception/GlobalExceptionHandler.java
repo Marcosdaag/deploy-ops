@@ -12,13 +12,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
 
-// Atrapa los errores de toda la API y devuelve siempre un JSON prolijo
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // Errores de validacion del DTO (@Valid) -> devuelve 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(MethodArgumentNotValidException ex) {
         List<String> errors = ex.getBindingResult()
@@ -36,7 +34,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    // Errores de negocio o URLs internas prohibidas -> devuelve 400
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponseDTO response = ErrorResponseDTO.of(
@@ -48,7 +45,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    // Cuando buscan o quieren borrar un servicio que no existe -> devuelve 404
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleResourceNotFoundException(ResourceNotFoundException ex) {
         ErrorResponseDTO response = ErrorResponseDTO.of(
@@ -60,7 +56,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
-    // Cualquier otro error inesperado -> devuelve 500 sin exponer datos internos de la DB
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGlobalException(Exception ex) {
         logger.error("Error no controlado en el servidor: ", ex);

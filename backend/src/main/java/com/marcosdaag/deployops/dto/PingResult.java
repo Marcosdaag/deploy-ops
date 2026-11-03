@@ -1,6 +1,5 @@
 package com.marcosdaag.deployops.dto;
 
-// Guarda el resultado de cada ping (si respondio, codigo HTTP y cuanto tardo en ms)
 public record PingResult(
         boolean isAlive,
         int statusCode,
