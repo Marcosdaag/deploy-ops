@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.repository;
 
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.UserEntity;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,10 @@ import java.util.Optional;
 
 @Repository
 public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
+
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    Optional<ServiceEntity> findById(Long id);
 
     Optional<ServiceEntity> findByName(String name);
 

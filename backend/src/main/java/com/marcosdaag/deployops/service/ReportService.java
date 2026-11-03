@@ -119,6 +119,7 @@ public class ReportService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public String generateMonthlyReportCsv(Long serviceId, int year, int month, String currentUserEmail) {
         MonthlyReportDTO report = generateMonthlyReport(serviceId, year, month, currentUserEmail);
 
@@ -149,6 +150,7 @@ public class ReportService {
         return sb.toString();
     }
 
+    @Transactional
     public void sendMonthlyReportEmail(Long serviceId, int year, int month, String currentUserEmail) {
         MonthlyReportDTO report = generateMonthlyReport(serviceId, year, month, currentUserEmail);
 
