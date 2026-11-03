@@ -91,3 +91,24 @@ Para evitar la sobreingeniería y mantener el foco en la calidad del código, es
 * **Justificación:**
   * Reduce la latencia de red entre el backend (Render) y la base de datos (Supabase) al pasar de $N+1$ viajes a exactamente 2 viajes fijos.
   * Agrupa los incidentes en memoria (`Map<Long, List<IncidentEntity>>`) de forma eficiente con la API Streams de Java.
+
+
+---
+
+## ADR 10: Telemetría en Tiempo Real mediante Server-Sent Events (SSE)
+
+* **Contexto:** En la v1.0, el frontend dependía de sondeos periódicos HTTP (`interval(25000)`). Esto introduce latencia en la visualización de caídas y genera peticiones innecesarias cuando no hay cambios de estado.
+* **Decisión:** Implementar un canal unidireccional de eventos utilizando **Server-Sent Events (SSE)** en el backend (`/api/endpoints/stream` mediante `SseEmitter`) y consumirlo con la API nativa del navegador `EventSource` en Angular.
+* **Justificación:**
+  * Al ser un protocolo sobre HTTP estándar, atraviesa proxies y firewalls (como Render y Vercel) sin necesidad de configuraciones especiales de WebSocket o librerías adicionales de cliente (como SockJS o Stomp).
+  * Se emiten eventos `DASHBOARD_UPDATE` únicamente cuando el Scheduler de fondo completa una comprobación o cuando un usuario dispara un ping manual, logrando sincronización instantánea entre todos los clientes conectados.
+
+---
+
+## ADR 11: Protección de Endpoints de Demostración (Showcase Protection)
+
+* **Contexto:** Al exponer la plataforma en internet de forma pública para reclutadores y usuarios evaluadores, cualquier usuario podría invocar `DELETE /api/endpoints/{id}` sobre los servicios semilla (Google, Cloudflare, Wikimedia), dejando el dashboard vacío para futuros visitantes.
+* **Decisión:** Agregar un atributo `isProtected` en `ServiceEntity` y un validador en `EndpointManagerService.deleteEndpoint(Long id)`.
+* **Justificación:**
+  * Rechaza intentos de eliminación sobre servicios protegidos con un error HTTP 400 descriptivo (`IllegalArgumentException`).
+  * En la interfaz de usuario, deshabilita visualmente la opción de borrado e indica mediante un icono que se trata de un recurso protegido de demostración.

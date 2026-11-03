@@ -5,7 +5,8 @@ import { environment } from '../../../environments/environment';
 import {
   ApiErrorResponse,
   EndpointCreateRequest,
-  EndpointResponse
+  EndpointResponse,
+  IncidentResponse
 } from '../models/endpoint.model';
 
 @Injectable({
@@ -25,6 +26,42 @@ export class EndpointService {
 
   deleteEndpoint(id: number): Observable<void> {
     return this.http.delete<void>(`${this.publicApiUrl}/${id}`);
+  }
+
+  getIncidents(serviceId: number): Observable<IncidentResponse[]> {
+    return this.http.get<IncidentResponse[]>(`${this.publicApiUrl}/${serviceId}/incidents`);
+  }
+
+  triggerPing(serviceId: number): Observable<EndpointResponse> {
+    return this.http.post<EndpointResponse>(`${this.publicApiUrl}/${serviceId}/ping`, {});
+  }
+
+  getDashboardStream(): Observable<EndpointResponse[]> {
+    return new Observable<EndpointResponse[]>((observer) => {
+      if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+        return;
+      }
+
+      const streamUrl = `${this.publicApiUrl}/stream`;
+      const eventSource = new EventSource(streamUrl);
+
+      eventSource.addEventListener('DASHBOARD_UPDATE', (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data) as EndpointResponse[];
+          observer.next(data);
+        } catch (e) {
+          console.warn('Error al deserializar evento SSE', e);
+        }
+      });
+
+      eventSource.onerror = () => {
+        // EventSource reconecta automaticamente
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    });
   }
 
   extractErrorMessages(error: unknown): string[] {

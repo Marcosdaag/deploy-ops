@@ -19,6 +19,8 @@ public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> 
 
     List<IncidentEntity> findByService(ServiceEntity service);
 
+    List<IncidentEntity> findByServiceOrderByStartedAtDesc(ServiceEntity service);
+
     List<IncidentEntity> findByServiceAndStartedAtAfter(ServiceEntity service, LocalDateTime startedAt);
 
     @Query("SELECT i FROM IncidentEntity i WHERE i.service = :service AND (i.resolvedAt IS NULL OR i.resolvedAt > :windowStart)")

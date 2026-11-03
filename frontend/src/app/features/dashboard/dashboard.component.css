@@ -1742,3 +1742,185 @@ section {
     display: none;
   }
 }
+
+
+/* --- Boton de Ping Manual en Lista de Endpoints --- */
+.btn-lr-ping {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-lr-ping:hover:not(:disabled) {
+  color: var(--accent-gold);
+  background: rgba(212, 163, 89, 0.12);
+  transform: scale(1.08);
+}
+
+.btn-lr-ping:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.badge-protected-icon {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* --- Seccion Bitacora de Incidentes en Inspector --- */
+.drawer-incidents {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.incidents-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.pulse-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.incidents-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-top: 0.5rem;
+  background: rgba(46, 204, 113, 0.05);
+  border: 1px solid rgba(46, 204, 113, 0.15);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.incidents-empty svg {
+  color: var(--status-healthy);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.incidents-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.incident-item {
+  padding: 0.75rem 0.9rem;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.incident-item.inc-ongoing {
+  border-color: rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.06);
+}
+
+.incident-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.incident-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.badge-ongoing {
+  background: rgba(231, 76, 60, 0.18);
+  color: var(--status-down);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.badge-resolved {
+  background: rgba(46, 204, 113, 0.15);
+  color: var(--status-healthy);
+  border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+.incident-duration {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.incident-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+/* --- Boton de Ping en Footer del Drawer --- */
+.btn-drawer-ping {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent-gold);
+  background: rgba(212, 163, 89, 0.12);
+  color: var(--accent-gold);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-drawer-ping:hover:not(:disabled) {
+  background: rgba(212, 163, 89, 0.22);
+  transform: translateY(-1px);
+}
+
+.btn-drawer-ping:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge-protected-notice {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.5rem;
+}

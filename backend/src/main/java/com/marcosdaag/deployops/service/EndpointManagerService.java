@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.dto.IncidentResponseDTO;
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
@@ -31,6 +32,8 @@ public class EndpointManagerService {
     private final IncidentRepository incidentRepository;
     private final MetricsService metricsService;
     private final UrlSecurityValidator urlSecurityValidator;
+    private final HttpMonitorService httpMonitorService;
+    private final SseNotificationService sseNotificationService;
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
@@ -49,18 +52,26 @@ public class EndpointManagerService {
         newEndpoint.setConsecutiveFailures(0);
         newEndpoint.setConsecutiveSuccesses(0);
         newEndpoint.setCreatedAt(LocalDateTime.now());
+        newEndpoint.setProtected(false);
 
-        return serviceRepository.save(newEndpoint);
+        ServiceEntity saved = serviceRepository.save(newEndpoint);
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
+        return saved;
     }
 
     @Transactional
     public void deleteEndpoint(Long id) {
-        if (!serviceRepository.existsById(id)) {
-            throw new ResourceNotFoundException("No se encontro el servicio con ID: " + id);
+        ServiceEntity service = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
+
+        if (service.isProtected() || esUrlProtegida(service.getUrl())) {
+            throw new IllegalArgumentException("Este endpoint de demostracion esta protegido contra eliminacion.");
         }
 
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
+
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
     }
 
     public List<ServiceEntity> getAllEndpoints() {
@@ -78,6 +89,31 @@ public class EndpointManagerService {
                     return new EndpointResponseDTO(service, uptime);
                 })
                 .toList();
+    }
+
+    public List<IncidentResponseDTO> getIncidentsForService(Long serviceId) {
+        ServiceEntity service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + serviceId));
+
+        return incidentRepository.findByServiceOrderByStartedAtDesc(service)
+                .stream()
+                .map(IncidentResponseDTO::new)
+                .toList();
+    }
+
+    @Transactional
+    public EndpointResponseDTO triggerManualPing(Long id) {
+        ServiceEntity service = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
+
+        PingResult pingResult = httpMonitorService.ping(service.getUrl());
+        processPingResult(service, pingResult);
+
+        double uptime = metricsService.calculateUptimePercentage(service);
+        EndpointResponseDTO response = new EndpointResponseDTO(service, uptime);
+
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
+        return response;
     }
 
     @Transactional
@@ -110,11 +146,11 @@ public class EndpointManagerService {
                 service.setStatus(ServiceStatus.HEALTHY);
             }
             case DEGRADED -> {
-                    logger.info("Servicio {} recuperado de estado degradado. Volviendo a HEALTHY.", service.getName());
+                logger.info("Servicio {} recuperado de estado degradado. Volviendo a HEALTHY.", service.getName());
                 service.setStatus(ServiceStatus.HEALTHY);
             }
             case DOWN -> {
-                    logger.info("Servicio {} respondio tras la caida. Pasando a RECOVERING.", service.getName());
+                logger.info("Servicio {} respondio tras la caida. Pasando a RECOVERING.", service.getName());
                 service.setStatus(ServiceStatus.RECOVERING);
             }
             case RECOVERING -> {
@@ -122,11 +158,12 @@ public class EndpointManagerService {
                 if (service.getConsecutiveSuccesses() >= 2) {
                     logger.info("Servicio {} confirmo 2 exitos seguidos. Cerrando incidente.", service.getName());
                     service.setStatus(ServiceStatus.HEALTHY);
-                    closeActiveIncident(service);
+                    closeOngoingIncident(service);
                 }
             }
             case HEALTHY -> {
-                }
+                // Sigue en operacion nominal
+            }
         }
     }
 
@@ -136,11 +173,11 @@ public class EndpointManagerService {
 
         switch (service.getStatus()) {
             case PENDING, HEALTHY -> {
-                    logger.warn("Primer fallo en {}. Marcando como DEGRADED.", service.getName());
+                logger.warn("Primer fallo en {}. Marcando como DEGRADED.", service.getName());
                 service.setStatus(ServiceStatus.DEGRADED);
             }
             case DEGRADED -> {
-                // Si llega a 3 fallos seguidos, se considera caido y abrimos incidente
+                // Al tercer fallo consecutivo se confirma caida y se abre incidente
                 if (service.getConsecutiveFailures() >= 3) {
                     logger.error("Servicio {} acumulo 3 fallos seguidos. Marcando como DOWN y abriendo incidente.", service.getName());
                     service.setStatus(ServiceStatus.DOWN);
@@ -149,35 +186,42 @@ public class EndpointManagerService {
                     logger.warn("Servicio {} sigue fallando (intento {}/3).", service.getName(), service.getConsecutiveFailures());
                 }
             }
+            case DOWN -> {
+                logger.warn("Servicio {} permanece en estado DOWN.", service.getName());
+            }
             case RECOVERING -> {
-                // Estaba recuperandose pero volvio a fallar
                 logger.warn("Servicio {} volvio a caer. Volviendo a DOWN.", service.getName());
                 service.setStatus(ServiceStatus.DOWN);
-            }
-            case DOWN -> {
-                // Ya esta caido y con incidente abierto
             }
         }
     }
 
     private void openNewIncident(ServiceEntity service) {
-        if (incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING).isPresent()) {
-            return;
-        }
-
-        IncidentEntity newIncident = new IncidentEntity();
-        newIncident.setService(service);
-        newIncident.setStatus(IncidentStatus.ONGOING);
-        newIncident.setStartedAt(LocalDateTime.now());
-        incidentRepository.save(newIncident);
+        incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING)
+                .ifPresentOrElse(
+                        inc -> logger.warn("Ya existe un incidente activo para el servicio ID {}", service.getId()),
+                        () -> {
+                            IncidentEntity incident = new IncidentEntity();
+                            incident.setService(service);
+                            incident.setStatus(IncidentStatus.ONGOING);
+                            incident.setStartedAt(LocalDateTime.now());
+                            incidentRepository.save(incident);
+                        }
+                );
     }
 
-    private void closeActiveIncident(ServiceEntity service) {
+    private void closeOngoingIncident(ServiceEntity service) {
         incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING)
                 .ifPresent(incident -> {
                     incident.setStatus(IncidentStatus.RESOLVED);
                     incident.setResolvedAt(LocalDateTime.now());
                     incidentRepository.save(incident);
                 });
+    }
+
+    private boolean esUrlProtegida(String url) {
+        if (url == null) return false;
+        String lower = url.toLowerCase();
+        return lower.contains("google.com") || lower.contains("1.1.1.1") || lower.contains("wikipedia.org");
     }
 }

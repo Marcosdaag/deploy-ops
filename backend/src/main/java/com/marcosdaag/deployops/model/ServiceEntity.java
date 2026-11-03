@@ -39,4 +39,15 @@ public class ServiceEntity {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime lastCheckedAt;
+
+    @Column(name = "is_protected", nullable = false)
+    private boolean isProtected = false;
+
+    public boolean isProtected() {
+        return isProtected;
+    }
+
+    public void setProtected(boolean isProtected) {
+        this.isProtected = isProtected;
+    }
 }

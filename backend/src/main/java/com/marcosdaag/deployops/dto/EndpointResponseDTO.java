@@ -17,6 +17,7 @@ public class EndpointResponseDTO {
     private final LocalDateTime lastCheckedAt;
     private final LocalDateTime createdAt;
     private final double uptimePercentage;
+    private final boolean isProtected;
 
     public EndpointResponseDTO(ServiceEntity entity, double uptimePercentage) {
         this.id = entity.getId();
@@ -28,5 +29,6 @@ public class EndpointResponseDTO {
         this.lastCheckedAt = entity.getLastCheckedAt();
         this.createdAt = entity.getCreatedAt();
         this.uptimePercentage = uptimePercentage;
+        this.isProtected = entity.isProtected();
     }
 }

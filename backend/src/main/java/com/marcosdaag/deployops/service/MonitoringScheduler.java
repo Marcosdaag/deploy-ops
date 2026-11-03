@@ -18,32 +18,27 @@ public class MonitoringScheduler {
 
     private final EndpointManagerService endpointManager;
     private final HttpMonitorService httpMonitor;
+    private final SseNotificationService sseNotificationService;
 
     @Scheduled(fixedDelay = 60000)
-    public void checkAllServices() {
-        logger.info("CRON verificando el estado de los servicios.");
+    public void checkAllEndpoints() {
+        List<ServiceEntity> endpoints = endpointManager.getAllEndpoints();
+        if (endpoints.isEmpty()) {
+            return;
+        }
 
-        List<ServiceEntity> services = endpointManager.getAllEndpoints();
+        logger.info("Iniciando ciclo de monitoreo para {} servicios...", endpoints.size());
 
-        for (ServiceEntity service : services) {
+        for (ServiceEntity service : endpoints) {
             try {
                 PingResult result = httpMonitor.ping(service.getUrl());
-
-                if (result.isAlive()) {
-                    logger.info("[UP - {}ms] {} ({}) responde correctamente.",
-                            result.responseTimeMs(), service.getName(), service.getUrl());
-                } else {
-                    logger.error("[DOWN - {}ms] {} ({}) fallo: {}",
-                            result.responseTimeMs(), service.getName(), service.getUrl(), result.errorMessage());
-                }
-
                 endpointManager.processPingResult(service, result);
-
             } catch (Exception e) {
-                logger.error("Error al chequear servicio {}: {}", service.getName(), e.getMessage());
+                logger.error("Error inesperado al monitorear {}: {}", service.getName(), e.getMessage());
             }
         }
 
-        logger.info("CRON verificacion terminada.");
+        sseNotificationService.broadcastDashboardUpdate(endpointManager.getDashboardData());
+        logger.info("Ciclo de monitoreo completado y notificado por SSE.");
     }
 }

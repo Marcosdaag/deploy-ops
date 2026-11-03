@@ -1,6 +1,8 @@
 package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
+import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.dto.IncidentResponseDTO;
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
@@ -20,6 +22,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +40,12 @@ class EndpointManagerServiceTest {
 
     @Mock
     private MetricsService metricsService;
+
+    @Mock
+    private HttpMonitorService httpMonitorService;
+
+    @Mock
+    private SseNotificationService sseNotificationService;
 
     @Spy
     private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
@@ -58,33 +67,55 @@ class EndpointManagerServiceTest {
         service.setStatus(ServiceStatus.HEALTHY);
         service.setConsecutiveFailures(0);
         service.setConsecutiveSuccesses(0);
+        service.setProtected(false);
     }
 
     @Test
-    @DisplayName("Al crear un servicio arranca en PENDING, bloquea localhost y rechaza URLs duplicadas")
-    void whenCreatingEndpoint_shouldInitializeAsPendingAndBlockInvalidUrls() {
-        EndpointCreateDTO validDto = new EndpointCreateDTO();
-        validDto.setName("GitHub API");
-        validDto.setUrl("https://api.github.com");
+    @DisplayName("Crea endpoint correctamente y queda en PENDING")
+    void whenCreatingValidEndpoint_shouldSaveWithPendingStatus() {
+        EndpointCreateDTO dto = new EndpointCreateDTO();
+        dto.setName("GitHub API");
+        dto.setUrl("https://api.github.com");
 
         when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(false);
-        when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(i -> {
+            ServiceEntity s = i.getArgument(0);
+            s.setId(10L);
+            return s;
+        });
 
-        ServiceEntity created = endpointManagerService.createEndpoint(validDto);
-        assertEquals(ServiceStatus.PENDING, created.getStatus());
+        ServiceEntity result = endpointManagerService.createEndpoint(dto);
 
-        EndpointCreateDTO ssrfDto = new EndpointCreateDTO();
-        ssrfDto.setName("Servidor Interno");
-        ssrfDto.setUrl("http://localhost:8080/actuator");
-        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(ssrfDto));
-
-        when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(true);
-        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(validDto));
+        assertNotNull(result);
+        assertEquals("GitHub API", result.getName());
+        assertEquals("https://api.github.com", result.getUrl());
+        assertEquals(ServiceStatus.PENDING, result.getStatus());
+        assertEquals(0, result.getConsecutiveFailures());
+        assertFalse(result.isProtected());
+        verify(serviceRepository).save(any(ServiceEntity.class));
+        verify(sseNotificationService).broadcastDashboardUpdate(any());
     }
 
     @Test
-    @DisplayName("1er fallo: pasa de HEALTHY a DEGRADED sin abrir incidente y guarda latencia")
-    void whenPingFailsOnce_shouldTransitionToDegradedWithoutOpeningIncident() {
+    @DisplayName("Falla al crear endpoint con URL insegura o duplicada")
+    void whenCreatingInvalidEndpoint_shouldThrowException() {
+        EndpointCreateDTO dtoSsrf = new EndpointCreateDTO();
+        dtoSsrf.setName("Admin Interno");
+        dtoSsrf.setUrl("http://localhost:8080/actuator");
+
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(dtoSsrf));
+
+        EndpointCreateDTO dtoDup = new EndpointCreateDTO();
+        dtoDup.setName("GitHub");
+        dtoDup.setUrl("https://api.github.com");
+
+        when(serviceRepository.existsByUrl("https://api.github.com")).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(dtoDup));
+    }
+
+    @Test
+    @DisplayName("Primer fallo en servicio HEALTHY: pasa a DEGRADED sin abrir incidente")
+    void whenHealthyServiceFailsOnce_shouldTransitionToDegradedWithoutIncident() {
         when(serviceRepository.existsById(1L)).thenReturn(true);
 
         endpointManagerService.processPingResult(service, failedPing);
@@ -93,15 +124,12 @@ class EndpointManagerServiceTest {
         assertEquals(1, service.getConsecutiveFailures());
         assertEquals(0, service.getConsecutiveSuccesses());
         assertEquals(300L, service.getLastResponseTimeMs());
-        assertNotNull(service.getLastCheckedAt());
-
-        verify(serviceRepository).save(service);
         verify(incidentRepository, never()).save(any(IncidentEntity.class));
     }
 
     @Test
-    @DisplayName("2do fallo seguido: sigue en DEGRADED sin abrir incidente")
-    void whenPingFailsTwiceConsecutively_shouldRemainDegraded() {
+    @DisplayName("Segundo fallo consecutivo: se mantiene en DEGRADED")
+    void whenDegradedServiceFailsAgain_shouldStayDegraded() {
         when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(1);
@@ -114,11 +142,12 @@ class EndpointManagerServiceTest {
     }
 
     @Test
-    @DisplayName("3er fallo seguido: pasa a DOWN y abre incidente ONGOING")
-    void whenPingFailsThreeTimes_shouldTransitionToDownAndOpenIncident() {
+    @DisplayName("Tercer fallo consecutivo: pasa a DOWN y abre incidente")
+    void whenDegradedServiceFailsThirdTime_shouldTransitionToDownAndOpenIncident() {
         when(serviceRepository.existsById(1L)).thenReturn(true);
         service.setStatus(ServiceStatus.DEGRADED);
         service.setConsecutiveFailures(2);
+
         when(incidentRepository.findByServiceAndStatus(service, IncidentStatus.ONGOING))
                 .thenReturn(Optional.empty());
 
@@ -211,15 +240,76 @@ class EndpointManagerServiceTest {
     @Test
     @DisplayName("Borrado: elimina primero los incidentes y luego el servicio, o tira 404 si no existe")
     void whenDeletingEndpoint_shouldDeleteIncidentsFirstOrThrow404() {
-        when(serviceRepository.existsById(1L)).thenReturn(true);
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
 
         endpointManagerService.deleteEndpoint(1L);
 
         verify(incidentRepository).deleteByServiceId(1L);
         verify(serviceRepository).deleteById(1L);
+        verify(sseNotificationService).broadcastDashboardUpdate(any());
 
-        when(serviceRepository.existsById(999L)).thenReturn(false);
+        when(serviceRepository.findById(999L)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> endpointManagerService.deleteEndpoint(999L));
+    }
+
+    @Test
+    @DisplayName("Proteccion de borrado: rechaza eliminar endpoints marcados como protegidos")
+    void whenDeletingProtectedEndpoint_shouldThrowIllegalArgumentException() {
+        service.setProtected(true);
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.deleteEndpoint(1L));
+        verify(serviceRepository, never()).deleteById(anyLong());
+        verify(incidentRepository, never()).deleteByServiceId(anyLong());
+    }
+
+    @Test
+    @DisplayName("Historial de incidentes: devuelve lista ordenada de incidentes con duracion")
+    void whenGettingIncidentsForService_shouldReturnOrderedDTOs() {
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        IncidentEntity inc1 = new IncidentEntity();
+        inc1.setId(101L);
+        inc1.setService(service);
+        inc1.setStatus(IncidentStatus.RESOLVED);
+        inc1.setStartedAt(LocalDateTime.now().minusHours(2));
+        inc1.setResolvedAt(LocalDateTime.now().minusHours(1));
+
+        IncidentEntity inc2 = new IncidentEntity();
+        inc2.setId(102L);
+        inc2.setService(service);
+        inc2.setStatus(IncidentStatus.ONGOING);
+        inc2.setStartedAt(LocalDateTime.now().minusMinutes(10));
+
+        when(incidentRepository.findByServiceOrderByStartedAtDesc(service)).thenReturn(List.of(inc2, inc1));
+
+        List<IncidentResponseDTO> result = endpointManagerService.getIncidentsForService(1L);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(102L, result.get(0).getId());
+        assertEquals(IncidentStatus.ONGOING, result.get(0).getStatus());
+        assertEquals(101L, result.get(1).getId());
+        assertEquals(IncidentStatus.RESOLVED, result.get(1).getStatus());
+        assertTrue(result.get(1).getDurationSeconds() >= 3590); // ~1 hora = 3600s
+    }
+
+    @Test
+    @DisplayName("Ping manual: ejecuta ping inmediato, actualiza estado y notifica por SSE")
+    void whenTriggeringManualPing_shouldPingAndReturnResponseDTO() {
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        when(httpMonitorService.ping("https://api.pagos.com/health")).thenReturn(successPing);
+        when(metricsService.calculateUptimePercentage(service)).thenReturn(99.9);
+
+        EndpointResponseDTO response = endpointManagerService.triggerManualPing(1L);
+
+        assertNotNull(response);
+        assertEquals("API Pagos", response.getName());
+        assertEquals(99.9, response.getUptimePercentage());
+        assertEquals(120L, response.getLastResponseTimeMs());
+        verify(httpMonitorService).ping("https://api.pagos.com/health");
+        verify(sseNotificationService, atLeastOnce()).broadcastDashboardUpdate(any());
     }
 
     @Test

@@ -1,4 +1,14 @@
 export type ServiceStatus = 'PENDING' | 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'RECOVERING';
+export type IncidentStatus = 'ONGOING' | 'RESOLVED';
+
+export interface IncidentResponse {
+  id: number;
+  serviceId: number;
+  status: IncidentStatus;
+  startedAt: string;
+  resolvedAt: string | null;
+  durationSeconds: number;
+}
 
 export interface EndpointResponse {
   id: number;
@@ -10,6 +20,7 @@ export interface EndpointResponse {
   lastCheckedAt: string | null;
   createdAt: string;
   uptimePercentage: number;
+  isProtected?: boolean;
 }
 
 export interface EndpointCreateRequest {

@@ -93,24 +93,28 @@ Toda la especificación técnica, de diseño y arquitectónica ha sido modulariz
 
 - [x] **Fase 1: Configuración inicial**
   - Estructura de monorepo (Spring Boot + Angular).
-  - Definición de arquitectura, dominio y ADRs.
+  - Definición de arquitectura, dominio y registros de decisión de arquitectura (ADRs).
 - [x] **Fase 2: Backend Core v1.0 (Completado y Desplegado)**
   - CRUD de endpoints con Bean Validation y DTOs seguros.
-  - Tareas programadas (`@Scheduled`) con medición de latencia y timeouts HTTP.
+  - Tareas programadas (`@Scheduled`) con medición monotónica de latencia (`System.nanoTime`) y timeouts HTTP.
   - Máquina de estados tolerante a fallos (`PENDING`, `HEALTHY`, `DEGRADED`, `DOWN`, `RECOVERING`).
-  - Persistencia de estado e incidentes en PostgreSQL (Supabase / Docker).
-  - Cálculo de Uptime optimizado sin problema N+1.
-  - Protección de seguridad contra ataques SSRF.
-  - Pipeline de CI en GitHub Actions con pruebas unitarias de Mockito y JUnit 5.
-- [ ] **Fase 3: Dashboard en Angular**
-  - Consumo del Backend REST con Angular y Signals.
-  - Vista de tarjetas, badges de estado, métricas de latencia y uptime.
-  - Formularios de alta y confirmación de borrado.
-- [ ] **Fase 4: Tiempo Real y Proactividad**
-  - Actualización reactiva de la UI vía WebSockets (STOMP).
-  - Generación de reportes PDF y envío por Email *(Roadmap futuro)*.
+  - Persistencia relacional de estado e incidentes en PostgreSQL (Supabase / Docker).
+  - Cálculo de Uptime optimizado en lote sin problema N+1.
+  - Escudo de seguridad contra ataques Server-Side Request Forgery (SSRF).
+  - Suite de pruebas unitarias exhaustivas con JUnit 5 y Mockito.
+- [x] **Fase 3: Dashboard en Angular (Completado y Desplegado en Vercel)**
+  - SPA moderna en Angular 20 con reactividad basada en Signals y Control Flow (`@if`, `@for`).
+  - Panel editorial con modo oscuro/claro, métricas globales (Uptime SLA, latencia promedio).
+  - Inspector lateral detallado con visualización de estado, curvas SVG y snippets cURL interactivos.
+  - CI de frontend validado en Chrome Headless mediante GitHub Actions.
+- [x] **Fase 4: Tiempo Real, Bitácora de Incidentes y Ping Inmediato**
+  - **Telemetría en Vivo:** Transmisión reactiva vía **Server-Sent Events (SSE)** en `/api/endpoints/stream` para actualización instantánea sin sobrecargar la red.
+  - **Bitácora de Incidentes:** Endpoint `/api/endpoints/{id}/incidents` que expone el historial de caídas con cálculo dinámico de duración y marcas temporales.
+  - **Disparador Manual:** Endpoint `/api/endpoints/{id}/ping` para ejecutar comprobaciones bajo demanda.
+  - **Protección de Semillas:** Salvaguarda contra eliminación de endpoints de demostración en entornos públicos.
 - [ ] **Fase 5: Multiplataforma y Pulido**
-  - Adaptación a cliente móvil *(Roadmap futuro)*.
+  - Exportación de reportes PDF y alertas automáticas por Email/Webhooks *(Roadmap futuro)*.
+  - Adaptación a cliente móvil nativo *(Roadmap futuro)*.
 
 ---
 

@@ -9,11 +9,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import {
   DashboardMetrics,
   EndpointCreateRequest,
   EndpointResponse,
+  IncidentResponse,
   ServiceStatus
 } from '../../core/models/endpoint.model';
 import {
@@ -58,6 +59,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly createErrors = signal<string[]>([]);
 
   readonly selectedEndpoint = signal<EndpointResponse | null>(null);
+  readonly selectedEndpointIncidents = signal<IncidentResponse[]>([]);
+  readonly isLoadingIncidents = signal<boolean>(false);
+  readonly isTriggeringPing = signal<boolean>(false);
+
   readonly endpointToDelete = signal<EndpointResponse | null>(null);
   readonly isDeleting = signal<boolean>(false);
 
@@ -77,6 +82,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private refreshTimerId: ReturnType<typeof setInterval> | null = null;
   private clockTimerId: ReturnType<typeof setInterval> | null = null;
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private sseSubscription: Subscription | null = null;
   private hasAttemptedAutoSeed = false;
 
   readonly featuredPair = computed<EndpointResponse[]>(() => {
@@ -147,11 +153,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.stateNodes.find((n) => n.status === current) ?? this.stateNodes[1];
   });
 
-  /*
-   * Eventos de ventana y ciclo de vida: escuchamos el movimiento del cursor para la
-   * luz sutil del fondo, controlamos el scroll para el menu superior y dejamos corriendo
-   * un refresco automatico cada 25 segundos contra Render.
-   */
   @HostListener('document:mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
     this.cursorX.set(event.clientX);
@@ -174,6 +175,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.initTheme();
     this.onWindowScroll();
     this.syncWithPublicApi();
+    this.initSseStream();
 
     this.refreshTimerId = setInterval(() => {
       if (!this.isSyncing()) {
@@ -190,6 +192,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.refreshTimerId) clearInterval(this.refreshTimerId);
     if (this.clockTimerId) clearInterval(this.clockTimerId);
     if (this.toastTimeoutId) clearTimeout(this.toastTimeoutId);
+    if (this.sseSubscription) this.sseSubscription.unsubscribe();
   }
 
   private initTheme(): void {
@@ -206,11 +209,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
     document.documentElement.setAttribute('data-theme', next);
   }
 
-  /*
-   * Comunicacion con el backend en Render: traemos los servicios activos, volvemos
-   * a cargar los dos ejemplos base si alguien vacio la base de datos y manejamos
-   * las altas y bajas de endpoints.
-   */
+  private initSseStream(): void {
+    this.sseSubscription = this.endpointService.getDashboardStream().subscribe({
+      next: (streamData) => {
+        if (streamData && streamData.length > 0) {
+          this.endpoints.set(streamData);
+          this.lastSyncedAt.set(new Date());
+          this.liveJsonOutput.set(JSON.stringify(streamData, null, 2));
+
+          const current = this.selectedEndpoint();
+          if (current) {
+            const updated = streamData.find((item) => item.id === current.id) ?? null;
+            this.selectedEndpoint.set(updated);
+          }
+        }
+      }
+    });
+  }
+
   syncWithPublicApi(): void {
     this.isSyncing.set(true);
     const startMs = performance.now();
@@ -345,10 +361,66 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openInspector(endpoint: EndpointResponse): void {
     this.selectedEndpoint.set(endpoint);
+    this.loadIncidents(endpoint.id);
   }
 
   closeInspector(): void {
     this.selectedEndpoint.set(null);
+    this.selectedEndpointIncidents.set([]);
+  }
+
+  loadIncidents(serviceId: number): void {
+    this.isLoadingIncidents.set(true);
+    this.endpointService.getIncidents(serviceId).subscribe({
+      next: (data) => {
+        this.selectedEndpointIncidents.set(data);
+        this.isLoadingIncidents.set(false);
+      },
+      error: () => {
+        this.selectedEndpointIncidents.set([]);
+        this.isLoadingIncidents.set(false);
+      }
+    });
+  }
+
+  triggerManualPing(endpoint: EndpointResponse, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (this.isTriggeringPing()) return;
+
+    this.isTriggeringPing.set(true);
+    this.endpointService.triggerPing(endpoint.id).subscribe({
+      next: (updated) => {
+        this.endpoints.update((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item))
+        );
+        if (this.selectedEndpoint()?.id === updated.id) {
+          this.selectedEndpoint.set(updated);
+          this.loadIncidents(updated.id);
+        }
+        this.isTriggeringPing.set(false);
+        this.showToast(
+          'success',
+          `Ping ejecutado en ${updated.name}: ${updated.lastResponseTimeMs ?? 0} ms`
+        );
+      },
+      error: (err) => {
+        this.isTriggeringPing.set(false);
+        const msg = this.endpointService.extractErrorMessages(err)[0];
+        this.showToast('error', msg);
+      }
+    });
+  }
+
+  formatDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remSeconds = seconds % 60;
+    if (minutes < 60) {
+      return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remMinutes = minutes % 60;
+    return `${hours}h ${remMinutes}m`;
   }
 
   triggerPublicApiTest(): void {
@@ -374,17 +446,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  /*
-   * Funciones auxiliares para la vista: arman los ejemplos de cURL, traducen los estados
-   * al espanol, generan las barras de disponibilidad y formatean las fechas.
-   */
   getCurlSnippet(method: ApiMethodTab): string {
     const url = this.endpointService.publicApiUrl;
     if (method === 'GET') {
-      return `curl -X GET "${url}" \\\n  -H "Accept: application/json"`;
+      return `curl -X GET "${url}" \
+  -H "Accept: application/json"`;
     }
     if (method === 'POST') {
-      return `curl -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name": "Google Search", "url": "https://www.google.com"}'`;
+      return `curl -X POST "${url}" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Google Search", "url": "https://www.google.com"}'`;
     }
     return `curl -X DELETE "${url}/2"`;
   }
