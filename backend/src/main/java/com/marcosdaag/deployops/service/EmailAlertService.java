@@ -87,6 +87,45 @@ public class EmailAlertService {
         dispatchEmail(toEmail, subject, htmlContent);
     }
 
+    @Async("mailTaskExecutor")
+    public void sendSslExpiringAlert(String toEmail, String serviceName, String serviceUrl, int daysRemaining, LocalDateTime expiryDate) {
+        String formattedDate = expiryDate != null ? expiryDate.format(DATE_FORMATTER) : "Próximamente";
+        String subject = String.format("⚠️ [DeployOps Alerta] Certificado SSL de \"%s\" expira en %d días", serviceName, daysRemaining);
+
+        String htmlContent = buildEmailTemplate(
+                "ADVERTENCIA · EXPIRACIÓN SSL",
+                "#f59e0b",
+                serviceName,
+                serviceUrl,
+                String.format("El certificado SSL/TLS de tu servicio vencerá en %d días. Te recomendamos renovarlo a la brevedad.", daysRemaining),
+                formattedDate,
+                null
+        );
+
+        dispatchEmail(toEmail, subject, htmlContent);
+    }
+
+    @Async("mailTaskExecutor")
+    public void sendMonthlyReport(String toEmail, String serviceName, String serviceUrl, String periodLabel, double uptimePercentage, long downtimeSeconds, int totalIncidents, double mttrMinutes) {
+        String subject = String.format("📊 [DeployOps Reporte] Resumen de SLA de \"%s\" - %s", serviceName, periodLabel);
+
+        String durationText = formatDuration(downtimeSeconds);
+        String description = String.format("Disponibilidad de %s: %.2f%% de SLA. Se registraron %d incidentes con un MTTR promedio de %.1f minutos.",
+                periodLabel, uptimePercentage, totalIncidents, mttrMinutes);
+
+        String htmlContent = buildEmailTemplate(
+                "REPORTE DE CUMPLIMIENTO SLA",
+                "#10b981",
+                serviceName,
+                serviceUrl,
+                description,
+                periodLabel,
+                durationText
+        );
+
+        dispatchEmail(toEmail, subject, htmlContent);
+    }
+
     private void dispatchEmail(String toEmail, String subject, String htmlContent) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 

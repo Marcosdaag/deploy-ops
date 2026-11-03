@@ -24,6 +24,9 @@ public class EndpointResponseDTO {
     private final String httpMethod;
     private final Integer expectedStatusCode;
     private final String customHeaders;
+    private final Integer sslDaysRemaining;
+    private final LocalDateTime sslExpiryDate;
+    private final String sslIssuer;
 
     public EndpointResponseDTO(ServiceEntity entity, double uptimePercentage) {
         this(entity, uptimePercentage, null);
@@ -44,6 +47,9 @@ public class EndpointResponseDTO {
         this.httpMethod = entity.getHttpMethod() != null ? entity.getHttpMethod() : "GET";
         this.expectedStatusCode = entity.getExpectedStatusCode();
         this.customHeaders = entity.getCustomHeaders();
+        this.sslDaysRemaining = entity.getSslDaysRemaining();
+        this.sslExpiryDate = entity.getSslExpiryDate();
+        this.sslIssuer = entity.getSslIssuer();
         this.ownerEmail = entity.getUser() != null ? entity.getUser().getEmail() : null;
         this.isOwner = entity.getUser() != null
                 && currentUserEmail != null

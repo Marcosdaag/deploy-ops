@@ -32,6 +32,9 @@ public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> 
 
     List<IncidentEntity> findTop10ByServiceInOrderByStartedAtDesc(List<ServiceEntity> services);
 
+    @Query("SELECT i FROM IncidentEntity i WHERE i.service = :service AND i.startedAt <= :monthEnd AND (i.resolvedAt IS NULL OR i.resolvedAt >= :monthStart) ORDER BY i.startedAt DESC")
+    List<IncidentEntity> findIncidentsInPeriod(@Param("service") ServiceEntity service, @Param("monthStart") LocalDateTime monthStart, @Param("monthEnd") LocalDateTime monthEnd);
+
     @Modifying
     @Query("DELETE FROM IncidentEntity i WHERE i.service.id = :serviceId")
     void deleteByServiceId(@Param("serviceId") Long serviceId);

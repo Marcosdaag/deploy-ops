@@ -158,10 +158,21 @@
                   <h2 class="sp-name">{{ item.name }}</h2>
                 </div>
 
-                <span [class]="getStatusClass(item.status)">
-                  <span class="status-dot"></span>
-                  <span>{{ getStatusLabel(item.status) }}</span>
-                </span>
+                <div class="sp-status-wrap">
+                  @if (item.sslDaysRemaining !== null && item.sslDaysRemaining !== undefined) {
+                    <span
+                      class="badge-ssl"
+                      [class.ssl-warning]="item.sslDaysRemaining <= 14"
+                      [class.ssl-healthy]="item.sslDaysRemaining > 14"
+                    >
+                      SSL {{ item.sslDaysRemaining }}d
+                    </span>
+                  }
+                  <span [class]="getStatusClass(item.status)">
+                    <span class="status-dot"></span>
+                    <span>{{ getStatusLabel(item.status) }}</span>
+                  </span>
+                </div>
               </div>
 
               <div class="sp-endpoint-line">
@@ -540,6 +551,16 @@
                   <span class="status-dot"></span>
                   <span>{{ getStatusLabel(ep.status) }}</span>
                 </span>
+                @if (ep.sslDaysRemaining !== null && ep.sslDaysRemaining !== undefined) {
+                  <span
+                    class="badge-ssl"
+                    [class.ssl-warning]="ep.sslDaysRemaining <= 14"
+                    [class.ssl-healthy]="ep.sslDaysRemaining > 14"
+                    [title]="ep.sslIssuer ? 'SSL emitido por: ' + ep.sslIssuer : 'Certificado SSL'"
+                  >
+                    SSL {{ ep.sslDaysRemaining }}d
+                  </span>
+                }
               </div>
               <a
                 [href]="ep.url"
@@ -938,6 +959,26 @@
               <dt>Alta en Catálogo</dt>
               <dd class="tabular-nums">{{ formatExactDate(selected.createdAt) }}</dd>
             </div>
+            @if (selected.sslDaysRemaining !== null && selected.sslDaysRemaining !== undefined) {
+              <div class="spec-item">
+                <dt>Certificado SSL/TLS</dt>
+                <dd>
+                  <span
+                    class="badge-ssl-drawer"
+                    [class.ssl-warning]="selected.sslDaysRemaining <= 14"
+                    [class.ssl-healthy]="selected.sslDaysRemaining > 14"
+                  >
+                    {{ selected.sslDaysRemaining <= 14 ? '⚠️ Expira en ' + selected.sslDaysRemaining + ' días' : '✓ Válido (' + selected.sslDaysRemaining + ' días restantes)' }}
+                  </span>
+                </dd>
+              </div>
+              @if (selected.sslIssuer) {
+                <div class="spec-item">
+                  <dt>Emisor SSL</dt>
+                  <dd class="ssl-issuer-text" [title]="selected.sslIssuer">{{ selected.sslIssuer }}</dd>
+                </div>
+              }
+            }
           </dl>
 
           @if (selected.isOwner && authService.isAuthenticated()) {
@@ -1141,6 +1182,74 @@
                   </li>
                 }
               </ul>
+            }
+          </div>
+
+          <div class="drawer-report-section">
+            <div class="drawer-block-head">
+              <span>Reporte Mensual SLA y Cumplimiento</span>
+              <div class="month-selector">
+                <button type="button" class="btn-month-nav" (click)="changeReportMonth(-1)" title="Mes anterior">‹</button>
+                <span class="month-label">{{ selectedReport()?.periodLabel || (reportMonth() + '/' + reportYear()) }}</span>
+                <button type="button" class="btn-month-nav" (click)="changeReportMonth(1)" title="Mes siguiente">›</button>
+              </div>
+            </div>
+
+            @if (isLoadingReport()) {
+              <div class="report-loading">
+                <span class="pulse-spinner"></span>
+                <span>Calculando métricas de cumplimiento...</span>
+              </div>
+            } @else if (selectedReport(); as r) {
+              <div class="report-metrics-grid">
+                <div class="r-metric-card" [class.sla-good]="r.uptimePercentage >= 99.9" [class.sla-warn]="r.uptimePercentage < 99.9 && r.uptimePercentage >= 99.0" [class.sla-danger]="r.uptimePercentage < 99.0">
+                  <span class="r-card-label">SLA Real</span>
+                  <span class="r-card-val tabular-nums">{{ r.uptimePercentage | number: '1.2-2' }}%</span>
+                </div>
+                <div class="r-metric-card">
+                  <span class="r-card-label">Downtime</span>
+                  <span class="r-card-val tabular-nums">{{ formatDuration(r.totalDowntimeSeconds) }}</span>
+                </div>
+                <div class="r-metric-card">
+                  <span class="r-card-label">Incidentes</span>
+                  <span class="r-card-val tabular-nums">{{ r.totalIncidents }}</span>
+                </div>
+                <div class="r-metric-card">
+                  <span class="r-card-label">MTTR Promedio</span>
+                  <span class="r-card-val tabular-nums">{{ r.mttrMinutes }}m</span>
+                </div>
+              </div>
+
+              <div class="report-actions-row">
+                <button
+                  type="button"
+                  class="btn-report-action"
+                  (click)="downloadReportCsv(selected)"
+                  [disabled]="isDownloadingReportCsv()"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>{{ isDownloadingReportCsv() ? 'Descargando...' : 'Descargar CSV' }}</span>
+                </button>
+
+                @if (selected.isOwner && authService.isAuthenticated()) {
+                  <button
+                    type="button"
+                    class="btn-report-action btn-report-email"
+                    (click)="sendReportByEmail(selected)"
+                    [disabled]="isSendingReportEmail()"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                    </svg>
+                    <span>{{ isSendingReportEmail() ? 'Enviando...' : 'Enviar por Correo' }}</span>
+                  </button>
+                }
+              </div>
             }
           </div>
         </div>

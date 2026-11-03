@@ -16,6 +16,7 @@ import {
   EndpointCreateRequest,
   EndpointResponse,
   IncidentResponse,
+  MonthlyReport,
   ServiceMetricsHistory,
   ServiceStatus
 } from '../../core/models/endpoint.model';
@@ -86,6 +87,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly isLoadingIncidents = signal<boolean>(false);
   readonly isTriggeringPing = signal<boolean>(false);
   readonly isTestingAlert = signal<boolean>(false);
+
+  readonly selectedReport = signal<MonthlyReport | null>(null);
+  readonly reportYear = signal<number>(new Date().getFullYear());
+  readonly reportMonth = signal<number>(new Date().getMonth() + 1);
+  readonly isLoadingReport = signal<boolean>(false);
+  readonly isSendingReportEmail = signal<boolean>(false);
+  readonly isDownloadingReportCsv = signal<boolean>(false);
 
   readonly endpointToDelete = signal<EndpointResponse | null>(null);
   readonly isDeleting = signal<boolean>(false);
@@ -461,6 +469,78 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.selectedEndpoint.set(endpoint);
     this.loadIncidents(endpoint.id);
     this.loadMetricsHistory(endpoint.id, this.metricsRange());
+    this.loadMonthlyReport(endpoint.id);
+  }
+
+  loadMonthlyReport(serviceId: number, year = this.reportYear(), month = this.reportMonth()): void {
+    this.isLoadingReport.set(true);
+    this.endpointService.getMonthlyReport(serviceId, year, month).subscribe({
+      next: (report) => {
+        this.selectedReport.set(report);
+        this.isLoadingReport.set(false);
+      },
+      error: () => {
+        this.selectedReport.set(null);
+        this.isLoadingReport.set(false);
+      }
+    });
+  }
+
+  changeReportMonth(monthDiff: number): void {
+    let year = this.reportYear();
+    let month = this.reportMonth() + monthDiff;
+    if (month < 1) {
+      month = 12;
+      year--;
+    } else if (month > 12) {
+      month = 1;
+      year++;
+    }
+    this.reportYear.set(year);
+    this.reportMonth.set(month);
+    const ep = this.selectedEndpoint();
+    if (ep) {
+      this.loadMonthlyReport(ep.id, year, month);
+    }
+  }
+
+  downloadReportCsv(endpoint: EndpointResponse): void {
+    if (this.isDownloadingReportCsv()) return;
+    this.isDownloadingReportCsv.set(true);
+    this.endpointService.downloadMonthlyReportCsv(endpoint.id, this.reportYear(), this.reportMonth()).subscribe({
+      next: (blob) => {
+        this.isDownloadingReportCsv.set(false);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = endpoint.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        a.download = `reporte-sla-${safeName}-${this.reportYear()}-${String(this.reportMonth()).padStart(2, '0')}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.showToast('success', 'Reporte CSV descargado exitosamente');
+      },
+      error: () => {
+        this.isDownloadingReportCsv.set(false);
+        this.showToast('error', 'No se pudo descargar el reporte CSV');
+      }
+    });
+  }
+
+  sendReportByEmail(endpoint: EndpointResponse): void {
+    if (this.isSendingReportEmail()) return;
+    this.isSendingReportEmail.set(true);
+    this.endpointService.sendMonthlyReportEmail(endpoint.id, this.reportYear(), this.reportMonth()).subscribe({
+      next: () => {
+        this.isSendingReportEmail.set(false);
+        const email = this.authService.currentUser()?.email || 'tu correo registrado';
+        this.showToast('success', `Reporte ejecutivo enviado a ${email}`);
+      },
+      error: (err) => {
+        this.isSendingReportEmail.set(false);
+        const msg = this.endpointService.extractErrorMessages(err)[0];
+        this.showToast('error', msg || 'No se pudo enviar el reporte por correo');
+      }
+    });
   }
 
   closeInspector(): void {

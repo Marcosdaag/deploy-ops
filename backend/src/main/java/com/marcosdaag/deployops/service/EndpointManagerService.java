@@ -190,6 +190,25 @@ public class EndpointManagerService {
         service.setLastCheckedAt(LocalDateTime.now());
         service.setLastResponseTimeMs(pingResult.responseTimeMs());
 
+        if (service.getUrl() != null && service.getUrl().toLowerCase().startsWith("https://")) {
+            com.marcosdaag.deployops.dto.SslCertificateInfo sslInfo = httpMonitorService.checkSslCertificate(service.getUrl());
+            if (sslInfo != null) {
+                service.setSslDaysRemaining(sslInfo.daysRemaining());
+                service.setSslExpiryDate(sslInfo.expiryDate());
+                service.setSslIssuer(sslInfo.issuer());
+
+                if (sslInfo.daysRemaining() != null && sslInfo.daysRemaining() <= 14 && service.getUser() != null && service.getUser().getEmail() != null) {
+                    emailAlertService.sendSslExpiringAlert(
+                            service.getUser().getEmail(),
+                            service.getName(),
+                            service.getUrl(),
+                            sslInfo.daysRemaining(),
+                            sslInfo.expiryDate()
+                    );
+                }
+            }
+        }
+
         metricsHistoryService.recordPing(service, pingResult);
 
         if (pingResult.isAlive()) {

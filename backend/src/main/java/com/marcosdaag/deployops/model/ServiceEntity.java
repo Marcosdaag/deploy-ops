@@ -55,6 +55,15 @@ public class ServiceEntity {
     @Column(length = 1000)
     private String customHeaders;
 
+    @Column
+    private Integer sslDaysRemaining;
+
+    @Column
+    private LocalDateTime sslExpiryDate;
+
+    @Column(length = 150)
+    private String sslIssuer;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private UserEntity user;

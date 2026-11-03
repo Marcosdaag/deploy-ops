@@ -5,6 +5,7 @@ import { EndpointService } from './endpoint.service';
 import {
   EndpointResponse,
   IncidentResponse,
+  MonthlyReport,
   ServiceMetricsHistory,
   StatusPageData
 } from '../models/endpoint.model';
@@ -156,6 +157,58 @@ describe('EndpointService', () => {
     service.triggerTestAlert(1).subscribe();
 
     const req = httpMock.expectOne(`${service.publicApiUrl}/1/test-alert`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+  });
+
+  it('deberia consultar el reporte mensual SLA mediante GET a /{id}/report', () => {
+    const mockReport: MonthlyReport = {
+      serviceId: 1,
+      serviceName: 'Google Search',
+      serviceUrl: 'https://www.google.com',
+      year: 2026,
+      month: 11,
+      periodLabel: 'Noviembre 2026',
+      uptimePercentage: 99.95,
+      totalMonitoredSeconds: 2592000,
+      totalDowntimeSeconds: 120,
+      totalIncidents: 1,
+      mttrMinutes: 2.0,
+      minLatencyMs: 30,
+      maxLatencyMs: 120,
+      avgLatencyMs: 45.0,
+      p95LatencyMs: 80,
+      incidents: []
+    };
+
+    service.getMonthlyReport(1, 2026, 11).subscribe((res) => {
+      expect(res.serviceId).toBe(1);
+      expect(res.uptimePercentage).toBe(99.95);
+      expect(res.periodLabel).toBe('Noviembre 2026');
+    });
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/report?year=2026&month=11`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockReport);
+  });
+
+  it('deberia descargar el reporte mensual CSV mediante GET a /{id}/report/csv', () => {
+    const mockCsv = new Blob(['# REPORTE DE CUMPLIMIENTO'], { type: 'text/csv' });
+
+    service.downloadMonthlyReportCsv(1, 2026, 11).subscribe((res) => {
+      expect(res).toBeTruthy();
+    });
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/report/csv?year=2026&month=11`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    req.flush(mockCsv);
+  });
+
+  it('deberia enviar el reporte mensual por email mediante POST a /{id}/report/email', () => {
+    service.sendMonthlyReportEmail(1, 2026, 11).subscribe();
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/report/email?year=2026&month=11`);
     expect(req.request.method).toBe('POST');
     req.flush(null);
   });

@@ -174,8 +174,81 @@ describe('DashboardComponent', () => {
     };
     metReq.flush(mockMetrics);
 
+    const reportReq = httpMock.expectOne((req) => req.url.includes('/1/report'));
+    reportReq.flush({
+      serviceId: 1,
+      serviceName: 'Google Search',
+      year: 2026,
+      month: 11,
+      periodLabel: 'Noviembre 2026',
+      uptimePercentage: 100.0,
+      totalMonitoredSeconds: 3600,
+      totalDowntimeSeconds: 0,
+      totalIncidents: 0,
+      mttrMinutes: 0.0,
+      minLatencyMs: 40,
+      maxLatencyMs: 120,
+      avgLatencyMs: 75.5,
+      p95LatencyMs: 110,
+      incidents: []
+    });
+
     expect(component.metricsHistory()?.serviceName).toBe('Google Search');
     expect(component.chartSvg().points.length).toBe(2);
     expect(component.chartSvg().linePath.length).toBeGreaterThan(0);
+    expect(component.selectedReport()?.uptimePercentage).toBe(100.0);
+  });
+
+  it('deberia navegar entre meses de reporte y recargar metricas de SLA', () => {
+    component.selectedEndpoint.set(mockEndpoints[0]);
+    component.reportYear.set(2026);
+    component.reportMonth.set(11);
+
+    component.changeReportMonth(-1);
+    expect(component.reportMonth()).toBe(10);
+
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/1/report?year=2026&month=10`);
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      serviceId: 1,
+      serviceName: 'Google Search',
+      year: 2026,
+      month: 10,
+      periodLabel: 'Octubre 2026',
+      uptimePercentage: 99.8,
+      totalMonitoredSeconds: 2592000,
+      totalDowntimeSeconds: 300,
+      totalIncidents: 1,
+      mttrMinutes: 5.0,
+      minLatencyMs: 30,
+      maxLatencyMs: 100,
+      avgLatencyMs: 50.0,
+      p95LatencyMs: 80,
+      incidents: []
+    });
+
+    expect(component.selectedReport()?.periodLabel).toBe('Octubre 2026');
+  });
+
+  it('deberia enviar el reporte ejecutivo por correo y mostrar toast', () => {
+    component.authService.currentUser.set({
+      id: 1,
+      name: 'Marcos',
+      email: 'marcos@test.com',
+      role: 'ROLE_USER',
+      provider: 'LOCAL'
+    });
+    component.reportYear.set(2026);
+    component.reportMonth.set(11);
+
+    component.sendReportByEmail(mockEndpoints[1]);
+    expect(component.isSendingReportEmail()).toBeTrue();
+
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/2/report/email?year=2026&month=11`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+
+    expect(component.isSendingReportEmail()).toBeFalse();
+    expect(component.toast()?.type).toBe('success');
   });
 });

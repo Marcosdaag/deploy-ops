@@ -7,6 +7,7 @@ import {
   EndpointCreateRequest,
   EndpointResponse,
   IncidentResponse,
+  MonthlyReport,
   ServiceMetricsHistory,
   StatusPageData
 } from '../models/endpoint.model';
@@ -58,6 +59,32 @@ export class EndpointService {
 
   triggerTestAlert(serviceId: number): Observable<void> {
     return this.http.post<void>(`${this.publicApiUrl}/${serviceId}/test-alert`, {});
+  }
+
+  getMonthlyReport(serviceId: number, year?: number, month?: number): Observable<MonthlyReport> {
+    const params: string[] = [];
+    if (year) params.push(`year=${year}`);
+    if (month) params.push(`month=${month}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.get<MonthlyReport>(`${this.publicApiUrl}/${serviceId}/report${query}`);
+  }
+
+  downloadMonthlyReportCsv(serviceId: number, year?: number, month?: number): Observable<Blob> {
+    const params: string[] = [];
+    if (year) params.push(`year=${year}`);
+    if (month) params.push(`month=${month}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.get(`${this.publicApiUrl}/${serviceId}/report/csv${query}`, {
+      responseType: 'blob'
+    });
+  }
+
+  sendMonthlyReportEmail(serviceId: number, year?: number, month?: number): Observable<void> {
+    const params: string[] = [];
+    if (year) params.push(`year=${year}`);
+    if (month) params.push(`month=${month}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.post<void>(`${this.publicApiUrl}/${serviceId}/report/email${query}`, {});
   }
 
   getDashboardStream(): Observable<EndpointResponse[]> {

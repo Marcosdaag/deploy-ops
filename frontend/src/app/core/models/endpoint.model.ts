@@ -27,6 +27,9 @@ export interface EndpointResponse {
   httpMethod?: string;
   expectedStatusCode?: number | null;
   customHeaders?: string | null;
+  sslDaysRemaining?: number | null;
+  sslExpiryDate?: string | null;
+  sslIssuer?: string | null;
 }
 
 export interface EndpointCreateRequest {
@@ -102,4 +105,32 @@ export interface StatusPageData {
   overallUptime: number;
   services: PublicService[];
   recentIncidents: PublicIncident[];
+}
+
+export interface MonthlyReportIncident {
+  id: number;
+  serviceName: string;
+  startedAt: string;
+  resolvedAt: string | null;
+  status: IncidentStatus;
+  durationSeconds: number;
+}
+
+export interface MonthlyReport {
+  serviceId: number;
+  serviceName: string;
+  serviceUrl: string;
+  year: number;
+  month: number;
+  periodLabel: string;
+  uptimePercentage: number;
+  totalMonitoredSeconds: number;
+  totalDowntimeSeconds: number;
+  totalIncidents: number;
+  mttrMinutes: number;
+  minLatencyMs: number;
+  maxLatencyMs: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  incidents: MonthlyReportIncident[];
 }

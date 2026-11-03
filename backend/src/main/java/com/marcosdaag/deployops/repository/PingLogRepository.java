@@ -16,6 +16,8 @@ public interface PingLogRepository extends JpaRepository<PingLogEntity, Long> {
 
     List<PingLogEntity> findByServiceAndTimestampAfterOrderByTimestampAsc(ServiceEntity service, LocalDateTime after);
 
+    List<PingLogEntity> findByServiceAndTimestampBetweenOrderByTimestampAsc(ServiceEntity service, LocalDateTime start, LocalDateTime end);
+
     @Modifying
     @Query("DELETE FROM PingLogEntity p WHERE p.timestamp < :threshold")
     void deleteByTimestampBefore(@Param("threshold") LocalDateTime threshold);

@@ -1,6 +1,7 @@
 package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.PingResult;
+import com.marcosdaag.deployops.dto.SslCertificateInfo;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,7 +13,16 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -66,6 +76,39 @@ public class HttpMonitorService {
         }
     }
 
+    public SslCertificateInfo checkSslCertificate(String urlString) {
+        if (urlString == null || !urlString.toLowerCase().startsWith("https://")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(urlString);
+            String host = uri.getHost();
+            if (host == null || host.isBlank()) {
+                return null;
+            }
+            int port = uri.getPort() > 0 ? uri.getPort() : 443;
+
+            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            try (SSLSocket socket = (SSLSocket) factory.createSocket()) {
+                socket.connect(new InetSocketAddress(host, port), 3000);
+                socket.setSoTimeout(3000);
+                socket.startHandshake();
+
+                Certificate[] certs = socket.getSession().getPeerCertificates();
+                if (certs.length > 0 && certs[0] instanceof X509Certificate x509) {
+                    Date notAfter = x509.getNotAfter();
+                    long diffMs = notAfter.getTime() - System.currentTimeMillis();
+                    int daysRemaining = (int) TimeUnit.MILLISECONDS.toDays(diffMs);
+                    String issuer = extractIssuerName(x509.getIssuerX500Principal().getName());
+                    LocalDateTime expiryDate = notAfter.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    return new SslCertificateInfo(daysRemaining, expiryDate, issuer);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     public boolean isUrlAlive(String url) {
         return ping(url).isAlive();
     }
@@ -106,5 +149,19 @@ public class HttpMonitorService {
             return actualCode == expectedCode;
         }
         return actualCode >= 200 && actualCode < 400;
+    }
+
+    private String extractIssuerName(String dn) {
+        if (dn == null) return "Desconocido";
+        for (String part : dn.split(",")) {
+            String trimmed = part.trim();
+            if (trimmed.startsWith("CN=")) {
+                return trimmed.substring(3).trim();
+            }
+            if (trimmed.startsWith("O=")) {
+                return trimmed.substring(2).trim();
+            }
+        }
+        return dn;
     }
 }
