@@ -4,6 +4,7 @@ export interface AuthUser {
   email: string;
   role: string;
   provider: string;
+  publicSlug?: string;
 }
 
 export interface AuthResponse {
@@ -13,6 +14,7 @@ export interface AuthResponse {
   email: string;
   role: string;
   provider: string;
+  publicSlug?: string;
 }
 
 export interface LoginRequest {

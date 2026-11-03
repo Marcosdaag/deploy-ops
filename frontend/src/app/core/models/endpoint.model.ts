@@ -23,11 +23,19 @@ export interface EndpointResponse {
   isProtected?: boolean;
   isOwner?: boolean;
   ownerEmail?: string | null;
+  isPublicStatus?: boolean;
+  httpMethod?: string;
+  expectedStatusCode?: number | null;
+  customHeaders?: string | null;
 }
 
 export interface EndpointCreateRequest {
   name: string;
   url: string;
+  httpMethod?: string;
+  expectedStatusCode?: number | null;
+  customHeaders?: string | null;
+  isPublicStatus?: boolean;
 }
 
 export interface ApiErrorResponse {
@@ -46,4 +54,52 @@ export interface DashboardMetrics {
   recovering: number;
   globalUptime: number;
   averageLatencyMs: number | null;
+}
+
+export interface PingPoint {
+  timestampMs: number;
+  latencyMs: number;
+  statusCode: number;
+  alive: boolean;
+}
+
+export interface ServiceMetricsHistory {
+  serviceId: number;
+  serviceName: string;
+  range: string;
+  minLatencyMs: number;
+  maxLatencyMs: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  uptimePercentage: number;
+  totalPings: number;
+  points: PingPoint[];
+}
+
+export interface PublicService {
+  id: number;
+  name: string;
+  urlMasked: string;
+  status: ServiceStatus;
+  lastResponseTimeMs: number | null;
+  lastCheckedAt: string | null;
+  uptimePercentage: number;
+}
+
+export interface PublicIncident {
+  id: number;
+  serviceName: string;
+  startedAt: string;
+  resolvedAt: string | null;
+  status: IncidentStatus;
+  durationSeconds: number | null;
+}
+
+export interface StatusPageData {
+  slug: string;
+  ownerName: string;
+  overallStatus: 'OPERATIONAL' | 'DEGRADED' | 'MAJOR_OUTAGE';
+  overallUptime: number;
+  services: PublicService[];
+  recentIncidents: PublicIncident[];
 }

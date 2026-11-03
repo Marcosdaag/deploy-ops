@@ -43,6 +43,18 @@ public class ServiceEntity {
     @Column(name = "is_protected", nullable = false)
     private boolean isProtected = false;
 
+    @Column(name = "is_public_status", nullable = false)
+    private boolean isPublicStatus = false;
+
+    @Column(length = 10, nullable = false)
+    private String httpMethod = "GET";
+
+    @Column
+    private Integer expectedStatusCode;
+
+    @Column(length = 1000)
+    private String customHeaders;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private UserEntity user;

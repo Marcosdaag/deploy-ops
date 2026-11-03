@@ -11,6 +11,7 @@ import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
+import com.marcosdaag.deployops.repository.PingLogRepository;
 import com.marcosdaag.deployops.repository.ServiceRepository;
 import com.marcosdaag.deployops.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,10 @@ public class EndpointManagerService {
 
     private final ServiceRepository serviceRepository;
     private final IncidentRepository incidentRepository;
+    private final PingLogRepository pingLogRepository;
     private final UserRepository userRepository;
     private final MetricsService metricsService;
+    private final MetricsHistoryService metricsHistoryService;
     private final UrlSecurityValidator urlSecurityValidator;
     private final HttpMonitorService httpMonitorService;
     private final SseNotificationService sseNotificationService;
@@ -58,6 +61,10 @@ public class EndpointManagerService {
         newEndpoint.setConsecutiveSuccesses(0);
         newEndpoint.setCreatedAt(LocalDateTime.now());
         newEndpoint.setProtected(false);
+        newEndpoint.setHttpMethod(dto.getHttpMethod() != null && !dto.getHttpMethod().isBlank() ? dto.getHttpMethod().toUpperCase() : "GET");
+        newEndpoint.setExpectedStatusCode(dto.getExpectedStatusCode());
+        newEndpoint.setCustomHeaders(dto.getCustomHeaders());
+        newEndpoint.setPublicStatus(dto.isPublicStatus());
 
         if (currentUserEmail != null && !currentUserEmail.isBlank()) {
             userRepository.findByEmail(currentUserEmail.toLowerCase())
@@ -89,6 +96,7 @@ public class EndpointManagerService {
             }
         }
 
+        pingLogRepository.deleteByServiceId(id);
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
 
@@ -98,6 +106,22 @@ public class EndpointManagerService {
     @Transactional
     public void deleteEndpoint(Long id) {
         deleteEndpoint(id, null);
+    }
+
+    @Transactional
+    public void toggleVisibility(Long id, boolean isPublic, String currentUserEmail) {
+        ServiceEntity service = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
+
+        if (service.getUser() != null) {
+            if (currentUserEmail == null || !service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para modificar este endpoint.");
+            }
+        }
+
+        service.setPublicStatus(isPublic);
+        serviceRepository.save(service);
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
     }
 
     public List<ServiceEntity> getAllEndpoints() {
@@ -146,7 +170,7 @@ public class EndpointManagerService {
         ServiceEntity service = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
 
-        PingResult pingResult = httpMonitorService.ping(service.getUrl());
+        PingResult pingResult = httpMonitorService.ping(service);
         processPingResult(service, pingResult);
 
         double uptime = metricsService.calculateUptimePercentage(service);
@@ -165,6 +189,8 @@ public class EndpointManagerService {
 
         service.setLastCheckedAt(LocalDateTime.now());
         service.setLastResponseTimeMs(pingResult.responseTimeMs());
+
+        metricsHistoryService.recordPing(service, pingResult);
 
         if (pingResult.isAlive()) {
             handleSuccessfulPing(service);

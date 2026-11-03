@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { DashboardComponent } from './dashboard.component';
-import { EndpointResponse } from '../../core/models/endpoint.model';
+import { EndpointResponse, ServiceMetricsHistory } from '../../core/models/endpoint.model';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
@@ -21,7 +22,8 @@ describe('DashboardComponent', () => {
       createdAt: '2026-10-26T19:00:00',
       uptimePercentage: 100.0,
       isProtected: true,
-      isOwner: false
+      isOwner: false,
+      isPublicStatus: false
     },
     {
       id: 2,
@@ -34,7 +36,8 @@ describe('DashboardComponent', () => {
       createdAt: '2026-10-26T19:00:00',
       uptimePercentage: 98.0,
       isProtected: false,
-      isOwner: true
+      isOwner: true,
+      isPublicStatus: true
     }
   ];
 
@@ -42,7 +45,7 @@ describe('DashboardComponent', () => {
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(DashboardComponent);
@@ -131,5 +134,48 @@ describe('DashboardComponent', () => {
 
     expect(component.isTestingAlert()).toBeFalse();
     expect(component.toast()?.type).toBe('success');
+  });
+
+  it('deberia alternar la visibilidad publica de un servicio y actualizar el estado', () => {
+    component.toggleServiceVisibility(mockEndpoints[1]);
+    expect(component.isTogglingVisibility()).toBeTrue();
+
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/2/visibility`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ isPublic: false });
+    req.flush(null);
+
+    expect(component.isTogglingVisibility()).toBeFalse();
+    expect(component.toast()?.type).toBe('success');
+  });
+
+  it('deberia consultar metricas historicas al abrir el inspector y construir la grafica SVG', () => {
+    component.openInspector(mockEndpoints[0]);
+    expect(component.selectedEndpoint()?.id).toBe(1);
+
+    const incReq = httpMock.expectOne(`${component.endpointService.publicApiUrl}/1/incidents`);
+    incReq.flush([]);
+
+    const metReq = httpMock.expectOne(`${component.endpointService.publicApiUrl}/1/metrics?range=24h`);
+    const mockMetrics: ServiceMetricsHistory = {
+      serviceId: 1,
+      serviceName: 'Google Search',
+      range: '24h',
+      minLatencyMs: 40,
+      maxLatencyMs: 120,
+      avgLatencyMs: 75.5,
+      p95LatencyMs: 110,
+      uptimePercentage: 100.0,
+      totalPings: 2,
+      points: [
+        { timestampMs: 1700000000000, latencyMs: 50, statusCode: 200, alive: true },
+        { timestampMs: 1700000060000, latencyMs: 80, statusCode: 200, alive: true }
+      ]
+    };
+    metReq.flush(mockMetrics);
+
+    expect(component.metricsHistory()?.serviceName).toBe('Google Search');
+    expect(component.chartSvg().points.length).toBe(2);
+    expect(component.chartSvg().linePath.length).toBeGreaterThan(0);
   });
 });

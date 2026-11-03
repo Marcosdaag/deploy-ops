@@ -23,4 +23,8 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
     List<ServiceEntity> findShowcaseAndUserServices(@Param("user") UserEntity user);
 
     List<ServiceEntity> findByUserIsNullOrderByIdDesc();
+
+    List<ServiceEntity> findByUserAndIsPublicStatusTrueOrderByIdDesc(UserEntity user);
+
+    List<ServiceEntity> findByIsPublicStatusTrueOrderByIdDesc();
 }

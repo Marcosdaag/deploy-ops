@@ -31,7 +31,7 @@ public class MonitoringScheduler {
 
         for (ServiceEntity service : endpoints) {
             try {
-                PingResult result = httpMonitor.ping(service.getUrl());
+                PingResult result = httpMonitor.ping(service);
                 endpointManager.processPingResult(service, result);
             } catch (Exception e) {
                 logger.error("Error inesperado al monitorear {}: {}", service.getName(), e.getMessage());

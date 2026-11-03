@@ -1,0 +1,151 @@
+<div class="status-container">
+  <header class="status-header">
+    <div class="brand-row">
+      <div class="brand">
+        <a routerLink="/" class="brand-link">
+          <span class="brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </span>
+          <span class="brand-title">DeployOps</span>
+        </a>
+        <span class="page-tag">Status Page</span>
+      </div>
+      <div class="actions">
+        <button class="btn-refresh" (click)="fetchStatusPage(slug())" [disabled]="isLoading()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.spin]="isLoading()">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          Actualizar
+        </button>
+        <a routerLink="/" class="btn-dashboard">Ir al Dashboard</a>
+      </div>
+    </div>
+
+    @if (data(); as info) {
+      <div class="page-meta">
+        <h1 class="page-owner">{{ info.ownerName }}</h1>
+        <p class="page-subtitle">Estado de infraestructura y servicios publicos en tiempo real.</p>
+      </div>
+
+      <div class="banner-status" [ngClass]="info.overallStatus.toLowerCase()">
+        <div class="banner-indicator">
+          <span class="pulse-dot"></span>
+        </div>
+        <div class="banner-info">
+          <h2>{{ getOverallStatusText(info.overallStatus) }}</h2>
+          <span class="banner-uptime">Disponibilidad agregada: <strong>{{ info.overallUptime }}%</strong></span>
+        </div>
+      </div>
+    }
+  </header>
+
+  @if (isLoading() && !data()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando metricas del sistema...</p>
+    </div>
+  }
+
+  @if (errorMessage(); as err) {
+    <div class="error-banner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ err }}</span>
+    </div>
+  }
+
+  @if (data(); as info) {
+    <main class="status-content">
+      <section class="section-block">
+        <div class="section-header">
+          <h3>Servicios Activos</h3>
+          <span class="service-count">{{ info.services.length }} monitoreados</span>
+        </div>
+
+        @if (info.services.length === 0) {
+          <div class="empty-services">
+            <p>No hay servicios configurados como publicos para esta pagina.</p>
+          </div>
+        } @else {
+          <div class="services-list">
+            @for (srv of info.services; track srv.id) {
+              <div class="service-row">
+                <div class="service-main">
+                  <div class="service-name-row">
+                    <span class="service-dot" [ngClass]="srv.status.toLowerCase()"></span>
+                    <span class="service-title">{{ srv.name }}</span>
+                  </div>
+                  <span class="service-host">{{ srv.urlMasked }}</span>
+                </div>
+
+                <div class="service-metrics">
+                  <div class="metric-item">
+                    <span class="metric-label">Latencia</span>
+                    <span class="metric-value">{{ srv.lastResponseTimeMs ? srv.lastResponseTimeMs + ' ms' : '--' }}</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">SLA 24h</span>
+                    <span class="metric-value uptime">{{ srv.uptimePercentage }}%</span>
+                  </div>
+                  <div class="metric-item status-pill">
+                    <span class="badge" [ngClass]="getServiceStatusBadge(srv.status).css">
+                      {{ getServiceStatusBadge(srv.status).label }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="section-block">
+        <div class="section-header">
+          <h3>Historial de Incidentes Recientes</h3>
+          <span class="incident-badge">Ultimos 30 dias</span>
+        </div>
+
+        @if (info.recentIncidents.length === 0) {
+          <div class="empty-incidents">
+            <div class="check-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <p>No se han registrado incidentes de caida en el periodo actual.</p>
+          </div>
+        } @else {
+          <div class="incidents-list">
+            @for (inc of info.recentIncidents; track inc.id) {
+              <div class="incident-card" [class.resolved]="inc.status === 'RESOLVED'">
+                <div class="incident-top">
+                  <span class="inc-status-tag" [class.active]="inc.status === 'ONGOING'">
+                    {{ inc.status === 'RESOLVED' ? 'Resuelto' : 'Investigando' }}
+                  </span>
+                  <span class="inc-date">{{ inc.startedAt | date:'medium' }}</span>
+                </div>
+                <h4 class="inc-title">Interrupcion en servicio: {{ inc.serviceName }}</h4>
+                <div class="inc-details">
+                  <span>Duracion total: <strong>{{ formatDuration(inc.durationSeconds) }}</strong></span>
+                  @if (inc.resolvedAt) {
+                    <span>Resuelto el: {{ inc.resolvedAt | date:'shortTime' }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    </main>
+
+    <footer class="status-footer">
+      <p>Monitoreo continuo provisto por <a routerLink="/" class="footer-link">DeployOps Core</a></p>
+    </footer>
+  }
+</div>

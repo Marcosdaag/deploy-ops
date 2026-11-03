@@ -8,6 +8,7 @@ import {
   signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subscription, forkJoin } from 'rxjs';
 import {
@@ -15,6 +16,7 @@ import {
   EndpointCreateRequest,
   EndpointResponse,
   IncidentResponse,
+  ServiceMetricsHistory,
   ServiceStatus
 } from '../../core/models/endpoint.model';
 import {
@@ -34,7 +36,7 @@ type ApiMethodTab = 'GET' | 'POST' | 'DELETE';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -67,6 +69,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly newServiceUrl = signal<string>('');
   readonly isSubmittingCreate = signal<boolean>(false);
   readonly createErrors = signal<string[]>([]);
+  readonly showAdvancedCreate = signal<boolean>(false);
+  readonly newServiceMethod = signal<string>('GET');
+  readonly newServiceExpectedStatus = signal<number | null>(null);
+  readonly newServiceHeaders = signal<string>('');
+  readonly newServiceIsPublic = signal<boolean>(false);
+
+  readonly metricsRange = signal<'6h' | '24h' | '7d'>('24h');
+  readonly metricsHistory = signal<ServiceMetricsHistory | null>(null);
+  readonly isLoadingMetrics = signal<boolean>(false);
+  readonly isTogglingVisibility = signal<boolean>(false);
+  readonly activeHoverPoint = signal<{ x: number; y: number; latency: number; time: string; alive: boolean } | null>(null);
 
   readonly selectedEndpoint = signal<EndpointResponse | null>(null);
   readonly selectedEndpointIncidents = signal<IncidentResponse[]>([]);
@@ -101,6 +114,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (list.length >= 2) return list.slice(0, 2);
     if (list.length === 1) return [list[0], INITIAL_SHOWCASE_ENDPOINTS[1]];
     return INITIAL_SHOWCASE_ENDPOINTS;
+  });
+
+  readonly chartSvg = computed<{
+    linePath: string;
+    areaPath: string;
+    points: { x: number; y: number; latency: number; time: string; alive: boolean }[];
+  }>(() => {
+    const history = this.metricsHistory();
+    if (!history || !history.points || history.points.length === 0) {
+      return { linePath: '', areaPath: '', points: [] };
+    }
+
+    const pts = history.points;
+    const width = 340;
+    const height = 90;
+    const paddingX = 12;
+    const paddingY = 12;
+    const drawWidth = width - paddingX * 2;
+    const drawHeight = height - paddingY * 2;
+
+    const latencies = pts.map((p) => p.latencyMs);
+    const minVal = Math.min(...latencies);
+    const maxVal = Math.max(...latencies, minVal + 1);
+    const range = maxVal - minVal;
+
+    const mapped = pts.map((p, idx) => {
+      const x = paddingX + (pts.length > 1 ? (idx / (pts.length - 1)) * drawWidth : drawWidth / 2);
+      const ratio = (p.latencyMs - minVal) / range;
+      const y = paddingY + drawHeight - ratio * drawHeight;
+      const timeStr = new Date(p.timestampMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return { x, y, latency: p.latencyMs, time: timeStr, alive: p.alive };
+    });
+
+    if (mapped.length === 1) {
+      const single = mapped[0];
+      return {
+        linePath: `M ${single.x - 20} ${single.y} L ${single.x + 20} ${single.y}`,
+        areaPath: `M ${single.x - 20} ${height} L ${single.x - 20} ${single.y} L ${single.x + 20} ${single.y} L ${single.x + 20} ${height} Z`,
+        points: mapped
+      };
+    }
+
+    const linePath = mapped.reduce(
+      (acc, curr, idx) => acc + (idx === 0 ? 'M ' : ' L ') + curr.x.toFixed(1) + ' ' + curr.y.toFixed(1),
+      ''
+    );
+    const first = mapped[0];
+    const last = mapped[mapped.length - 1];
+    const areaPath = linePath + ' L ' + last.x.toFixed(1) + ' ' + height + ' L ' + first.x.toFixed(1) + ' ' + height + ' Z';
+
+    return { linePath, areaPath, points: mapped };
   });
 
   readonly myEndpointsCount = computed<number>(() => {
@@ -328,13 +392,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isSubmittingCreate.set(true);
     this.createErrors.set([]);
 
-    const payload: EndpointCreateRequest = { name, url };
+    const payload: EndpointCreateRequest = {
+      name,
+      url,
+      httpMethod: this.newServiceMethod(),
+      expectedStatusCode: this.newServiceExpectedStatus() || undefined,
+      customHeaders: this.newServiceHeaders().trim() || undefined,
+      isPublicStatus: this.newServiceIsPublic()
+    };
 
     this.endpointService.createEndpoint(payload).subscribe({
       next: (created) => {
         this.endpoints.update((prev) => [created, ...prev]);
         this.newServiceName.set('');
         this.newServiceUrl.set('');
+        this.newServiceMethod.set('GET');
+        this.newServiceExpectedStatus.set(null);
+        this.newServiceHeaders.set('');
+        this.newServiceIsPublic.set(false);
+        this.showAdvancedCreate.set(false);
         this.isSubmittingCreate.set(false);
         this.liveJsonOutput.set(JSON.stringify(this.endpoints(), null, 2));
         this.showToast('success', `${created.name} sumado al monitor`);
@@ -384,11 +460,81 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openInspector(endpoint: EndpointResponse): void {
     this.selectedEndpoint.set(endpoint);
     this.loadIncidents(endpoint.id);
+    this.loadMetricsHistory(endpoint.id, this.metricsRange());
   }
 
   closeInspector(): void {
     this.selectedEndpoint.set(null);
     this.selectedEndpointIncidents.set([]);
+    this.metricsHistory.set(null);
+    this.activeHoverPoint.set(null);
+  }
+
+  loadMetricsHistory(serviceId: number, range: '6h' | '24h' | '7d' = '24h'): void {
+    this.isLoadingMetrics.set(true);
+    this.endpointService.getMetricsHistory(serviceId, range).subscribe({
+      next: (data) => {
+        this.metricsHistory.set(data);
+        this.isLoadingMetrics.set(false);
+      },
+      error: () => {
+        this.metricsHistory.set(null);
+        this.isLoadingMetrics.set(false);
+      }
+    });
+  }
+
+  changeMetricsRange(range: '6h' | '24h' | '7d'): void {
+    this.metricsRange.set(range);
+    const selected = this.selectedEndpoint();
+    if (selected) {
+      this.loadMetricsHistory(selected.id, range);
+    }
+  }
+
+  toggleServiceVisibility(endpoint: EndpointResponse): void {
+    if (this.isTogglingVisibility()) return;
+    const newStatus = !endpoint.isPublicStatus;
+    this.isTogglingVisibility.set(true);
+    this.endpointService.toggleVisibility(endpoint.id, newStatus).subscribe({
+      next: () => {
+        this.isTogglingVisibility.set(false);
+        const updated = { ...endpoint, isPublicStatus: newStatus };
+        this.selectedEndpoint.set(updated);
+        this.endpoints.update((prev) =>
+          prev.map((item) => (item.id === endpoint.id ? updated : item))
+        );
+        this.showToast(
+          'success',
+          newStatus ? 'Servicio publicado en tu Status Page' : 'Servicio retirado de la Status Page'
+        );
+      },
+      error: (err) => {
+        this.isTogglingVisibility.set(false);
+        const msg = this.endpointService.extractErrorMessages(err)[0];
+        this.showToast('error', msg);
+      }
+    });
+  }
+
+  copyStatusPageLink(): void {
+    const user = this.authService.currentUser();
+    const slug = user?.publicSlug || 'demo';
+    const url = `${window.location.origin}/status/${slug}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        this.showToast('success', 'Enlace de Status Page copiado al portapapeles');
+      });
+    }
+  }
+
+  toggleAdvancedCreate(): void {
+    this.showAdvancedCreate.update((v) => !v);
+  }
+
+  setExpectedStatus(val: unknown): void {
+    const num = Number(val);
+    this.newServiceExpectedStatus.set(!isNaN(num) && num > 0 ? num : null);
   }
 
   loadIncidents(serviceId: number): void {

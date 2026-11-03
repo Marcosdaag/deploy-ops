@@ -2,7 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { EndpointService } from './endpoint.service';
-import { EndpointResponse, IncidentResponse } from '../models/endpoint.model';
+import {
+  EndpointResponse,
+  IncidentResponse,
+  ServiceMetricsHistory,
+  StatusPageData
+} from '../models/endpoint.model';
 
 describe('EndpointService', () => {
   let service: EndpointService;
@@ -68,6 +73,60 @@ describe('EndpointService', () => {
     const req = httpMock.expectOne(`${service.publicApiUrl}/1/incidents`);
     expect(req.request.method).toBe('GET');
     req.flush(mockIncidents);
+  });
+
+  it('deberia consultar metricas historicas mediante GET a /{id}/metrics?range=24h', () => {
+    const mockMetrics: ServiceMetricsHistory = {
+      serviceId: 1,
+      serviceName: 'Google Search',
+      range: '24h',
+      minLatencyMs: 30,
+      maxLatencyMs: 90,
+      avgLatencyMs: 50.0,
+      p95LatencyMs: 80,
+      uptimePercentage: 100.0,
+      totalPings: 10,
+      points: []
+    };
+
+    service.getMetricsHistory(1, '24h').subscribe((res) => {
+      expect(res.minLatencyMs).toBe(30);
+      expect(res.p95LatencyMs).toBe(80);
+    });
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/metrics?range=24h`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockMetrics);
+  });
+
+  it('deberia alternar la visibilidad publica mediante PATCH a /{id}/visibility', () => {
+    service.toggleVisibility(1, true).subscribe();
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/1/visibility`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ isPublic: true });
+    req.flush(null);
+  });
+
+  it('deberia obtener los datos de la pagina de estado publica mediante GET a /api/status/{slug}', () => {
+    const mockStatus: StatusPageData = {
+      slug: 'marcos-dev',
+      ownerName: 'Marcos Dev',
+      overallStatus: 'OPERATIONAL',
+      overallUptime: 100.0,
+      services: [],
+      recentIncidents: []
+    };
+
+    service.getStatusPage('marcos-dev').subscribe((res) => {
+      expect(res.slug).toBe('marcos-dev');
+      expect(res.ownerName).toBe('Marcos Dev');
+    });
+
+    const baseUrl = service.publicApiUrl.replace(/\/endpoints$/, '/status');
+    const req = httpMock.expectOne(`${baseUrl}/marcos-dev`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockStatus);
   });
 
   it('deberia disparar un ping inmediato mediante POST', () => {

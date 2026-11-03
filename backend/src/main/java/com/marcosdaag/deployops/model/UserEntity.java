@@ -35,6 +35,9 @@ public class UserEntity {
     @Column(nullable = false, length = 20)
     private UserRole role = UserRole.ROLE_USER;
 
+    @Column(unique = true, length = 100)
+    private String publicSlug;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

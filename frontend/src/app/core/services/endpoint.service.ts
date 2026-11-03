@@ -6,7 +6,9 @@ import {
   ApiErrorResponse,
   EndpointCreateRequest,
   EndpointResponse,
-  IncidentResponse
+  IncidentResponse,
+  ServiceMetricsHistory,
+  StatusPageData
 } from '../models/endpoint.model';
 
 @Injectable({
@@ -30,6 +32,24 @@ export class EndpointService {
 
   getIncidents(serviceId: number): Observable<IncidentResponse[]> {
     return this.http.get<IncidentResponse[]>(`${this.publicApiUrl}/${serviceId}/incidents`);
+  }
+
+  getMetricsHistory(serviceId: number, range: string = '24h'): Observable<ServiceMetricsHistory> {
+    return this.http.get<ServiceMetricsHistory>(`${this.publicApiUrl}/${serviceId}/metrics?range=${range}`);
+  }
+
+  toggleVisibility(serviceId: number, isPublic: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.publicApiUrl}/${serviceId}/visibility`, { isPublic });
+  }
+
+  getStatusPage(slug: string): Observable<StatusPageData> {
+    const baseUrl = this.publicApiUrl.replace(/\/endpoints$/, '/status');
+    return this.http.get<StatusPageData>(`${baseUrl}/${slug}`);
+  }
+
+  updateUserSlug(newSlug: string): Observable<{ slug: string }> {
+    const baseUrl = this.publicApiUrl.replace(/\/endpoints$/, '/status');
+    return this.http.patch<{ slug: string }>(`${baseUrl}/slug`, { slug: newSlug });
   }
 
   triggerPing(serviceId: number): Observable<EndpointResponse> {
@@ -59,7 +79,6 @@ export class EndpointService {
       });
 
       eventSource.onerror = () => {
-        // EventSource reconecta automaticamente
       };
 
       return () => {

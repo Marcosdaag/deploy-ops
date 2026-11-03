@@ -46,6 +46,7 @@ public class AuthService {
         user.setRole(UserRole.ROLE_USER);
         user.setProvider(AuthProvider.LOCAL);
         user.setCreatedAt(LocalDateTime.now());
+        user.setPublicSlug(generateUniqueSlug(user.getName()));
 
         UserEntity saved = userRepository.save(user);
         String token = jwtService.generateToken(saved);
@@ -93,6 +94,10 @@ public class AuthService {
                 user.setProvider(AuthProvider.GOOGLE);
                 user.setRole(UserRole.ROLE_USER);
                 user.setCreatedAt(LocalDateTime.now());
+                user.setPublicSlug(generateUniqueSlug(user.getName()));
+                user = userRepository.save(user);
+            } else if (user.getPublicSlug() == null) {
+                user.setPublicSlug(generateUniqueSlug(user.getName()));
                 user = userRepository.save(user);
             }
 
@@ -103,6 +108,22 @@ public class AuthService {
         } catch (Exception e) {
             throw new IllegalArgumentException("Error al procesar la autenticacion con Google: " + e.getMessage());
         }
+    }
+
+    public String generateUniqueSlug(String name) {
+        String base = (name == null || name.isBlank())
+                ? "dev"
+                : name.toLowerCase().replaceAll("[^a-z0-9]", "-").replaceAll("-+", "-").replaceAll("^-|-$", "");
+        if (base.isBlank()) {
+            base = "dev";
+        }
+        String candidate = base;
+        int counter = 1;
+        while (userRepository.existsByPublicSlug(candidate)) {
+            candidate = base + "-" + counter;
+            counter++;
+        }
+        return candidate;
     }
 
     public AuthResponse getCurrentUserResponse(String email) {

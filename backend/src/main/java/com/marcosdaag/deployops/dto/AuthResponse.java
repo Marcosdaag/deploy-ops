@@ -11,6 +11,7 @@ public class AuthResponse {
     private final String email;
     private final String role;
     private final String provider;
+    private final String publicSlug;
 
     public AuthResponse(String token, UserEntity user) {
         this.token = token;
@@ -19,5 +20,6 @@ public class AuthResponse {
         this.email = user.getEmail();
         this.role = user.getRole().name();
         this.provider = user.getProvider().name();
+        this.publicSlug = user.getPublicSlug();
     }
 }

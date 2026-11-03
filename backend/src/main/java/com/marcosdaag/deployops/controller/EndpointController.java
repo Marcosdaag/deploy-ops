@@ -3,8 +3,11 @@ package com.marcosdaag.deployops.controller;
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
 import com.marcosdaag.deployops.dto.IncidentResponseDTO;
+import com.marcosdaag.deployops.dto.ServiceMetricsHistoryDTO;
+import com.marcosdaag.deployops.dto.VisibilityUpdateRequest;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.service.EndpointManagerService;
+import com.marcosdaag.deployops.service.MetricsHistoryService;
 import com.marcosdaag.deployops.service.SseNotificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import java.util.List;
 public class EndpointController {
 
     private final EndpointManagerService endpointManager;
+    private final MetricsHistoryService metricsHistoryService;
     private final SseNotificationService sseNotificationService;
 
     @GetMapping
@@ -55,6 +59,27 @@ public class EndpointController {
     @GetMapping("/{id}/incidents")
     public ResponseEntity<List<IncidentResponseDTO>> getIncidents(@PathVariable Long id) {
         return ResponseEntity.ok(endpointManager.getIncidentsForService(id));
+    }
+
+    @GetMapping("/{id}/metrics")
+    public ResponseEntity<ServiceMetricsHistoryDTO> getMetrics(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "24h") String range,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(metricsHistoryService.getMetricsHistory(id, range, email));
+    }
+
+    @PatchMapping("/{id}/visibility")
+    public ResponseEntity<Void> toggleVisibility(
+            @PathVariable Long id,
+            @RequestBody VisibilityUpdateRequest request,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        endpointManager.toggleVisibility(id, request.isPublic(), email);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/ping")

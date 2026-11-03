@@ -18,4 +18,13 @@ public class EndpointCreateDTO {
     @Size(max = 500, message = "La URL no puede superar los 500 caracteres.")
     @URL(message = "Debe ser una URL valida que empiece con http o https.")
     private String url;
+
+    private String httpMethod = "GET";
+
+    private Integer expectedStatusCode;
+
+    @Size(max = 1000, message = "Los headers personalizados no pueden superar los 1000 caracteres.")
+    private String customHeaders;
+
+    private boolean isPublicStatus = false;
 }

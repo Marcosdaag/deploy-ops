@@ -40,7 +40,15 @@
           <span>{{ lastSyncedAt() ? 'Conectado a Render' : 'Conectando con Render...' }}</span>
         </a>
 
-        @if (authService.isAuthenticated()) {
+                @if (authService.isAuthenticated()) {
+          <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" class="topbar-status-page-btn" title="Ver Status Page Publica">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>Status Page</span>
+          </a>
           <div class="user-pill-container">
             <div class="user-pill" [title]="authService.currentUser()?.email">
               <span class="user-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</span>
@@ -323,6 +331,67 @@
           </button>
         </div>
 
+        <div class="advanced-toggle-row">
+          <button type="button" class="btn-advanced-toggle" (click)="toggleAdvancedCreate()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.rotated]="showAdvancedCreate()">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+            <span>Opciones avanzadas (Metodo HTTP, Codigo esperado, Headers, Status Page)</span>
+          </button>
+        </div>
+
+        @if (showAdvancedCreate()) {
+          <div class="advanced-fields-card">
+            <div class="adv-grid">
+              <div class="reg-field">
+                <label class="reg-label">Metodo HTTP</label>
+                <select class="reg-input reg-select" [ngModel]="newServiceMethod()" (ngModelChange)="newServiceMethod.set($event)" name="newServiceMethod">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="HEAD">HEAD</option>
+                  <option value="PUT">PUT</option>
+                </select>
+              </div>
+
+              <div class="reg-field">
+                <label class="reg-label">Codigo HTTP Esperado (Opcional)</label>
+                <input
+                  type="number"
+                  class="reg-input"
+                  placeholder="200 (por defecto 2xx)"
+                  [ngModel]="newServiceExpectedStatus()"
+                  (ngModelChange)="setExpectedStatus($event)"
+                  name="newServiceExpectedStatus"
+                />
+              </div>
+
+              <div class="reg-field adv-headers-field">
+                <label class="reg-label">Headers Personalizados (Clave: Valor)</label>
+                <input
+                  type="text"
+                  class="reg-input"
+                  placeholder="Authorization: Bearer token"
+                  [ngModel]="newServiceHeaders()"
+                  (ngModelChange)="newServiceHeaders.set($event)"
+                  name="newServiceHeaders"
+                />
+              </div>
+
+              <div class="reg-field-checkbox">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [ngModel]="newServiceIsPublic()"
+                    (ngModelChange)="newServiceIsPublic.set($event)"
+                    name="newServiceIsPublic"
+                  />
+                  <span>Publicar en mi Status Page</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        }
+
         <div class="presets-inline-row">
           <span class="presets-caption">Cargar ejemplo rápido:</span>
           @for (preset of quickPresets; track preset.label) {
@@ -392,7 +461,15 @@
             <span>En Espera</span>
             <span class="u-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
           </button>
-          @if (authService.isAuthenticated()) {
+                  @if (authService.isAuthenticated()) {
+          <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" class="topbar-status-page-btn" title="Ver Status Page Publica">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>Status Page</span>
+          </a>
             <button
               type="button"
               class="u-tab"
@@ -889,6 +966,138 @@
               </button>
             </div>
           }
+
+          @if (selected.isOwner && authService.isAuthenticated()) {
+            <div class="status-page-card">
+              <div class="spc-header">
+                <div class="spc-title-wrap">
+                  <span class="spc-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                      <line x1="8" y1="21" x2="16" y2="21"></line>
+                      <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                  </span>
+                  <span class="spc-title">Status Page Publica</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn-toggle-switch"
+                  [class.active]="selected.isPublicStatus"
+                  [disabled]="isTogglingVisibility()"
+                  (click)="toggleServiceVisibility(selected)"
+                  [title]="selected.isPublicStatus ? 'Desactivar visibilidad publica' : 'Hacer publico en mi status page'"
+                >
+                  <span class="switch-handle"></span>
+                </button>
+              </div>
+              <p class="spc-desc">
+                {{ selected.isPublicStatus
+                  ? 'Este servicio es visible publicamente en tu pagina de estado.'
+                  : 'Servicio privado. Activa el interruptor para mostrarlo en tu pagina de estado publica.' }}
+              </p>
+              @if (selected.isPublicStatus) {
+                <div class="spc-links">
+                  <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" target="_blank" class="spc-view-link">
+                    Abrir Status Page ↗
+                  </a>
+                  <button type="button" class="spc-copy-btn" (click)="copyStatusPageLink()">
+                    Copiar enlace
+                  </button>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="drawer-metrics-history">
+            <div class="drawer-block-head">
+              <span>Telemetria de Latencia</span>
+              <div class="range-selector">
+                <button
+                  type="button"
+                  class="range-pill"
+                  [class.active]="metricsRange() === '6h'"
+                  (click)="changeMetricsRange('6h')"
+                >6H</button>
+                <button
+                  type="button"
+                  class="range-pill"
+                  [class.active]="metricsRange() === '24h'"
+                  (click)="changeMetricsRange('24h')"
+                >24H</button>
+                <button
+                  type="button"
+                  class="range-pill"
+                  [class.active]="metricsRange() === '7d'"
+                  (click)="changeMetricsRange('7d')"
+                >7D</button>
+              </div>
+            </div>
+
+            @if (isLoadingMetrics()) {
+              <div class="metrics-loading">
+                <span class="pulse-spinner"></span>
+                <span>Cargando serie temporal...</span>
+              </div>
+            } @else if (metricsHistory(); as mh) {
+              <div class="metrics-strip">
+                <div class="m-stat">
+                  <span class="m-stat-label">Min</span>
+                  <span class="m-stat-val">{{ mh.minLatencyMs }} ms</span>
+                </div>
+                <div class="m-stat">
+                  <span class="m-stat-label">Promedio</span>
+                  <span class="m-stat-val">{{ mh.avgLatencyMs }} ms</span>
+                </div>
+                <div class="m-stat">
+                  <span class="m-stat-label">p95</span>
+                  <span class="m-stat-val">{{ mh.p95LatencyMs }} ms</span>
+                </div>
+                <div class="m-stat">
+                  <span class="m-stat-label">Max</span>
+                  <span class="m-stat-val">{{ mh.maxLatencyMs }} ms</span>
+                </div>
+              </div>
+
+              @if (chartSvg().points.length > 0) {
+                <div class="chart-container">
+                  <svg viewBox="0 0 340 90" class="latency-svg" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.35" />
+                        <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <path [attr.d]="chartSvg().areaPath" fill="url(#areaGradient)" />
+                    <path [attr.d]="chartSvg().linePath" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    @for (pt of chartSvg().points; track $index) {
+                      <circle
+                        [attr.cx]="pt.x"
+                        [attr.cy]="pt.y"
+                        [attr.r]="activeHoverPoint() === pt ? 4 : 2.5"
+                        [attr.fill]="pt.alive ? '#10b981' : '#ef4444'"
+                        (mouseenter)="activeHoverPoint.set(pt)"
+                        (mouseleave)="activeHoverPoint.set(null)"
+                        class="chart-dot"
+                      />
+                    }
+                  </svg>
+                  @if (activeHoverPoint(); as hp) {
+                    <div class="chart-tooltip">
+                      <span class="tt-time">{{ hp.time }}</span>
+                      <span class="tt-latency" [class.down]="!hp.alive">
+                        {{ hp.alive ? hp.latency + ' ms' : 'Fallo' }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="chart-empty">
+                  <span>Sin registros en el rango seleccionado. Se acumularan con cada ciclo de ping.</span>
+                </div>
+              }
+            }
+          </div>
 
           <div class="drawer-incidents">
             <div class="drawer-block-head">

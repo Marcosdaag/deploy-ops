@@ -7,6 +7,11 @@ export const routes: Routes = [
     component: DashboardComponent
   },
   {
+    path: 'status/:slug',
+    loadComponent: () =>
+      import('./features/status-page/status-page.component').then((m) => m.StatusPageComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

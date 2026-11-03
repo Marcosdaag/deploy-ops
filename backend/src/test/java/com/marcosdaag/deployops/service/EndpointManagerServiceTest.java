@@ -10,6 +10,7 @@ import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
+import com.marcosdaag.deployops.repository.PingLogRepository;
 import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.repository.UserRepository;
 import java.util.Map;
@@ -43,6 +44,12 @@ class EndpointManagerServiceTest {
 
     @Mock
     private IncidentRepository incidentRepository;
+
+    @Mock
+    private PingLogRepository pingLogRepository;
+
+    @Mock
+    private MetricsHistoryService metricsHistoryService;
 
     @Mock
     private MetricsService metricsService;
@@ -253,6 +260,7 @@ class EndpointManagerServiceTest {
 
         endpointManagerService.deleteEndpoint(1L);
 
+        verify(pingLogRepository).deleteByServiceId(1L);
         verify(incidentRepository).deleteByServiceId(1L);
         verify(serviceRepository).deleteById(1L);
         verify(sseNotificationService).broadcastDashboardUpdate(any());
@@ -308,7 +316,7 @@ class EndpointManagerServiceTest {
     void whenTriggeringManualPing_shouldPingAndReturnResponseDTO() {
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(serviceRepository.existsById(1L)).thenReturn(true);
-        when(httpMonitorService.ping("https://api.pagos.com/health")).thenReturn(successPing);
+        when(httpMonitorService.ping(service)).thenReturn(successPing);
         when(metricsService.calculateUptimePercentage(service)).thenReturn(99.9);
 
         EndpointResponseDTO response = endpointManagerService.triggerManualPing(1L);
@@ -317,7 +325,7 @@ class EndpointManagerServiceTest {
         assertEquals("API Pagos", response.getName());
         assertEquals(99.9, response.getUptimePercentage());
         assertEquals(120L, response.getLastResponseTimeMs());
-        verify(httpMonitorService).ping("https://api.pagos.com/health");
+        verify(httpMonitorService).ping(service);
         verify(sseNotificationService, atLeastOnce()).broadcastDashboardUpdate(any());
     }
 
@@ -501,5 +509,37 @@ class EndpointManagerServiceTest {
 
         assertThrows(SecurityException.class, () -> endpointManagerService.triggerTestAlert(1L, "intruder@example.com"));
         verify(emailAlertService, never()).sendTestAlert(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Permite al propietario alternar la visibilidad publica de su endpoint")
+    void whenToggleVisibilityByOwner_shouldUpdateAndSave() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+        service.setUser(owner);
+        service.setPublicStatus(false);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        endpointManagerService.toggleVisibility(1L, true, "owner@example.com");
+
+        assertTrue(service.isPublicStatus());
+        verify(serviceRepository).save(service);
+        verify(sseNotificationService).broadcastDashboardUpdate(any());
+    }
+
+    @Test
+    @DisplayName("Impide alternar visibilidad si el solicitante no es el propietario")
+    void whenToggleVisibilityByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@example.com");
+        service.setUser(owner);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertThrows(SecurityException.class, () -> endpointManagerService.toggleVisibility(1L, true, "stranger@example.com"));
+        verify(serviceRepository, never()).save(service);
     }
 }
