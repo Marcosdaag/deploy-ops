@@ -18,8 +18,14 @@ public class EndpointResponseDTO {
     private final LocalDateTime createdAt;
     private final double uptimePercentage;
     private final boolean isProtected;
+    private final boolean isOwner;
+    private final String ownerEmail;
 
     public EndpointResponseDTO(ServiceEntity entity, double uptimePercentage) {
+        this(entity, uptimePercentage, null);
+    }
+
+    public EndpointResponseDTO(ServiceEntity entity, double uptimePercentage, String currentUserEmail) {
         this.id = entity.getId();
         this.name = entity.getName();
         this.url = entity.getUrl();
@@ -30,5 +36,9 @@ public class EndpointResponseDTO {
         this.createdAt = entity.getCreatedAt();
         this.uptimePercentage = uptimePercentage;
         this.isProtected = entity.isProtected();
+        this.ownerEmail = entity.getUser() != null ? entity.getUser().getEmail() : null;
+        this.isOwner = entity.getUser() != null
+                && currentUserEmail != null
+                && entity.getUser().getEmail().equalsIgnoreCase(currentUserEmail);
     }
 }

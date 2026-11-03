@@ -21,6 +21,8 @@ export interface EndpointResponse {
   createdAt: string;
   uptimePercentage: number;
   isProtected?: boolean;
+  isOwner?: boolean;
+  ownerEmail?: string | null;
 }
 
 export interface EndpointCreateRequest {

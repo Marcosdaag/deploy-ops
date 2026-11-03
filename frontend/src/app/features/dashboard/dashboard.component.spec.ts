@@ -19,22 +19,27 @@ describe('DashboardComponent', () => {
       lastResponseTimeMs: 60,
       lastCheckedAt: '2026-10-26T20:00:00',
       createdAt: '2026-10-26T19:00:00',
-      uptimePercentage: 100.0
+      uptimePercentage: 100.0,
+      isProtected: true,
+      isOwner: false
     },
     {
       id: 2,
-      name: 'Servicio con Alerta',
+      name: 'Mi API Privada',
       url: 'https://api.ejemplo.com',
       status: 'DEGRADED',
       consecutiveFailures: 1,
       lastResponseTimeMs: 140,
       lastCheckedAt: '2026-10-26T20:00:00',
       createdAt: '2026-10-26T19:00:00',
-      uptimePercentage: 98.0
+      uptimePercentage: 98.0,
+      isProtected: false,
+      isOwner: true
     }
   ];
 
   beforeEach(async () => {
+    localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
       providers: [provideHttpClient(), provideHttpClientTesting()]
@@ -43,6 +48,10 @@ describe('DashboardComponent', () => {
     fixture = TestBed.createComponent(DashboardComponent);
     component = fixture.componentInstance;
     httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
   });
 
   it('deberia calcular las metricas globales y filtrar por estado cuando recibe datos del backend', () => {
@@ -60,13 +69,47 @@ describe('DashboardComponent', () => {
     component.statusFilter.set('HEALTHY');
     expect(component.filteredEndpoints().length).toBe(1);
     expect(component.filteredEndpoints()[0].name).toBe('Google Search');
+
+    component.statusFilter.set('MINE');
+    expect(component.filteredEndpoints().length).toBe(1);
+    expect(component.filteredEndpoints()[0].name).toBe('Mi API Privada');
   });
 
-  it('deberia validar campos vacios antes de enviar un alta al servidor', () => {
+  it('deberia abrir el modal de autenticacion si un usuario no logueado intenta crear un endpoint', () => {
+    component.newServiceName.set('Mi Endpoint');
+    component.newServiceUrl.set('https://miendpoint.com');
+
+    component.submitCreateEndpoint();
+
+    expect(component.isAuthModalOpen()).toBeTrue();
+    expect(component.authModalTab()).toBe('LOGIN');
+  });
+
+  it('deberia validar campos vacios si el usuario autenticado intenta crear un endpoint sin datos', () => {
+    component.authService.currentUser.set({
+      id: 1,
+      name: 'Marcos',
+      email: 'marcos@test.com',
+      role: 'ROLE_USER',
+      provider: 'LOCAL'
+    });
+
     component.newServiceName.set('');
     component.newServiceUrl.set('');
     component.submitCreateEndpoint();
 
     expect(component.createErrors().length).toBe(2);
+  });
+
+  it('deberia alternar pestañas del modal de autenticacion y resetear errores', () => {
+    component.openAuthModal('LOGIN');
+    expect(component.isAuthModalOpen()).toBeTrue();
+    expect(component.authModalTab()).toBe('LOGIN');
+
+    component.switchAuthTab('REGISTER');
+    expect(component.authModalTab()).toBe('REGISTER');
+
+    component.closeAuthModal();
+    expect(component.isAuthModalOpen()).toBeFalse();
   });
 });

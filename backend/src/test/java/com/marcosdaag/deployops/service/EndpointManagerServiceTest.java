@@ -10,6 +10,9 @@ import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
+import com.marcosdaag.deployops.model.UserEntity;
+import com.marcosdaag.deployops.repository.UserRepository;
+import java.util.Map;
 import com.marcosdaag.deployops.repository.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +37,9 @@ class EndpointManagerServiceTest {
 
     @Mock
     private ServiceRepository serviceRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private IncidentRepository incidentRepository;
@@ -320,5 +326,83 @@ class EndpointManagerServiceTest {
         endpointManagerService.processPingResult(service, successPing);
 
         verify(serviceRepository, never()).save(any(ServiceEntity.class));
+    }
+
+    @Test
+    @DisplayName("Crea endpoint asociado a un usuario autenticado")
+    void whenCreatingEndpointWithUser_shouldAssociateUser() {
+        EndpointCreateDTO dto = new EndpointCreateDTO();
+        dto.setName("Mi Microservicio");
+        dto.setUrl("https://api.miproducto.com/health");
+
+        UserEntity user = new UserEntity();
+        user.setId(99L);
+        user.setEmail("marcos@test.com");
+
+        when(serviceRepository.existsByUrl("https://api.miproducto.com/health")).thenReturn(false);
+        when(userRepository.findByEmail("marcos@test.com")).thenReturn(Optional.of(user));
+        when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+        ServiceEntity created = endpointManagerService.createEndpoint(dto, "marcos@test.com");
+
+        assertNotNull(created);
+        assertNotNull(created.getUser());
+        assertEquals("marcos@test.com", created.getUser().getEmail());
+    }
+
+    @Test
+    @DisplayName("El propietario puede eliminar su propio endpoint")
+    void whenDeletingEndpointByOwner_shouldSucceed() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@test.com");
+
+        service.setUser(owner);
+        service.setProtected(false);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertDoesNotThrow(() -> endpointManagerService.deleteEndpoint(1L, "owner@test.com"));
+        verify(serviceRepository).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("Usuario no propietario no puede eliminar el endpoint de otro usuario")
+    void whenDeletingEndpointByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@test.com");
+
+        service.setUser(owner);
+        service.setProtected(false);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        assertThrows(SecurityException.class, () -> endpointManagerService.deleteEndpoint(1L, "intruder@test.com"));
+        verify(serviceRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("getDashboardData con usuario autenticado devuelve showcase mas servicios del usuario")
+    void whenGetDashboardDataForUser_shouldReturnCombinedList() {
+        UserEntity user = new UserEntity();
+        user.setId(5L);
+        user.setEmail("user@test.com");
+
+        ServiceEntity userEndpoint = new ServiceEntity();
+        userEndpoint.setId(10L);
+        userEndpoint.setName("Mi App");
+        userEndpoint.setUrl("https://myapp.com");
+        userEndpoint.setUser(user);
+
+        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
+        when(serviceRepository.findShowcaseAndUserServices(user)).thenReturn(List.of(userEndpoint));
+        when(metricsService.calculateUptimesForServices(any())).thenReturn(Map.of(10L, 99.5));
+
+        List<EndpointResponseDTO> data = endpointManagerService.getDashboardData("user@test.com");
+
+        assertEquals(1, data.size());
+        assertEquals("Mi App", data.get(0).getName());
+        assertTrue(data.get(0).isOwner());
     }
 }

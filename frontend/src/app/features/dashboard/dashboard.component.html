@@ -40,6 +40,31 @@
           <span>{{ lastSyncedAt() ? 'Conectado a Render' : 'Conectando con Render...' }}</span>
         </a>
 
+        @if (authService.isAuthenticated()) {
+          <div class="user-pill-container">
+            <div class="user-pill" [title]="authService.currentUser()?.email">
+              <span class="user-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</span>
+              <span class="user-name">{{ authService.currentUser()?.name }}</span>
+            </div>
+            <button type="button" class="user-logout-btn" (click)="logout()" title="Cerrar sesión">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Salir</span>
+            </button>
+          </div>
+        } @else {
+          <button type="button" class="auth-trigger-btn" (click)="openAuthModal('LOGIN')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Ingresar</span>
+          </button>
+        }
+
         <button
           type="button"
           class="theme-toggle-btn"
@@ -367,6 +392,17 @@
             <span>En Espera</span>
             <span class="u-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
           </button>
+          @if (authService.isAuthenticated()) {
+            <button
+              type="button"
+              class="u-tab"
+              [class.active]="statusFilter() === 'MINE'"
+              (click)="statusFilter.set('MINE')"
+            >
+              <span>Mis Endpoints</span>
+              <span class="u-count tabular-nums">{{ myEndpointsCount() }}</span>
+            </button>
+          }
         </div>
 
         <div class="ledger-tools-right">
@@ -418,6 +454,11 @@
             <div class="lr-main">
               <div class="lr-title-line">
                 <h3 class="lr-name">{{ ep.name }}</h3>
+                @if (ep.isOwner) {
+                  <span class="badge-owner">Mi Endpoint</span>
+                } @else if (ep.isProtected) {
+                  <span class="badge-demo">Showcase</span>
+                }
                 <span [class]="getStatusClass(ep.status)">
                   <span class="status-dot"></span>
                   <span>{{ getStatusLabel(ep.status) }}</span>
@@ -497,7 +538,7 @@
                 <span>Detalle</span>
                 <span class="arrow-shift">→</span>
               </button>
-              @if (!ep.isProtected) {
+              @if (ep.isOwner || (!ep.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
                 <button
                   type="button"
                   class="btn-lr-delete"
@@ -936,6 +977,128 @@
     <div class="subtle-toast" [class.toast-err]="t.type === 'error'">
       <span class="toast-indicator"></span>
       <span>{{ t.message }}</span>
+    </div>
+  }
+
+  @if (isAuthModalOpen()) {
+    <div class="drawer-backdrop modal-center" (click)="closeAuthModal()">
+      <div class="confirm-dialog auth-modal" (click)="$event.stopPropagation()">
+        <div class="auth-modal-header">
+          <div class="auth-tabs">
+            <button
+              type="button"
+              class="auth-tab"
+              [class.active]="authModalTab() === 'LOGIN'"
+              (click)="switchAuthTab('LOGIN')"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              class="auth-tab"
+              [class.active]="authModalTab() === 'REGISTER'"
+              (click)="switchAuthTab('REGISTER')"
+            >
+              Crear Cuenta
+            </button>
+          </div>
+          <button type="button" class="btn-close-modal" (click)="closeAuthModal()" aria-label="Cerrar">
+            ✕
+          </button>
+        </div>
+
+        <p class="auth-modal-desc">
+          @if (authModalTab() === 'LOGIN') {
+            Accede para gestionar y monitorear tus microservicios y endpoints privados.
+          } @else {
+            Crea tu cuenta de desarrollador para registrar y aislar tus propios endpoints.
+          }
+        </p>
+
+        <button type="button" class="btn-google-auth" (click)="triggerGoogleAuth()">
+          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+          </svg>
+          <span>Continuar con Google</span>
+        </button>
+
+        <div class="auth-divider">
+          <span>o con correo y contraseña</span>
+        </div>
+
+        <form (submit)="submitAuth(); $event.preventDefault()" class="auth-form">
+          @if (authModalTab() === 'REGISTER') {
+            <div class="auth-field">
+              <label for="authName">Nombre completo</label>
+              <input
+                id="authName"
+                type="text"
+                class="reg-input"
+                placeholder="Ej. Marcos Aguilar"
+                [ngModel]="authName()"
+                (ngModelChange)="authName.set($event); clearAuthErrors()"
+                name="authName"
+                required
+              />
+            </div>
+          }
+
+          <div class="auth-field">
+            <label for="authEmail">Correo electrónico</label>
+            <input
+              id="authEmail"
+              type="email"
+              class="reg-input"
+              placeholder="tu@correo.com"
+              [ngModel]="authEmail()"
+              (ngModelChange)="authEmail.set($event); clearAuthErrors()"
+              name="authEmail"
+              required
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="authPassword">Contraseña</label>
+            <input
+              id="authPassword"
+              type="password"
+              class="reg-input"
+              placeholder="••••••••"
+              [ngModel]="authPassword()"
+              (ngModelChange)="authPassword.set($event); clearAuthErrors()"
+              name="authPassword"
+              required
+            />
+          </div>
+
+          @if (authErrors().length > 0) {
+            <div class="auth-errors" role="alert">
+              @for (err of authErrors(); track $index) {
+                <span>• {{ err }}</span>
+              }
+            </div>
+          }
+
+          <div class="auth-actions">
+            <button
+              type="submit"
+              class="btn-drawer-ping w-100"
+              [disabled]="isAuthSubmitting()"
+            >
+              @if (isAuthSubmitting()) {
+                <span>Procesando...</span>
+              } @else if (authModalTab() === 'LOGIN') {
+                <span>Iniciar Sesión</span>
+              } @else {
+                <span>Crear Cuenta</span>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   }
 </div>

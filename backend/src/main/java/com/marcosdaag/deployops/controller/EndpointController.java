@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -25,20 +26,29 @@ public class EndpointController {
     private final SseNotificationService sseNotificationService;
 
     @GetMapping
-    public ResponseEntity<List<EndpointResponseDTO>> getEndpoints() {
-        return ResponseEntity.ok(endpointManager.getDashboardData());
+    public ResponseEntity<List<EndpointResponseDTO>> getEndpoints(Authentication authentication) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(endpointManager.getDashboardData(email));
     }
 
     @PostMapping
-    public ResponseEntity<EndpointResponseDTO> createEndpoint(@Valid @RequestBody EndpointCreateDTO dto) {
-        ServiceEntity created = endpointManager.createEndpoint(dto);
-        EndpointResponseDTO response = new EndpointResponseDTO(created, 0.0);
+    public ResponseEntity<EndpointResponseDTO> createEndpoint(
+            @Valid @RequestBody EndpointCreateDTO dto,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        ServiceEntity created = endpointManager.createEndpoint(dto, email);
+        EndpointResponseDTO response = new EndpointResponseDTO(created, 0.0, email);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteEndpoint(@PathVariable Long id) {
-        endpointManager.deleteEndpoint(id);
+    public ResponseEntity<Void> deleteEndpoint(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        endpointManager.deleteEndpoint(id, email);
         return ResponseEntity.noContent().build();
     }
 
@@ -55,5 +65,12 @@ public class EndpointController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamDashboard() {
         return sseNotificationService.createEmitter();
+    }
+
+    private String getEmailFromAuth(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) {
+            return authentication.getName();
+        }
+        return null;
     }
 }

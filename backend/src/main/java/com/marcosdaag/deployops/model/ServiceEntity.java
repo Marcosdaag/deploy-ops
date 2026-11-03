@@ -43,6 +43,10 @@ public class ServiceEntity {
     @Column(name = "is_protected", nullable = false)
     private boolean isProtected = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private UserEntity user;
+
     public boolean isProtected() {
         return isProtected;
     }

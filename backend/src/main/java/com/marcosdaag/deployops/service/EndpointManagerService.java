@@ -7,10 +7,12 @@ import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
+import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.ServiceRepository;
+import com.marcosdaag.deployops.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -30,13 +32,14 @@ public class EndpointManagerService {
 
     private final ServiceRepository serviceRepository;
     private final IncidentRepository incidentRepository;
+    private final UserRepository userRepository;
     private final MetricsService metricsService;
     private final UrlSecurityValidator urlSecurityValidator;
     private final HttpMonitorService httpMonitorService;
     private final SseNotificationService sseNotificationService;
 
     @Transactional
-    public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
+    public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
         String cleanUrl = dto.getUrl().trim();
 
         urlSecurityValidator.validatePublicUrl(cleanUrl);
@@ -54,13 +57,23 @@ public class EndpointManagerService {
         newEndpoint.setCreatedAt(LocalDateTime.now());
         newEndpoint.setProtected(false);
 
+        if (currentUserEmail != null && !currentUserEmail.isBlank()) {
+            userRepository.findByEmail(currentUserEmail.toLowerCase())
+                    .ifPresent(newEndpoint::setUser);
+        }
+
         ServiceEntity saved = serviceRepository.save(newEndpoint);
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
         return saved;
     }
 
     @Transactional
-    public void deleteEndpoint(Long id) {
+    public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto) {
+        return createEndpoint(dto, null);
+    }
+
+    @Transactional
+    public void deleteEndpoint(Long id, String currentUserEmail) {
         ServiceEntity service = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
 
@@ -68,27 +81,52 @@ public class EndpointManagerService {
             throw new IllegalArgumentException("Este endpoint de demostracion esta protegido contra eliminacion.");
         }
 
+        if (service.getUser() != null) {
+            if (currentUserEmail == null || !service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para eliminar este endpoint.");
+            }
+        }
+
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
 
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+    }
+
+    @Transactional
+    public void deleteEndpoint(Long id) {
+        deleteEndpoint(id, null);
     }
 
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
     }
 
-    // Precalcula uptimes en lote para evitar consultas N+1
-    public List<EndpointResponseDTO> getDashboardData() {
-        List<ServiceEntity> services = serviceRepository.findAll();
+    public List<EndpointResponseDTO> getDashboardData(String currentUserEmail) {
+        List<ServiceEntity> services;
+        if (currentUserEmail != null && !currentUserEmail.isBlank()) {
+            UserEntity user = userRepository.findByEmail(currentUserEmail.toLowerCase()).orElse(null);
+            if (user != null) {
+                services = serviceRepository.findShowcaseAndUserServices(user);
+            } else {
+                services = serviceRepository.findByUserIsNullOrderByIdDesc();
+            }
+        } else {
+            services = serviceRepository.findByUserIsNullOrderByIdDesc();
+        }
+
         Map<Long, Double> uptimes = metricsService.calculateUptimesForServices(services);
 
         return services.stream()
                 .map(service -> {
                     double uptime = uptimes.getOrDefault(service.getId(), 0.0);
-                    return new EndpointResponseDTO(service, uptime);
+                    return new EndpointResponseDTO(service, uptime, currentUserEmail);
                 })
                 .toList();
+    }
+
+    public List<EndpointResponseDTO> getDashboardData() {
+        return getDashboardData(null);
     }
 
     public List<IncidentResponseDTO> getIncidentsForService(Long serviceId) {
@@ -118,7 +156,6 @@ public class EndpointManagerService {
 
     @Transactional
     public void processPingResult(ServiceEntity service, PingResult pingResult) {
-        // Descarta actualizacion si el servicio fue eliminado durante el ping
         if (service.getId() != null && !serviceRepository.existsById(service.getId())) {
             logger.warn("El servicio {} (ID {}) ya no existe en la base de datos. Se descarta la actualizacion.", service.getName(), service.getId());
             return;
@@ -154,7 +191,6 @@ public class EndpointManagerService {
                 service.setStatus(ServiceStatus.RECOVERING);
             }
             case RECOVERING -> {
-                // 2 exitos consecutivos confirman recuperacion y cierran el incidente
                 if (service.getConsecutiveSuccesses() >= 2) {
                     logger.info("Servicio {} confirmo 2 exitos seguidos. Cerrando incidente.", service.getName());
                     service.setStatus(ServiceStatus.HEALTHY);
@@ -162,7 +198,6 @@ public class EndpointManagerService {
                 }
             }
             case HEALTHY -> {
-                // Sigue en operacion nominal
             }
         }
     }
@@ -177,7 +212,6 @@ public class EndpointManagerService {
                 service.setStatus(ServiceStatus.DEGRADED);
             }
             case DEGRADED -> {
-                // Al tercer fallo consecutivo se confirma caida y se abre incidente
                 if (service.getConsecutiveFailures() >= 3) {
                     logger.error("Servicio {} acumulo 3 fallos seguidos. Marcando como DOWN y abriendo incidente.", service.getName());
                     service.setStatus(ServiceStatus.DOWN);
