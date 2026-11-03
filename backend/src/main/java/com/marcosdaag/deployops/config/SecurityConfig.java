@@ -1,5 +1,6 @@
 package com.marcosdaag.deployops.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marcosdaag.deployops.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -79,5 +80,10 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }
