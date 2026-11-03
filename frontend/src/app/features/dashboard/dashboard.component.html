@@ -3,19 +3,10 @@
   [style.--mouse-x.px]="cursorX()"
   [style.--mouse-y.px]="cursorY()"
 >
-  <!--
-    Luz interactiva sutil que sigue al cursor por el fondo de la pagina,
-    acompanada por una trama de puntos muy tenue sin manchas de color fijas.
-  -->
   <div class="ambient-stage" aria-hidden="true">
     <div class="cursor-spotlight"></div>
     <div class="ambient-dot-grid"></div>
   </div>
-
-  <!--
-    Menu superior fijo de ancho completo. Tiene su propio color de superficie
-    para diferenciarse del fondo de la pagina y acompana todo el recorrido de scroll.
-  -->
   <header class="topbar-fixed" [class.topbar-scrolled]="isScrolled()">
     <div class="topbar-inner">
       <a href="#vitrina" class="brand-cluster" (click)="scrollToTop($event)">
@@ -80,10 +71,6 @@
   </header>
 
   <main class="landing-main">
-    <!--
-      Seccion principal (Hero): presenta el proposito de DeployOps y muestra en un
-      panel arquitectonico abierto los dos ejemplos reales corriendo en Render (Google y Cloudflare).
-    -->
     <section class="hero-section" id="vitrina">
       <div class="hero-copy-block reveal-up">
         <h1 class="hero-headline">
@@ -260,11 +247,6 @@
         </div>
       </div>
     </section>
-
-    <!--
-      Laboratorio en vivo: permite agregar nuevos servicios al backend publico
-      y muestra cualquier aviso de validacion de forma natural e integrada debajo del input.
-    -->
     <section class="sandbox-section" id="monitor-vivo">
       <div class="section-heading-cluster">
         <span class="section-eyebrow">01 — Laboratorio Interactivo Público</span>
@@ -540,10 +522,6 @@
         }
       </div>
     </section>
-
-    <!--
-      Linea de tiempo interactiva de la Maquina de Estados con transicion suave entre etapas.
-    -->
     <section class="statemachine-section" id="maquina-estados">
       <div class="section-heading-cluster">
         <span class="section-eyebrow">02 — Tolerancia a Fallos e Histéresis</span>
@@ -599,11 +577,6 @@
         }
       </div>
     </section>
-
-    <!--
-      Explorador de la API Publica: muestra la latencia y el codigo 200 OK integrados
-      en el propio visor JSON sin disparar alertas emergentes innecesarias.
-    -->
     <section class="public-api-section" id="api-publica">
       <div class="section-heading-cluster">
         <span class="section-eyebrow">03 — Acceso Público y Desarrolladores</span>
@@ -703,11 +676,6 @@
         </div>
       </div>
     </section>
-
-    <!--
-      Seccion de Arquitectura: grilla abierta estilo editorial suizo dividida
-      unicamente por lineas finas de 1px en lugar de cajas sueltas.
-    -->
     <section class="architecture-section" id="arquitectura">
       <div class="section-heading-cluster">
         <span class="section-eyebrow">04 — Ingeniería de Producción</span>
