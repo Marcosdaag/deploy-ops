@@ -83,10 +83,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDTO> handleGlobalException(Exception ex) {
         logger.error("Error no controlado en el servidor: ", ex);
 
+        String detail = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "Ocurrio un error inesperado. Por favor, intente mas tarde.";
+
         ErrorResponseDTO response = ErrorResponseDTO.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Error interno del servidor",
-                "Ocurrio un error inesperado. Por favor, intente mas tarde."
+                detail
         );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);

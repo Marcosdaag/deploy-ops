@@ -53,13 +53,17 @@ public class AuthService {
         return new AuthResponse(token, saved);
     }
 
+    @Transactional
     public AuthResponse login(AuthLoginRequest request) {
         String cleanEmail = request.getEmail().trim().toLowerCase();
 
         UserEntity user = userRepository.findByEmail(cleanEmail)
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas."));
 
-        if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (user.getPassword() == null) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            userRepository.save(user);
+        } else if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Credenciales invalidas.");
         }
 

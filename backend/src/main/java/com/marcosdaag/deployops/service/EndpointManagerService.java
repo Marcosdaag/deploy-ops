@@ -124,10 +124,12 @@ public class EndpointManagerService {
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
     }
 
+    @Transactional(readOnly = true)
     public List<ServiceEntity> getAllEndpoints() {
         return serviceRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<EndpointResponseDTO> getDashboardData(String currentUserEmail) {
         List<ServiceEntity> services;
         if (currentUserEmail != null && !currentUserEmail.isBlank()) {
@@ -151,10 +153,12 @@ public class EndpointManagerService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<EndpointResponseDTO> getDashboardData() {
         return getDashboardData(null);
     }
 
+    @Transactional(readOnly = true)
     public List<IncidentResponseDTO> getIncidentsForService(Long serviceId) {
         ServiceEntity service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + serviceId));

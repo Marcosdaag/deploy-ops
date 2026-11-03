@@ -19,12 +19,14 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
 
     List<ServiceEntity> findByUserOrderByIdDesc(UserEntity user);
 
-    @Query("SELECT s FROM ServiceEntity s WHERE s.user IS NULL OR s.user = :user ORDER BY s.id DESC")
+    @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user WHERE s.user IS NULL OR s.user = :user ORDER BY s.id DESC")
     List<ServiceEntity> findShowcaseAndUserServices(@Param("user") UserEntity user);
 
+    @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user WHERE s.user IS NULL ORDER BY s.id DESC")
     List<ServiceEntity> findByUserIsNullOrderByIdDesc();
 
-    List<ServiceEntity> findByUserAndIsPublicStatusTrueOrderByIdDesc(UserEntity user);
+    @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user WHERE s.user = :user AND s.isPublicStatus = true ORDER BY s.id DESC")
+    List<ServiceEntity> findByUserAndIsPublicStatusTrueOrderByIdDesc(@Param("user") UserEntity user);
 
     List<ServiceEntity> findByIsPublicStatusTrueOrderByIdDesc();
 }

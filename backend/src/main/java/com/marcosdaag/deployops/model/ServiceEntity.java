@@ -40,13 +40,13 @@ public class ServiceEntity {
 
     private LocalDateTime lastCheckedAt;
 
-    @Column(name = "is_protected", nullable = false)
+    @Column(name = "is_protected")
     private boolean isProtected = false;
 
-    @Column(name = "is_public_status", nullable = false)
+    @Column(name = "is_public_status")
     private boolean isPublicStatus = false;
 
-    @Column(length = 10, nullable = false)
+    @Column(length = 10)
     private String httpMethod = "GET";
 
     @Column
