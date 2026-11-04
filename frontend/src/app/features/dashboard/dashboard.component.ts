@@ -71,6 +71,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   readonly searchQuery = signal<string>('');
   readonly statusFilter = signal<StatusFilter>('ALL');
+  readonly activeScope = signal<'mine' | 'showcase'>('mine');
 
   readonly newServiceName = signal<string>('');
   readonly newServiceUrl = signal<string>('');
@@ -306,17 +307,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private initSseStream(): void {
     this.sseSubscription = this.endpointService.getDashboardStream().subscribe({
       next: (streamData) => {
-        if (streamData && streamData.length > 0) {
-          this.endpoints.set(streamData);
-          this.lastSyncedAt.set(new Date());
-          this.liveJsonOutput.set(JSON.stringify(streamData, null, 2));
+        if (this.authService.isAuthenticated()) {
+          this.syncWithPublicApi();
+        } else {
+          if (streamData && streamData.length > 0) {
+            this.endpoints.set(streamData);
+            this.lastSyncedAt.set(new Date());
+            this.liveJsonOutput.set(JSON.stringify(streamData, null, 2));
 
-          const current = this.selectedEndpoint();
-          if (current) {
-            const updated = streamData.find((item) => item.id === current.id) ?? null;
-            this.selectedEndpoint.set(updated);
+            const current = this.selectedEndpoint();
+            if (current) {
+              const updated = streamData.find((item) => item.id === current.id) ?? null;
+              this.selectedEndpoint.set(updated);
+            }
           }
         }
+      }
+    });
+  }
+
+  switchScope(scope: 'mine' | 'showcase'): void {
+    this.activeScope.set(scope);
+    this.syncWithPublicApi();
+  }
+
+  seedSampleEndpoints(): void {
+    if (!this.authService.isAuthenticated()) {
+      this.openAuthModal('LOGIN');
+      return;
+    }
+    this.isSyncing.set(true);
+    this.endpointService.seedSampleEndpoints().subscribe({
+      next: (data) => {
+        this.isSyncing.set(false);
+        this.endpoints.set(data);
+        this.activeScope.set('mine');
+        this.showToast('success', 'Endpoints de ejemplo cargados en tu cuenta');
+      },
+      error: (err) => {
+        this.isSyncing.set(false);
+        this.showToast('error', this.endpointService.extractErrorMessages(err)[0] || 'Error al cargar ejemplos');
       }
     });
   }
@@ -324,10 +354,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   syncWithPublicApi(): void {
     this.isSyncing.set(true);
     const startMs = performance.now();
+    const scope = this.authService.isAuthenticated() ? this.activeScope() : 'showcase';
 
-    this.endpointService.getEndpoints().subscribe({
+    this.endpointService.getEndpoints(scope).subscribe({
       next: (data) => {
-        if (data.length === 0 && !this.hasAttemptedAutoSeed) {
+        if (!this.authService.isAuthenticated() && data.length === 0 && !this.hasAttemptedAutoSeed) {
           this.hasAttemptedAutoSeed = true;
           this.seedDefaultShowcaseEndpoints();
           return;
@@ -417,6 +448,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.endpointService.createEndpoint(payload).subscribe({
       next: (created) => {
+        this.activeScope.set('mine');
         this.endpoints.update((prev) => [created, ...prev]);
         this.newServiceName.set('');
         this.newServiceUrl.set('');

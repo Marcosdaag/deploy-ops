@@ -293,14 +293,25 @@
     </section>
     <section class="sandbox-section" id="monitor-vivo">
       <div class="section-heading-cluster">
-        <span class="section-eyebrow">01 — Laboratorio Interactivo Público</span>
-        <h2 class="section-title">
-          Probá el motor en tiempo real
-          <span class="font-serif-editorial section-serif">sobre la API en producción.</span>
-        </h2>
-        <p class="section-subtitle">
-          Agregá cualquier endpoint público para sumarlo al ciclo de vigilancia en Render, o ejecutá la prueba de seguridad para ver cómo el servidor rechaza direcciones internas.
-        </p>
+        @if (authService.isAuthenticated()) {
+          <span class="section-eyebrow">01 — Tu Centro de Monitoreo Privado</span>
+          <h2 class="section-title">
+            Monitoreá tus propios microservicios
+            <span class="font-serif-editorial section-serif">con guardia activa 24/7.</span>
+          </h2>
+          <p class="section-subtitle">
+            Los endpoints registrados bajo tu cuenta son exclusivos para ti. Recibirás alertas inmediatas por correo ante caídas y podrás publicarlos en tu Status Page.
+          </p>
+        } @else {
+          <span class="section-eyebrow">01 — Laboratorio Interactivo Público</span>
+          <h2 class="section-title">
+            Probá el motor en tiempo real
+            <span class="font-serif-editorial section-serif">sobre la API en producción.</span>
+          </h2>
+          <p class="section-subtitle">
+            Agregá cualquier endpoint público para sumarlo al ciclo de vigilancia en Render, o iniciá sesión para gestionar tu propia lista privada de endpoints.
+          </p>
+        }
       </div>
 
       <form class="registration-bar" (ngSubmit)="submitCreateEndpoint()">
@@ -435,6 +446,37 @@
       </form>
 
       <div class="ledger-toolbar">
+        @if (authService.isAuthenticated()) {
+          <div class="scope-switch-group">
+            <button
+              type="button"
+              class="scope-btn"
+              [class.active]="activeScope() === 'mine'"
+              (click)="switchScope('mine')"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>Mis Endpoints</span>
+              <span class="scope-badge">{{ myEndpointsCount() }}</span>
+            </button>
+            <button
+              type="button"
+              class="scope-btn"
+              [class.active]="activeScope() === 'showcase'"
+              (click)="switchScope('showcase')"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span>Showcase Demo</span>
+            </button>
+          </div>
+        }
+
         <div class="underline-tabs" role="tablist">
           <button
             type="button"
@@ -472,24 +514,15 @@
             <span>En Espera</span>
             <span class="u-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
           </button>
-                  @if (authService.isAuthenticated()) {
-          <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" class="topbar-status-page-btn" title="Ver Status Page Publica">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-            <span>Status Page</span>
-          </a>
-            <button
-              type="button"
-              class="u-tab"
-              [class.active]="statusFilter() === 'MINE'"
-              (click)="statusFilter.set('MINE')"
-            >
-              <span>Mis Endpoints</span>
-              <span class="u-count tabular-nums">{{ myEndpointsCount() }}</span>
-            </button>
+          @if (authService.isAuthenticated()) {
+            <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" class="topbar-status-page-btn" title="Ver Status Page Publica">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <span>Status Page</span>
+            </a>
           }
         </div>
 
@@ -658,6 +691,34 @@
               }
             </div>
           </article>
+        } @empty {
+          <div class="empty-endpoints-ledger">
+            <div class="empty-icon-wrap">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            @if (authService.isAuthenticated() && activeScope() === 'mine') {
+              <h4 class="empty-title">Aún no tienes endpoints registrados en tu cuenta</h4>
+              <p class="empty-desc">
+                Comienza a vigilar la disponibilidad, latencia y certificados SSL de tus propios microservicios. Agrega una URL en el formulario de arriba o carga 3 servicios de demostración para probar la plataforma.
+              </p>
+              <div class="empty-actions">
+                <button type="button" class="btn-sample-seed" (click)="seedSampleEndpoints()" [disabled]="isSyncing()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                  <span>Cargar 3 servicios de ejemplo</span>
+                </button>
+              </div>
+            } @else {
+              <h4 class="empty-title">No hay endpoints para mostrar</h4>
+              <p class="empty-desc">No se encontraron servicios que coincidan con los filtros seleccionados.</p>
+            }
+          </div>
         }
       </div>
     </section>

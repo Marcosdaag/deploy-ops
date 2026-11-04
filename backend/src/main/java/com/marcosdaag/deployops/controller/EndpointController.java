@@ -35,9 +35,18 @@ public class EndpointController {
     private final ReportService reportService;
 
     @GetMapping
-    public ResponseEntity<List<EndpointResponseDTO>> getEndpoints(Authentication authentication) {
+    public ResponseEntity<List<EndpointResponseDTO>> getEndpoints(
+            @RequestParam(required = false) String scope,
+            Authentication authentication
+    ) {
         String email = getEmailFromAuth(authentication);
-        return ResponseEntity.ok(endpointManager.getDashboardData(email));
+        return ResponseEntity.ok(endpointManager.getDashboardData(email, scope));
+    }
+
+    @PostMapping("/samples")
+    public ResponseEntity<List<EndpointResponseDTO>> seedSampleEndpoints(Authentication authentication) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(endpointManager.seedSampleEndpointsForUser(email));
     }
 
     @PostMapping

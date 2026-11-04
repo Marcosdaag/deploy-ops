@@ -22,7 +22,12 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
 
     boolean existsByUrl(String url);
 
-    List<ServiceEntity> findByUserOrderByIdDesc(UserEntity user);
+    boolean existsByUrlAndUser(String url, UserEntity user);
+
+    boolean existsByUrlAndUserIsNull(String url);
+
+    @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user WHERE s.user = :user ORDER BY s.id DESC")
+    List<ServiceEntity> findByUserOrderByIdDesc(@Param("user") UserEntity user);
 
     @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user WHERE s.user IS NULL OR s.user = :user ORDER BY s.id DESC")
     List<ServiceEntity> findShowcaseAndUserServices(@Param("user") UserEntity user);

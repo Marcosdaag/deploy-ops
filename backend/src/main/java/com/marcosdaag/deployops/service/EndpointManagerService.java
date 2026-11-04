@@ -49,8 +49,19 @@ public class EndpointManagerService {
 
         urlSecurityValidator.validatePublicUrl(cleanUrl);
 
-        if (serviceRepository.existsByUrl(cleanUrl)) {
-            throw new IllegalArgumentException("Ya existe un servicio registrado con esa URL.");
+        UserEntity currentUser = null;
+        if (currentUserEmail != null && !currentUserEmail.isBlank()) {
+            currentUser = userRepository.findByEmail(currentUserEmail.toLowerCase()).orElse(null);
+        }
+
+        if (currentUser != null) {
+            if (serviceRepository.existsByUrlAndUser(cleanUrl, currentUser)) {
+                throw new IllegalArgumentException("Ya estás monitoreando esta URL en tu cuenta.");
+            }
+        } else {
+            if (serviceRepository.existsByUrl(cleanUrl)) {
+                throw new IllegalArgumentException("Ya existe un servicio registrado con esa URL.");
+            }
         }
 
         ServiceEntity newEndpoint = new ServiceEntity();
@@ -65,11 +76,7 @@ public class EndpointManagerService {
         newEndpoint.setExpectedStatusCode(dto.getExpectedStatusCode());
         newEndpoint.setCustomHeaders(dto.getCustomHeaders());
         newEndpoint.setPublicStatus(dto.isPublicStatus());
-
-        if (currentUserEmail != null && !currentUserEmail.isBlank()) {
-            userRepository.findByEmail(currentUserEmail.toLowerCase())
-                    .ifPresent(newEndpoint::setUser);
-        }
+        newEndpoint.setUser(currentUser);
 
         ServiceEntity saved = serviceRepository.save(newEndpoint);
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
@@ -131,11 +138,22 @@ public class EndpointManagerService {
 
     @Transactional(readOnly = true)
     public List<EndpointResponseDTO> getDashboardData(String currentUserEmail) {
+        return getDashboardData(currentUserEmail, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EndpointResponseDTO> getDashboardData(String currentUserEmail, String scope) {
         List<ServiceEntity> services;
         if (currentUserEmail != null && !currentUserEmail.isBlank()) {
             UserEntity user = userRepository.findByEmail(currentUserEmail.toLowerCase()).orElse(null);
             if (user != null) {
-                services = serviceRepository.findShowcaseAndUserServices(user);
+                if ("showcase".equalsIgnoreCase(scope)) {
+                    services = serviceRepository.findByUserIsNullOrderByIdDesc();
+                } else if ("all".equalsIgnoreCase(scope)) {
+                    services = serviceRepository.findShowcaseAndUserServices(user);
+                } else {
+                    services = serviceRepository.findByUserOrderByIdDesc(user);
+                }
             } else {
                 services = serviceRepository.findByUserIsNullOrderByIdDesc();
             }
@@ -151,6 +169,43 @@ public class EndpointManagerService {
                     return new EndpointResponseDTO(service, uptime, currentUserEmail);
                 })
                 .toList();
+    }
+
+    @Transactional
+    public List<EndpointResponseDTO> seedSampleEndpointsForUser(String currentUserEmail) {
+        if (currentUserEmail == null || currentUserEmail.isBlank()) {
+            throw new IllegalArgumentException("Debes estar autenticado para sembrar endpoints de ejemplo.");
+        }
+
+        UserEntity user = userRepository.findByEmail(currentUserEmail.toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + currentUserEmail));
+
+        List<String[]> samples = List.of(
+                new String[]{"GitHub API", "https://api.github.com"},
+                new String[]{"Cloudflare Edge DNS", "https://1.1.1.1"},
+                new String[]{"HttpBin Test", "https://httpbin.org/get"}
+        );
+
+        for (String[] sample : samples) {
+            String name = sample[0];
+            String url = sample[1];
+            if (!serviceRepository.existsByUrlAndUser(url, user)) {
+                ServiceEntity s = new ServiceEntity();
+                s.setName(name);
+                s.setUrl(url);
+                s.setStatus(ServiceStatus.PENDING);
+                s.setConsecutiveFailures(0);
+                s.setConsecutiveSuccesses(0);
+                s.setCreatedAt(LocalDateTime.now());
+                s.setProtected(false);
+                s.setPublicStatus(true);
+                s.setHttpMethod("GET");
+                s.setUser(user);
+                serviceRepository.save(s);
+            }
+        }
+
+        return getDashboardData(currentUserEmail);
     }
 
     @Transactional(readOnly = true)

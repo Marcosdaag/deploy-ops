@@ -60,7 +60,7 @@ describe('DashboardComponent', () => {
   it('deberia calcular las metricas globales y filtrar por estado cuando recibe datos del backend', () => {
     fixture.detectChanges();
 
-    const req = httpMock.expectOne(component.endpointService.publicApiUrl);
+    const req = httpMock.expectOne((r) => r.url.startsWith(component.endpointService.publicApiUrl));
     req.flush(mockEndpoints);
 
     expect(component.metrics().total).toBe(2);

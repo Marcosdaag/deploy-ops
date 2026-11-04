@@ -19,8 +19,13 @@ export class EndpointService {
   private readonly http = inject(HttpClient);
   readonly publicApiUrl = environment.apiUrl;
 
-  getEndpoints(): Observable<EndpointResponse[]> {
-    return this.http.get<EndpointResponse[]>(this.publicApiUrl);
+  getEndpoints(scope?: string): Observable<EndpointResponse[]> {
+    const query = scope ? `?scope=${scope}` : '';
+    return this.http.get<EndpointResponse[]>(`${this.publicApiUrl}${query}`);
+  }
+
+  seedSampleEndpoints(): Observable<EndpointResponse[]> {
+    return this.http.post<EndpointResponse[]>(`${this.publicApiUrl}/samples`, {});
   }
 
   createEndpoint(payload: EndpointCreateRequest): Observable<EndpointResponse> {

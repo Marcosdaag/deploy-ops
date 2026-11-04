@@ -350,7 +350,7 @@ class EndpointManagerServiceTest {
         user.setId(99L);
         user.setEmail("marcos@test.com");
 
-        when(serviceRepository.existsByUrl("https://api.miproducto.com/health")).thenReturn(false);
+        when(serviceRepository.existsByUrlAndUser("https://api.miproducto.com/health", user)).thenReturn(false);
         when(userRepository.findByEmail("marcos@test.com")).thenReturn(Optional.of(user));
         when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -407,7 +407,7 @@ class EndpointManagerServiceTest {
         userEndpoint.setUser(user);
 
         when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
-        when(serviceRepository.findShowcaseAndUserServices(user)).thenReturn(List.of(userEndpoint));
+        when(serviceRepository.findByUserOrderByIdDesc(user)).thenReturn(List.of(userEndpoint));
         when(metricsService.calculateUptimesForServices(any())).thenReturn(Map.of(10L, 99.5));
 
         List<EndpointResponseDTO> data = endpointManagerService.getDashboardData("user@test.com");
@@ -541,5 +541,39 @@ class EndpointManagerServiceTest {
 
         assertThrows(SecurityException.class, () -> endpointManagerService.toggleVisibility(1L, true, "stranger@example.com"));
         verify(serviceRepository, never()).save(service);
+    }
+
+    @Test
+    @DisplayName("Multitenant: Permite misma URL en distintos usuarios pero la rechaza en el mismo usuario")
+    void whenSameUrlInDifferentUsers_shouldHandleCorrectly() {
+        UserEntity user1 = new UserEntity();
+        user1.setId(1L);
+        user1.setEmail("user1@test.com");
+
+        EndpointCreateDTO dto = new EndpointCreateDTO();
+        dto.setName("GitHub");
+        dto.setUrl("https://api.github.com");
+
+        when(userRepository.findByEmail("user1@test.com")).thenReturn(Optional.of(user1));
+        when(serviceRepository.existsByUrlAndUser("https://api.github.com", user1)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.createEndpoint(dto, "user1@test.com"));
+    }
+
+    @Test
+    @DisplayName("Siembra de endpoints de ejemplo para usuario autenticado")
+    void whenSeedingSamples_shouldSaveOnlyNonExistingEndpoints() {
+        UserEntity user = new UserEntity();
+        user.setId(2L);
+        user.setEmail("marcos@test.com");
+
+        when(userRepository.findByEmail("marcos@test.com")).thenReturn(Optional.of(user));
+        when(serviceRepository.existsByUrlAndUser(anyString(), eq(user))).thenReturn(false);
+        when(serviceRepository.findByUserOrderByIdDesc(user)).thenReturn(List.of());
+        when(metricsService.calculateUptimesForServices(any())).thenReturn(Map.of());
+
+        List<EndpointResponseDTO> result = endpointManagerService.seedSampleEndpointsForUser("marcos@test.com");
+        assertNotNull(result);
+        verify(serviceRepository, atLeastOnce()).save(any(ServiceEntity.class));
     }
 }
