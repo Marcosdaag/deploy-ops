@@ -1,114 +1,96 @@
-# Technical Decisions and Trade-offs (ADR)
+# Decisiones Tecnicas y de Arquitectura (ADR)
 
-Este documento registra las decisiones arquitectónicas y técnicas más relevantes adoptadas durante el diseño de **DeployOps**. Aquí detallamos el contexto, las alternativas evaluadas y las razones de cada elección para entender el "por qué" detrás del código.
-
----
-
-## ADR 01: Arquitectura en Capas en un Monolito frente a Microservicios
-
-* **Contexto:** Al diseñar una plataforma de monitoreo, existe la tentación de dividir el sistema rápidamente en múltiples microservicios (uno para autenticación, otro para el scheduler, otro para notificaciones).
-* **Decisión:** Desarrollar un backend único con **arquitectura en capas tradicional** (Controller, Service, Repository).
-* **Justificación:**
-  * La verdadera complejidad de este proyecto reside en las reglas de negocio (la máquina de estados, detectar caídas, calcular latencias) y no en la infraestructura de red.
-  * Los microservicios introducen problemas de latencia, necesidad de transacciones distribuidas y un costo de despliegue enorme que no justifica el alcance inicial del proyecto.
-  * Una arquitectura en capas bien estructurada permite tener un código limpio y cohesivo sin la sobrecarga operativa de orquestar múltiples contenedores.
+Este documento formaliza las decisiones tecnicas y arquitectonicas adoptadas durante el desarrollo de DeployOps. Cada registro describe el contexto, las alternativas evaluadas y las razones de diseno que fundamentan el codigo fuente.
 
 ---
 
-## ADR 02: Notificaciones en Tiempo Real (Push) frente a Polling HTTP
+## ADR 01: Arquitectura Monolitica en Capas frente a Microservicios
 
-* **Contexto:** El panel de control (Dashboard) necesita reflejar inmediatamente cuando una API externa se cae o se recupera.
-* **Decisión:** Utilizar un canal de eventos en tiempo real (**WebSockets**) en lugar de sondeos periódicos (*polling*) desde el cliente.
-* **Justificación:**
-  * El *polling* tradicional (hacer que Angular haga un `GET` cada 3 segundos) satura la red y consume recursos de base de datos sin sentido, ya que el 99% de las veces la API responderá "sigue todo bien".
-  * Los WebSockets permiten que el backend le notifique al frontend **únicamente cuando ocurre un cambio real**. Esto reduce drásticamente la carga del servidor y brinda una experiencia visual absolutamente fluida.
+- **Contexto:** Al planificar una plataforma de monitoreo de servicios, es comun considerar la separacion prematura en multiples microservicios (servicio de autenticacion, servicio de ejecucion de pings, servicio de notificaciones).
+- **Decision:** Desarrollar un backend monolitico estructurado en capas estrictas (Controller, Service, Repository, Security).
+- **Justificacion:**
+  - La complejidad del sistema reside en las reglas de transicion de estados, la precision de medicion y el aislamiento de recursos, no en la escala de red.
+  - Los microservicios introducen sobrecarga operacional (latencia de red entre servicios, consistencia eventual, orquestacion compleja) que no aporta valor al caso de uso central.
+  - Una arquitectura monolitica bien delimitada maximiza la cohesion interna y permite ejecutar pruebas automatizadas en milisegundos sin depender de harnesses distribuidos.
+
+---
+
+## ADR 02: Telemetria en Tiempo Real via Server-Sent Events (SSE) frente a Polling HTTP
+
+- **Contexto:** El panel de control debe reflejar cambios de estado de salud y latencia tan pronto como el motor concluye un ciclo de sondeo.
+- **Decision:** Implementar Server-Sent Events (SSE) unidireccional a traves de `/api/endpoints/stream` en lugar de sondeos periodicos constantes (*polling*) desde el cliente o WebSockets bidireccionales pesados.
+- **Justificacion:**
+  - El flujo de telemetria es por definicion unidireccional (del servidor hacia los navegadores).
+  - WebSockets requiere mantener canales bidireccionales con protocolos de handshake dedicados y manejo complejo de reconexion a nivel de capa de transporte.
+  - SSE opera de manera nativa sobre HTTP estándar, atraviesa proxies y balanceadores sin friccion y reconecta de forma automatica mediante la API del navegador (`EventSource`).
 
 ---
 
 ## ADR 03: PostgreSQL como Motor de Persistencia Relacional
 
-* **Contexto:** Necesitamos guardar datos estáticos (servicios) y datos temporales de alta frecuencia (el historial de pings, latencias e incidentes).
-* **Decisión:** Centralizar todo en **PostgreSQL**, utilizando **Supabase** (Session Pooler IPv4) para producción y contenedores Docker para el desarrollo local.
-* **Justificación:**
-  * El modelo de datos es puramente relacional: un incidente le pertenece a un servicio con integridad referencial garantizada por claves foráneas (*Foreign Keys*).
-  * Supabase en la nube no caduca a los 30 días y ofrece compatibilidad estándar con Spring Data JPA y Hibernate.
+- **Contexto:** Se requiere almacenar entidades maestras (usuarios, configuracion de endpoints) y registros de eventos temporales (bitacora de incidentes y pings).
+- **Decision:** Utilizar PostgreSQL 16 a traves de Supabase (usando el Transaction Pooler IPv4) en produccion y contenedores Docker para desarrollo local.
+- **Justificacion:**
+  - Las relaciones entre entidades exigen integridad referencial estricta (un incidente pertenece inmutablemente a un endpoint, y un endpoint a un usuario).
+  - PostgreSQL provee soporte robusto para consultas de rango temporal (clausulas de superposicion con `tsrange` y operadores de fecha).
+  - Supabase garantiza persistencia gestionada en la nube y alta disponibilidad sin limites temporales de expiracion.
 
 ---
 
-## ADR 04: Demostración mediante Landing Pública (Con Servicios Reales)
+## ADR 04: Concurrencia de Monitoreo mediante Hilos Virtuales (Java 21 Virtual Threads)
 
-* **Contexto:** Un reclutador o usuario que entra al proyecto necesita entender de qué trata en 5 segundos, sin la fricción de tener que crearse una cuenta.
-* **Decisión:** Diseñar una **landing page pública** que muestre un dashboard en vivo monitoreando APIs públicas reales (Google, GitHub, etc.), reservando el login cerrado solo para crear monitores privados.
-* **Justificación:**
-  * Monitorear servicios reales demuestra que el motor HTTP de Spring Boot funciona y se conecta con el exterior verdaderamente.
-  * Otorga seriedad técnica al portafolio al no usar datos ficticios o "mockeados".
-
----
-
-## ADR 05: Límites Deliberados de Alcance (El MVP)
-
-Para evitar la sobreingeniería y mantener el foco en la calidad del código, establecimos los siguientes límites estrictos:
-* **Sin agentes instalables:** No pediremos a los usuarios que instalen un agente físico en sus servidores. Haremos pings HTTP desde nuestro backend hacia afuera, u ofreceremos Webhooks simples.
-* **Sin Kubernetes:** El sistema se empaquetará en Docker Compose estándar para subirlo a plataformas PaaS, sin complicar la vida con orquestación avanzada en esta etapa.
+- **Contexto:** Chequear decenas de endpoints simultaneamente mediante hilos de plataforma tradicionales (`Thread`) satura rapidamente el pool de hilos del sistema operativo debido a la latencia de espera de red (I/O bloqueante).
+- **Decision:** Orquestar la ejecucion concurrente de pings mediante `Executors.newVirtualThreadPerTaskExecutor()`.
+- **Justificacion:**
+  - Los hilos virtuales de Project Loom permiten crear miles de hilos ligeros por segundo sin sobrecargar la memoria ni la CPU.
+  - Evita la necesidad de recurrir a frameworks reactivos complejos (WebFlux/Reactor), preservando un modelo de programacion imperativo, facil de depurar y mantener con stack traces completos.
 
 ---
 
-## ADR 06: Reportes PDF y Tareas Programadas (Scheduled Tasks)
+## ADR 05: Medicion de Latencia Monotonica (`System.nanoTime`)
 
-* **Contexto:** Los usuarios necesitan un resumen del estado de sus servicios sin tener que entrar a la aplicación todos los días.
-* **Decisión:** Implementar un motor de tareas programadas (`@Scheduled` con `fixedDelay`) en Spring Boot que, de forma periódica, recopile las métricas de la base de datos, genere un reporte en PDF y lo envíe por correo electrónico.
-* **Justificación:**
-  * Transforma el sistema de un "dashboard pasivo" a una herramienta verdaderamente "proactiva".
-  * Demuestra capacidades técnicas corporativas en el manejo de archivos generados al vuelo (PDFs) y la ejecución asíncrona programada (Cron).
-
----
-
-## ADR 07: Estrategia Multiplataforma (Angular Web + Angular Native)
-
-* **Contexto:** El monitoreo de infraestructura es una tarea crítica que exige atención 24/7, a menudo requiriendo notificaciones directamente al bolsillo del administrador.
-* **Decisión:** Construir el ecosistema cliente utilizando **Angular** para la plataforma Web, y proyectar una aplicación móvil nativa utilizando **Angular Native** (`ng-native`).
-* **Justificación:**
-  * Evita la experiencia "emulada" y pesada de los WebViews (como Ionic), garantizando un rendimiento puro y acceso directo a las Notificaciones Push del teléfono (FCM/APNs).
-  * Permite reutilizar la lógica, la inyección de dependencias y el conocimiento del framework (Angular) en ambas plataformas.
+- **Contexto:** Al medir el tiempo de respuesta de una peticion HTTP, utilizar `System.currentTimeMillis()` expone las metricas a desfases causados por ajustes de reloj del sistema operativo (sincronizacion NTP o cambios de zona horaria), lo que puede producir mediciones anomalas o latencias negativas.
+- **Decision:** Utilizar `System.nanoTime()` exclusivamente para calcular la duracion de cada ping (`startNano` vs `endNano`) y convertir el diferencial a milisegundos con `TimeUnit.NANOSECONDS.toMillis()`.
+- **Justificacion:**
+  - La fuente de tiempo monotonica garantiza que el reloj siempre avance linealmente sin importar ajustes del reloj de pared del sistema operativo.
 
 ---
 
-## ADR 08: Mitigación de SSRF (Server-Side Request Forgery) en el Validador de URLs
+## ADR 06: Escudo Defensivo contra Server-Side Request Forgery (SSRF)
 
-* **Contexto:** Dado que la API pública acepta una URL arbitraria para que el servidor le haga peticiones periódicas, existe el riesgo de que un atacante suministre URLs internas (`localhost`, `127.0.0.1`, `169.254.169.254`) para escanear servicios locales o la red privada del proveedor Cloud (Render).
-* **Decisión:** Implementar un componente de validación estricto (`UrlSecurityValidator`) antes de persistir o consultar cualquier URL.
-* **Justificación:**
-  * Bloquea esquemas no seguros (permite únicamente `http` y `https`).
-  * Bloquea nombres de dominio locales y endpoints de metadatos cloud.
-  * Resuelve la dirección IP mediante `InetAddress` y rechaza direcciones de loopback, site-local y link-local.
-
----
-
-## ADR 09: Optimización de Consultas en Lote (Solución al Problema N+1)
-
-* **Contexto:** Al listar todos los endpoints en el dashboard (`GET /api/endpoints`), calcular el Uptime individualmente por cada servicio dentro del bucle provocaba una consulta SQL extra a la tabla `incidents` por cada elemento ($N+1$ queries).
-* **Decisión:** Diseñar una consulta JPQL en lote (`findOverlappingIncidentsForServices`) en `IncidentRepository` que traiga todos los incidentes relevantes de la ventana en un único viaje de red.
-* **Justificación:**
-  * Reduce la latencia de red entre el backend (Render) y la base de datos (Supabase) al pasar de $N+1$ viajes a exactamente 2 viajes fijos.
-  * Agrupa los incidentes en memoria (`Map<Long, List<IncidentEntity>>`) de forma eficiente con la API Streams de Java.
-
+- **Contexto:** Al permitir a los usuarios registrar cualquier URL para su monitoreo, atacantes podrian ingresar direcciones privadas internas (`localhost`, `127.0.0.1`, `169.254.169.254`) para escanear servicios internos o extraer credenciales del proveedor de nube.
+- **Decision:** Construir un componente de validacion (`UrlSecurityValidator`) ejecutado previo a guardar la URL y previo a cada ejecucion de ping.
+- **Justificacion:**
+  - Deshabilita el seguimiento automatico de redirecciones HTTP (`connection.setInstanceFollowRedirects(false)`) para anular vectores de bypass via redirect.
+  - Resuelve las direcciones IP asociadas y bloquea loopback, direcciones de enlace local, subredes privadas RFC 1918 y puertos administrativos sensibles (bases de datos, SSH, Docker daemon).
+  - Respaldado por una suite de 44 pruebas unitarias que validan exhaustivamente combinaciones de direcciones IPv4, IPv6 y nombres de host ofuscados.
 
 ---
 
-## ADR 10: Telemetría en Tiempo Real mediante Server-Sent Events (SSE)
+## ADR 07: Optimizacion de Consultas en Lote (Solucion al Problema N+1)
 
-* **Contexto:** En la v1.0, el frontend dependía de sondeos periódicos HTTP (`interval(25000)`). Esto introduce latencia en la visualización de caídas y genera peticiones innecesarias cuando no hay cambios de estado.
-* **Decisión:** Implementar un canal unidireccional de eventos utilizando **Server-Sent Events (SSE)** en el backend (`/api/endpoints/stream` mediante `SseEmitter`) y consumirlo con la API nativa del navegador `EventSource` en Angular.
-* **Justificación:**
-  * Al ser un protocolo sobre HTTP estándar, atraviesa proxies y firewalls (como Render y Vercel) sin necesidad de configuraciones especiales de WebSocket o librerías adicionales de cliente (como SockJS o Stomp).
-  * Se emiten eventos `DASHBOARD_UPDATE` únicamente cuando el Scheduler de fondo completa una comprobación o cuando un usuario dispara un ping manual, logrando sincronización instantánea entre todos los clientes conectados.
+- **Contexto:** Al consultar el listado de endpoints en el dashboard (`GET /api/endpoints`), calcular el Uptime de cada servicio individualmente generaba una consulta adicional a la tabla de incidentes por cada fila ($N+1$ queries).
+- **Decision:** Implementar el metodo `findOverlappingIncidentsForServices` en `IncidentRepository`, el cual extrae todos los incidentes relevantes de la ventana en una unica consulta SQL.
+- **Justificacion:**
+  - Reduce las transferencias de red a la base de datos de $N+1$ a exactamente una consulta fija.
+  - La agrupacion por identificador de servicio se resuelve en memoria con Java Streams en tiempo lineal $O(N)$.
 
 ---
 
-## ADR 11: Protección de Endpoints de Demostración (Showcase Protection)
+## ADR 08: Control de Tasa por IP mediante Token Bucket (Rate Limiting)
 
-* **Contexto:** Al exponer la plataforma en internet de forma pública para reclutadores y usuarios evaluadores, cualquier usuario podría invocar `DELETE /api/endpoints/{id}` sobre los servicios semilla (Google, Cloudflare, Wikimedia), dejando el dashboard vacío para futuros visitantes.
-* **Decisión:** Agregar un atributo `isProtected` en `ServiceEntity` y un validador en `EndpointManagerService.deleteEndpoint(Long id)`.
-* **Justificación:**
-  * Rechaza intentos de eliminación sobre servicios protegidos con un error HTTP 400 descriptivo (`IllegalArgumentException`).
-  * En la interfaz de usuario, deshabilita visualmente la opción de borrado e indica mediante un icono que se trata de un recurso protegido de demostración.
+- **Contexto:** Los endpoints de autenticacion (`/api/auth/login`, `/api/auth/register`) y creacion de endpoints son objetivos frecuentes de ataques de fuerza bruta y denegacion de servicio.
+- **Decision:** Incorporar un filtro de servlet (`RateLimitingFilter`) con implementacion en memoria del algoritmo Token Bucket por direccion IP.
+- **Justificacion:**
+  - Protege el servidor contra ataques de saturacion sin requerir la instalacion de un cluster externo de Redis.
+  - Aplica politicas diferenciadas: limites mas estrictos para autenticacion (10 peticiones/minuto) y margenes razonables para consultas regulares.
+
+---
+
+## ADR 09: Arquitectura de Frontend en Angular 20 con Signals y Paleta SRE
+
+- **Contexto:** El panel de observabilidad requiere alta legibilidad de datos tecnicos, ausencia de fatiga visual y transiciones de estado instantaneas.
+- **Decision:** Utilizar Angular 20 Standalone con reactividad basada en Signals, diseno con tokens CSS de alto contraste inspirados en herramientas de ingenieria (Datadog, Better Stack) y ausencia total de gradientes de neon o artefactos decorativos innecesarios.
+- **Justificacion:**
+  - Signals permite una deteccion de cambios granular sin incurrir en ciclos globales de `ngDoCheck`.
+  - El sistema de diseno asegura contraste WCAG AAA y ergonomia en sesiones operativas prolongadas.
