@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.controller;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.dto.EndpointUpdateDTO;
 import com.marcosdaag.deployops.dto.IncidentResponseDTO;
 import com.marcosdaag.deployops.dto.MonthlyReportDTO;
 import com.marcosdaag.deployops.dto.ServiceMetricsHistoryDTO;
@@ -68,6 +69,16 @@ public class EndpointController {
         String email = getEmailFromAuth(authentication);
         endpointManager.deleteEndpoint(id, email);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<EndpointResponseDTO> updateEndpoint(
+            @PathVariable Long id,
+            @Valid @RequestBody EndpointUpdateDTO dto,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(endpointManager.updateEndpoint(id, dto, email));
     }
 
     @GetMapping("/{id}/incidents")

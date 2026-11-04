@@ -71,7 +71,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   readonly searchQuery = signal<string>('');
   readonly statusFilter = signal<StatusFilter>('ALL');
+  readonly sortBy = signal<'DEFAULT' | 'LATENCY_ASC' | 'LATENCY_DESC' | 'UPTIME_ASC' | 'NAME_ASC'>('DEFAULT');
   readonly activeScope = signal<'mine' | 'showcase'>('mine');
+  readonly desktopNotificationsEnabled = signal<boolean>(false);
+  private previousDownServiceIds = new Set<number>();
+
+  readonly isEditModalOpen = signal<boolean>(false);
+  readonly editingEndpointId = signal<number | null>(null);
+  readonly editName = signal<string>('');
+  readonly editUrl = signal<string>('');
+  readonly editMethod = signal<string>('GET');
+  readonly editExpectedStatus = signal<number | null>(null);
+  readonly editHeaders = signal<string>('');
+  readonly editIsPublic = signal<boolean>(false);
+  readonly isSubmittingEdit = signal<boolean>(false);
+  readonly editErrors = signal<string[]>([]);
 
   readonly newServiceName = signal<string>('');
   readonly newServiceUrl = signal<string>('');
@@ -227,8 +241,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly filteredEndpoints = computed<EndpointResponse[]>(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const filter = this.statusFilter();
+    const sort = this.sortBy();
 
-    return this.endpoints().filter((item) => {
+    let list = this.endpoints().filter((item) => {
       const matchesQuery =
         !query ||
         item.name.toLowerCase().includes(query) ||
@@ -241,6 +256,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (filter === 'MINE') return !!item.isOwner;
       return true;
     });
+
+    if (sort === 'LATENCY_ASC') {
+      list = [...list].sort((a, b) => (a.lastResponseTimeMs ?? 999999) - (b.lastResponseTimeMs ?? 999999));
+    } else if (sort === 'LATENCY_DESC') {
+      list = [...list].sort((a, b) => (b.lastResponseTimeMs ?? -1) - (a.lastResponseTimeMs ?? -1));
+    } else if (sort === 'UPTIME_ASC') {
+      list = [...list].sort((a, b) => a.uptimePercentage - b.uptimePercentage);
+    } else if (sort === 'NAME_ASC') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return list;
   });
 
   readonly currentStateInfo = computed<StateNodeInfo>(() => {
@@ -268,6 +295,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.initTheme();
+    this.initDesktopNotifications();
     this.onWindowScroll();
     this.syncWithPublicApi();
     this.initSseStream();
@@ -366,6 +394,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.apiLastLatencyMs.set(Math.round(performance.now() - startMs));
         this.endpoints.set(data);
+        this.checkIncidentTransitions(data);
         this.lastSyncedAt.set(new Date());
         this.isSyncing.set(false);
         this.liveJsonOutput.set(JSON.stringify(data, null, 2));
@@ -466,6 +495,147 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.isSubmittingCreate.set(false);
       }
     });
+  }
+
+  openEditModal(endpoint: EndpointResponse, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.editingEndpointId.set(endpoint.id);
+    this.editName.set(endpoint.name);
+    this.editUrl.set(endpoint.url);
+    this.editMethod.set(endpoint.httpMethod || 'GET');
+    this.editExpectedStatus.set(endpoint.expectedStatusCode ?? null);
+    this.editHeaders.set(endpoint.customHeaders || '');
+    this.editIsPublic.set(!!endpoint.isPublicStatus);
+    this.editErrors.set([]);
+    this.isEditModalOpen.set(true);
+  }
+
+  closeEditModal(): void {
+    this.isEditModalOpen.set(false);
+    this.editingEndpointId.set(null);
+    this.editErrors.set([]);
+  }
+
+  submitEditEndpoint(): void {
+    const id = this.editingEndpointId();
+    if (!id) return;
+
+    const name = this.editName().trim();
+    const url = this.editUrl().trim();
+
+    const localErrors: string[] = [];
+    if (!name) localErrors.push('Ingresa un nombre para el servicio.');
+    if (!url) localErrors.push('Ingresa la URL HTTP o HTTPS.');
+
+    if (localErrors.length > 0) {
+      this.editErrors.set(localErrors);
+      return;
+    }
+
+    this.isSubmittingEdit.set(true);
+    this.editErrors.set([]);
+
+    this.endpointService.updateEndpoint(id, {
+      name,
+      url,
+      httpMethod: this.editMethod(),
+      expectedStatusCode: this.editExpectedStatus() || null,
+      customHeaders: this.editHeaders().trim() || null,
+      isPublicStatus: this.editIsPublic()
+    }).subscribe({
+      next: (updated) => {
+        this.isSubmittingEdit.set(false);
+        this.endpoints.update((list) =>
+          list.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
+        );
+        if (this.selectedEndpoint()?.id === updated.id) {
+          this.selectedEndpoint.set(updated);
+        }
+        this.closeEditModal();
+        this.showToast('success', `${updated.name} actualizado correctamente`);
+      },
+      error: (err) => {
+        this.isSubmittingEdit.set(false);
+        this.editErrors.set(this.endpointService.extractErrorMessages(err));
+      }
+    });
+  }
+
+  initDesktopNotifications(): void {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const saved = localStorage.getItem('deployops_desktop_alerts') === 'true';
+      if (saved && Notification.permission === 'granted') {
+        this.desktopNotificationsEnabled.set(true);
+      }
+    }
+  }
+
+  toggleDesktopNotifications(): void {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      this.showToast('error', 'Tu navegador no soporta notificaciones de escritorio');
+      return;
+    }
+
+    if (this.desktopNotificationsEnabled()) {
+      this.desktopNotificationsEnabled.set(false);
+      localStorage.setItem('deployops_desktop_alerts', 'false');
+      this.showToast('success', 'Alertas de escritorio desactivadas');
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        this.desktopNotificationsEnabled.set(true);
+        localStorage.setItem('deployops_desktop_alerts', 'true');
+        this.showToast('success', 'Alertas de escritorio activadas');
+        this.playNotificationTone();
+      } else {
+        this.desktopNotificationsEnabled.set(false);
+        this.showToast('error', 'Permiso de notificaciones denegado en el navegador');
+      }
+    });
+  }
+
+  playNotificationTone(): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch {
+      // AudioContext restriction
+    }
+  }
+
+  private checkIncidentTransitions(incoming: EndpointResponse[]): void {
+    const currentDownIds = new Set<number>();
+    for (const ep of incoming) {
+      if (ep.status === 'DOWN') {
+        currentDownIds.add(ep.id);
+        if (!this.previousDownServiceIds.has(ep.id)) {
+          if (this.desktopNotificationsEnabled() && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(`🚨 Alerta: ${ep.name} está CAÍDO`, {
+                body: `DeployOps detectó fallos consecutivos en ${ep.url}`,
+                icon: '/favicon.ico'
+              });
+            } catch {}
+            this.playNotificationTone();
+          }
+        }
+      }
+    }
+    this.previousDownServiceIds = currentDownIds;
   }
 
   confirmDelete(endpoint: EndpointResponse, event?: Event): void {
@@ -734,6 +904,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.apiLastLatencyMs.set(Math.round(performance.now() - startMs));
         this.endpoints.set(data);
+        this.checkIncidentTransitions(data);
         this.lastSyncedAt.set(new Date());
         this.liveJsonOutput.set(JSON.stringify(data, null, 2));
         this.isTestingPublicApi.set(false);

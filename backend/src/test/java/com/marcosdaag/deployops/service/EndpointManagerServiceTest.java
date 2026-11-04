@@ -602,4 +602,53 @@ class EndpointManagerServiceTest {
         assertNotNull(result);
         verify(serviceRepository, atLeastOnce()).save(any(ServiceEntity.class));
     }
+
+    @Test
+    @DisplayName("Edicion de endpoint: el propietario puede modificar su endpoint")
+    void whenUpdatingEndpointByOwner_shouldSucceed() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@test.com");
+
+        service.setUser(owner);
+        service.setProtected(false);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.save(any(ServiceEntity.class))).thenAnswer(i -> i.getArgument(0));
+        when(metricsService.calculateUptimePercentage(any())).thenReturn(99.0);
+
+        com.marcosdaag.deployops.dto.EndpointUpdateDTO updateDto = new com.marcosdaag.deployops.dto.EndpointUpdateDTO();
+        updateDto.setName("API Pagos V2");
+        updateDto.setUrl("https://api.pagos.com/health");
+        updateDto.setHttpMethod("GET");
+        updateDto.setExpectedStatusCode(200);
+        updateDto.setPublicStatus(true);
+
+        EndpointResponseDTO result = endpointManagerService.updateEndpoint(1L, updateDto, "owner@test.com");
+
+        assertNotNull(result);
+        assertEquals("API Pagos V2", result.getName());
+        verify(serviceRepository).save(service);
+        verify(sseNotificationService).broadcastDashboardUpdate(any());
+    }
+
+    @Test
+    @DisplayName("Edicion de endpoint: no propietario recibe SecurityException")
+    void whenUpdatingEndpointByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@test.com");
+
+        service.setUser(owner);
+        service.setProtected(false);
+
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+
+        com.marcosdaag.deployops.dto.EndpointUpdateDTO updateDto = new com.marcosdaag.deployops.dto.EndpointUpdateDTO();
+        updateDto.setName("Hacked");
+        updateDto.setUrl("https://api.pagos.com/health");
+
+        assertThrows(SecurityException.class, () -> endpointManagerService.updateEndpoint(1L, updateDto, "intruder@test.com"));
+        verify(serviceRepository, never()).save(any());
+    }
 }

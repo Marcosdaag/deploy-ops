@@ -41,6 +41,15 @@ export interface EndpointCreateRequest {
   isPublicStatus?: boolean;
 }
 
+export interface EndpointUpdateRequest {
+  name: string;
+  url: string;
+  httpMethod?: string;
+  expectedStatusCode?: number | null;
+  customHeaders?: string | null;
+  isPublicStatus?: boolean;
+}
+
 export interface ApiErrorResponse {
   status: number;
   error: string;

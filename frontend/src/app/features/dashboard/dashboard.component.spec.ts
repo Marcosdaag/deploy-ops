@@ -295,4 +295,58 @@ describe('DashboardComponent', () => {
     expect(component.authService.currentUser()?.publicSlug).toBe('marcos-prod');
     expect(component.profileSlugSuccess()).toContain('marcos-prod');
   });
+
+  it('deberia abrir el modal de edicion y actualizar los datos del endpoint', () => {
+    component.endpoints.set(mockEndpoints);
+    const target = mockEndpoints[0];
+    component.openEditModal(target);
+
+    expect(component.isEditModalOpen()).toBeTrue();
+    expect(component.editingEndpointId()).toBe(1);
+    expect(component.editName()).toBe('Google Search');
+    expect(component.editUrl()).toBe('https://www.google.com');
+
+    component.editName.set('Google Search Global');
+    component.submitEditEndpoint();
+
+    expect(component.isSubmittingEdit()).toBeTrue();
+
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/1`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body.name).toBe('Google Search Global');
+
+    req.flush({
+      ...target,
+      name: 'Google Search Global'
+    });
+
+    expect(component.isSubmittingEdit()).toBeFalse();
+    expect(component.isEditModalOpen()).toBeFalse();
+    expect(component.endpoints()[0].name).toBe('Google Search Global');
+    expect(component.toast()?.type).toBe('success');
+  });
+
+  it('deberia ordenar los endpoints segun el criterio seleccionado', () => {
+    component.endpoints.set([
+      { ...mockEndpoints[0], name: 'Zebra Service', lastResponseTimeMs: 300, uptimePercentage: 95.0 },
+      { ...mockEndpoints[1], name: 'Alpha Service', lastResponseTimeMs: 50, uptimePercentage: 99.9 }
+    ]);
+
+    component.sortBy.set('LATENCY_ASC');
+    expect(component.filteredEndpoints()[0].name).toBe('Alpha Service');
+
+    component.sortBy.set('LATENCY_DESC');
+    expect(component.filteredEndpoints()[0].name).toBe('Zebra Service');
+
+    component.sortBy.set('NAME_ASC');
+    expect(component.filteredEndpoints()[0].name).toBe('Alpha Service');
+
+    component.sortBy.set('UPTIME_ASC');
+    expect(component.filteredEndpoints()[0].name).toBe('Zebra Service');
+  });
+
+  it('deberia alternar las alertas de escritorio sin fallar', () => {
+    expect(component.desktopNotificationsEnabled()).toBeFalse();
+    component.playNotificationTone(); // Web Audio fallback check
+  });
 });

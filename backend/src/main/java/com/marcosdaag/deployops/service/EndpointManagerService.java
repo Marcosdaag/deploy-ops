@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
+import com.marcosdaag.deployops.dto.EndpointUpdateDTO;
 import com.marcosdaag.deployops.dto.IncidentResponseDTO;
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
@@ -113,6 +114,53 @@ public class EndpointManagerService {
     @Transactional
     public void deleteEndpoint(Long id) {
         deleteEndpoint(id, null);
+    }
+
+    @Transactional
+    public EndpointResponseDTO updateEndpoint(Long id, @NonNull EndpointUpdateDTO dto, String currentUserEmail) {
+        ServiceEntity service = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
+
+        if (service.isProtected() || esUrlProtegida(service.getUrl())) {
+            throw new IllegalArgumentException("Este endpoint de demostracion esta protegido contra modificaciones.");
+        }
+
+        if (service.getUser() != null) {
+            if (currentUserEmail == null || !service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para modificar este endpoint.");
+            }
+        }
+
+        String cleanUrl = dto.getUrl().trim();
+        urlSecurityValidator.validatePublicUrl(cleanUrl);
+
+        if (!cleanUrl.equalsIgnoreCase(service.getUrl())) {
+            if (service.getUser() != null) {
+                if (serviceRepository.existsByUrlAndUser(cleanUrl, service.getUser())) {
+                    throw new IllegalArgumentException("Ya estás monitoreando esta URL en tu cuenta.");
+                }
+            } else {
+                if (serviceRepository.existsByUrl(cleanUrl)) {
+                    throw new IllegalArgumentException("Ya existe otro endpoint registrado con esa URL.");
+                }
+            }
+            service.setUrl(cleanUrl);
+            service.setStatus(ServiceStatus.PENDING);
+            service.setConsecutiveFailures(0);
+            service.setConsecutiveSuccesses(0);
+        }
+
+        service.setName(dto.getName().trim());
+        service.setHttpMethod(dto.getHttpMethod() != null && !dto.getHttpMethod().isBlank() ? dto.getHttpMethod().toUpperCase() : "GET");
+        service.setExpectedStatusCode(dto.getExpectedStatusCode());
+        service.setCustomHeaders(dto.getCustomHeaders());
+        service.setPublicStatus(dto.isPublicStatus());
+
+        ServiceEntity saved = serviceRepository.save(service);
+        double uptime = metricsService.calculateUptimePercentage(saved);
+
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        return new EndpointResponseDTO(saved, uptime, currentUserEmail);
     }
 
     @Transactional

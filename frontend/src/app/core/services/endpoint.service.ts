@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   ApiErrorResponse,
   EndpointCreateRequest,
+  EndpointUpdateRequest,
   EndpointResponse,
   IncidentResponse,
   MonthlyReport,
@@ -30,6 +31,10 @@ export class EndpointService {
 
   createEndpoint(payload: EndpointCreateRequest): Observable<EndpointResponse> {
     return this.http.post<EndpointResponse>(this.publicApiUrl, payload);
+  }
+
+  updateEndpoint(id: number, payload: EndpointUpdateRequest): Observable<EndpointResponse> {
+    return this.http.put<EndpointResponse>(`${this.publicApiUrl}/${id}`, payload);
   }
 
   deleteEndpoint(id: number): Observable<void> {

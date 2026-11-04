@@ -213,6 +213,39 @@ describe('EndpointService', () => {
     req.flush(null);
   });
 
+  it('deberia actualizar un endpoint mediante PUT a /{id}', () => {
+    const updatePayload = {
+      name: 'API Modificada',
+      url: 'https://api.nuevo.com',
+      httpMethod: 'POST',
+      expectedStatusCode: 201,
+      isPublicStatus: true
+    };
+
+    const mockResponse: EndpointResponse = {
+      id: 5,
+      name: 'API Modificada',
+      url: 'https://api.nuevo.com',
+      status: 'HEALTHY',
+      consecutiveFailures: 0,
+      lastResponseTimeMs: 120,
+      lastCheckedAt: '2026-11-04T10:00:00',
+      createdAt: '2026-11-04T09:00:00',
+      uptimePercentage: 100.0,
+      isOwner: true
+    };
+
+    service.updateEndpoint(5, updatePayload).subscribe((res) => {
+      expect(res.name).toBe('API Modificada');
+      expect(res.url).toBe('https://api.nuevo.com');
+    });
+
+    const req = httpMock.expectOne(`${service.publicApiUrl}/5`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual(updatePayload);
+    req.flush(mockResponse);
+  });
+
   it('deberia extraer los mensajes de error devueltos por GlobalExceptionHandler (ej. bloqueo SSRF)', () => {
     const errorResponse = new HttpErrorResponse({
       status: 400,
