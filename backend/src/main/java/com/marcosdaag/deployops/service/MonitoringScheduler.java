@@ -2,16 +2,17 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.model.ServiceEntity;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
-@RequiredArgsConstructor
 public class MonitoringScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(MonitoringScheduler.class);
@@ -19,6 +20,18 @@ public class MonitoringScheduler {
     private final EndpointManagerService endpointManager;
     private final HttpMonitorService httpMonitor;
     private final SseNotificationService sseNotificationService;
+    private final ExecutorService monitoringExecutor;
+
+    public MonitoringScheduler(
+            EndpointManagerService endpointManager,
+            HttpMonitorService httpMonitor,
+            SseNotificationService sseNotificationService
+    ) {
+        this.endpointManager = endpointManager;
+        this.httpMonitor = httpMonitor;
+        this.sseNotificationService = sseNotificationService;
+        this.monitoringExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    }
 
     @Scheduled(fixedDelay = 60000)
     public void checkAllEndpoints() {
@@ -27,18 +40,22 @@ public class MonitoringScheduler {
             return;
         }
 
-        logger.info("Iniciando ciclo de monitoreo para {} servicios...", endpoints.size());
+        logger.info("Iniciando ciclo de monitoreo concurrente para {} servicios...", endpoints.size());
 
-        for (ServiceEntity service : endpoints) {
-            try {
-                PingResult result = httpMonitor.ping(service);
-                endpointManager.processPingResult(service, result);
-            } catch (Exception e) {
-                logger.error("Error inesperado al monitorear {}: {}", service.getName(), e.getMessage());
-            }
-        }
+        List<CompletableFuture<Void>> futures = endpoints.stream()
+                .map(service -> CompletableFuture.runAsync(() -> {
+                    try {
+                        PingResult result = httpMonitor.ping(service);
+                        endpointManager.processPingResult(service, result);
+                    } catch (Exception e) {
+                        logger.error("Error inesperado al monitorear {}: {}", service.getName(), e.getMessage());
+                    }
+                }, monitoringExecutor))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         sseNotificationService.broadcastDashboardUpdate(endpointManager.getDashboardData());
-        logger.info("Ciclo de monitoreo completado y notificado por SSE.");
+        logger.info("Ciclo de monitoreo concurrente completado y notificado por SSE.");
     }
 }

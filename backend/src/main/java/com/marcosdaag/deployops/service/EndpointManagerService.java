@@ -214,9 +214,15 @@ public class EndpointManagerService {
     }
 
     @Transactional(readOnly = true)
-    public List<IncidentResponseDTO> getIncidentsForService(Long serviceId) {
+    public List<IncidentResponseDTO> getIncidentsForService(Long serviceId, String currentUserEmail) {
         ServiceEntity service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + serviceId));
+
+        if (service.getUser() != null && !service.isPublicStatus()) {
+            if (currentUserEmail == null || !service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para ver los incidentes de este endpoint.");
+            }
+        }
 
         return incidentRepository.findByServiceOrderByStartedAtDesc(service)
                 .stream()
@@ -224,19 +230,35 @@ public class EndpointManagerService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<IncidentResponseDTO> getIncidentsForService(Long serviceId) {
+        return getIncidentsForService(serviceId, null);
+    }
+
     @Transactional
-    public EndpointResponseDTO triggerManualPing(Long id) {
+    public EndpointResponseDTO triggerManualPing(Long id, String currentUserEmail) {
         ServiceEntity service = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
+
+        if (service.getUser() != null) {
+            if (currentUserEmail == null || !service.getUser().getEmail().equalsIgnoreCase(currentUserEmail)) {
+                throw new SecurityException("No tienes permisos para ejecutar ping en este endpoint.");
+            }
+        }
 
         PingResult pingResult = httpMonitorService.ping(service);
         processPingResult(service, pingResult);
 
         double uptime = metricsService.calculateUptimePercentage(service);
-        EndpointResponseDTO response = new EndpointResponseDTO(service, uptime);
+        EndpointResponseDTO response = new EndpointResponseDTO(service, uptime, currentUserEmail);
 
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData());
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
         return response;
+    }
+
+    @Transactional
+    public EndpointResponseDTO triggerManualPing(Long id) {
+        return triggerManualPing(id, null);
     }
 
     @Transactional

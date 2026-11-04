@@ -10,7 +10,10 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
-@Table(name = "services")
+@Table(name = "services", indexes = {
+        @Index(name = "idx_services_user_id", columnList = "user_id"),
+        @Index(name = "idx_services_url", columnList = "url")
+})
 public class ServiceEntity {
 
     @Id

@@ -312,6 +312,32 @@ class EndpointManagerServiceTest {
     }
 
     @Test
+    @DisplayName("Historial de incidentes: rechaza si el servicio privado pertenece a otro usuario")
+    void whenGettingIncidentsForPrivateServiceByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(5L);
+        owner.setEmail("owner@example.com");
+        service.setUser(owner);
+        service.setPublicStatus(false);
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+        assertThrows(SecurityException.class, () -> endpointManagerService.getIncidentsForService(1L, "intruder@example.com"));
+        assertThrows(SecurityException.class, () -> endpointManagerService.getIncidentsForService(1L, null));
+    }
+
+    @Test
+    @DisplayName("Ping manual: rechaza ejecucion si el usuario no es el propietario")
+    void whenTriggeringManualPingByNonOwner_shouldThrowSecurityException() {
+        UserEntity owner = new UserEntity();
+        owner.setId(5L);
+        owner.setEmail("owner@example.com");
+        service.setUser(owner);
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+        assertThrows(SecurityException.class, () -> endpointManagerService.triggerManualPing(1L, "intruder@example.com"));
+        assertThrows(SecurityException.class, () -> endpointManagerService.triggerManualPing(1L, null));
+        verify(httpMonitorService, never()).ping(any(ServiceEntity.class));
+    }
+
+    @Test
     @DisplayName("Ping manual: ejecuta ping inmediato, actualiza estado y notifica por SSE")
     void whenTriggeringManualPing_shouldPingAndReturnResponseDTO() {
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));

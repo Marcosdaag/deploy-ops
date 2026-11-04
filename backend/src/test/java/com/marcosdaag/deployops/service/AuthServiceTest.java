@@ -144,6 +144,26 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Impide login clasico en cuentas creadas con Google (proteccion contra toma de cuenta)")
+    void whenLoginWithGoogleAccountWithoutPassword_shouldThrowBadCredentials() {
+        UserEntity googleUser = new UserEntity();
+        googleUser.setId(3L);
+        googleUser.setEmail("googleuser@gmail.com");
+        googleUser.setPassword(null);
+        googleUser.setProvider(AuthProvider.GOOGLE);
+
+        AuthLoginRequest request = new AuthLoginRequest();
+        request.setEmail("googleuser@gmail.com");
+        request.setPassword("AttackerGuess123");
+
+        when(userRepository.findByEmail("googleuser@gmail.com")).thenReturn(Optional.of(googleUser));
+
+        assertThrows(BadCredentialsException.class, () -> authService.login(request));
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Autentica o registra usuario de Google a partir del token JWT de Google")
     void whenLoginWithGoogle_shouldParsePayloadAndAuthenticate() {
         String payloadJson = "{\"email\":\"googleuser@gmail.com\",\"name\":\"Google User\",\"sub\":\"1234567890\"}";

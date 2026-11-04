@@ -61,8 +61,7 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas."));
 
         if (user.getPassword() == null) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-            userRepository.save(user);
+            throw new BadCredentialsException("Esta cuenta fue registrada con Google. Por favor, inicia sesion con Google.");
         } else if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Credenciales invalidas.");
         }

@@ -15,6 +15,8 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.cert.Certificate;
@@ -29,12 +31,25 @@ import java.util.concurrent.TimeUnit;
 public class HttpMonitorService {
 
     private final RestTemplate restTemplate;
+    private final UrlSecurityValidator urlSecurityValidator;
 
-    public HttpMonitorService() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+    public HttpMonitorService(UrlSecurityValidator urlSecurityValidator) {
+        this.urlSecurityValidator = urlSecurityValidator;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                super.prepareConnection(connection, httpMethod);
+                // Mitigacion SSRF: Deshabilita seguimiento automatico de redirecciones
+                connection.setInstanceFollowRedirects(false);
+            }
+        };
         factory.setConnectTimeout(Duration.ofSeconds(3));
         factory.setReadTimeout(Duration.ofSeconds(5));
         this.restTemplate = new RestTemplate(factory);
+    }
+
+    public HttpMonitorService() {
+        this(new UrlSecurityValidator());
     }
 
     public PingResult ping(String url) {
@@ -47,6 +62,11 @@ public class HttpMonitorService {
     public PingResult ping(ServiceEntity service) {
         long startNano = System.nanoTime();
         try {
+            // Validacion defensiva previa a la solicitud
+            if (service.getUrl() != null) {
+                urlSecurityValidator.validatePublicUrl(service.getUrl());
+            }
+
             HttpMethod method = resolveHttpMethod(service.getHttpMethod());
             HttpHeaders headers = parseHeaders(service.getCustomHeaders());
             HttpEntity<Void> entity = new HttpEntity<>(headers);
@@ -60,6 +80,9 @@ public class HttpMonitorService {
                     ? PingResult.success(statusCode, elapsedMs)
                     : PingResult.failure(statusCode, elapsedMs, "Codigo de respuesta inesperado: " + statusCode);
 
+        } catch (IllegalArgumentException e) {
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+            return PingResult.failure(0, elapsedMs, "URL bloqueada por seguridad: " + e.getMessage());
         } catch (HttpStatusCodeException e) {
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
             int statusCode = e.getStatusCode().value();
@@ -80,6 +103,13 @@ public class HttpMonitorService {
         if (urlString == null || !urlString.toLowerCase().startsWith("https://")) {
             return null;
         }
+
+        try {
+            urlSecurityValidator.validatePublicUrl(urlString);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+
         try {
             URI uri = URI.create(urlString);
             String host = uri.getHost();

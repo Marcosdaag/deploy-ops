@@ -71,8 +71,12 @@ public class EndpointController {
     }
 
     @GetMapping("/{id}/incidents")
-    public ResponseEntity<List<IncidentResponseDTO>> getIncidents(@PathVariable Long id) {
-        return ResponseEntity.ok(endpointManager.getIncidentsForService(id));
+    public ResponseEntity<List<IncidentResponseDTO>> getIncidents(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(endpointManager.getIncidentsForService(id, email));
     }
 
     @GetMapping("/{id}/metrics")
@@ -97,8 +101,12 @@ public class EndpointController {
     }
 
     @PostMapping("/{id}/ping")
-    public ResponseEntity<EndpointResponseDTO> triggerManualPing(@PathVariable Long id) {
-        return ResponseEntity.ok(endpointManager.triggerManualPing(id));
+    public ResponseEntity<EndpointResponseDTO> triggerManualPing(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String email = getEmailFromAuth(authentication);
+        return ResponseEntity.ok(endpointManager.triggerManualPing(id, email));
     }
 
     @PostMapping("/{id}/test-alert")
