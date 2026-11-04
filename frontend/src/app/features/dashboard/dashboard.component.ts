@@ -87,6 +87,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly isSubmittingEdit = signal<boolean>(false);
   readonly editErrors = signal<string[]>([]);
 
+  readonly isCreateModalOpen = signal<boolean>(false);
   readonly newServiceName = signal<string>('');
   readonly newServiceUrl = signal<string>('');
   readonly isSubmittingCreate = signal<boolean>(false);
@@ -444,6 +445,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.createErrors.set([]);
   }
 
+  openCreateModal(): void {
+    if (!this.authService.isAuthenticated()) {
+      this.openAuthModal('LOGIN');
+      return;
+    }
+    this.clearCreateErrors();
+    this.isCreateModalOpen.set(true);
+  }
+
+  closeCreateModal(): void {
+    this.isCreateModalOpen.set(false);
+    this.clearCreateErrors();
+  }
+
   submitCreateEndpoint(): void {
     if (!this.authService.isAuthenticated()) {
       this.openAuthModal('LOGIN');
@@ -487,6 +502,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.newServiceIsPublic.set(false);
         this.showAdvancedCreate.set(false);
         this.isSubmittingCreate.set(false);
+        this.isCreateModalOpen.set(false);
         this.liveJsonOutput.set(JSON.stringify(this.endpoints(), null, 2));
         this.showToast('success', `${created.name} sumado al monitor`);
       },
