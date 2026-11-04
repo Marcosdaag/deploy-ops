@@ -1,77 +1,114 @@
 /*
- * Paleta y variables globales de DeployOps.
- * Usamos dos temas bien diferenciados (Oscuro Carbono y Claro Papel) sin caer
- * en degradados fijos ni colores saturados.
+ * DeployOps Global Design System & Variables
+ * Paleta de observabilidad de alta legibilidad inspirada en herramientas de ingenieria (Datadog, Better Stack, Cloudflare, Linear).
+ * Evita gradientes de neon exagerados y prioriza el descanso visual, contraste WCAG AAA y jerarquia de datos.
  */
+
 :root,
 [data-theme='dark'] {
-  --bg-canvas: #0b0c0b;
-  --bg-topbar: rgba(18, 20, 19, 0.92);
-  --bg-surface: #121413;
-  --bg-surface-alt: #171a18;
-  --bg-input: #0e100f;
+  /* Lienzo y Superficies (Slate Oscuro de Alta Ergonomia) */
+  --bg-canvas: #090d16;
+  --bg-topbar: rgba(9, 13, 22, 0.9);
+  --bg-surface: #0f172a;
+  --bg-surface-alt: #131c31;
+  --bg-surface-hover: #18223c;
+  --bg-input: #0b1120;
 
-  --text-primary: #f3f0e8;
-  --text-secondary: #a8a69e;
-  --text-muted: #706e67;
+  /* Tipografia y Contraste */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
-  --accent-gold: #d4ab6a;
-  --accent-gold-subtle: rgba(212, 171, 106, 0.12);
-  --accent-jade: #2eb87e;
-  --accent-jade-subtle: rgba(46, 184, 126, 0.12);
+  /* Acentos de Marca e Ingenieria */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-primary-subtle: rgba(59, 130, 246, 0.12);
+  --accent-gold: #f59e0b;
+  --accent-gold-subtle: rgba(245, 158, 11, 0.12);
+  --accent-jade: #10b981;
+  --accent-jade-subtle: rgba(16, 185, 129, 0.12);
 
-  --cta-bg: #f3f0e8;
-  --cta-fg: #0b0c0b;
-  --cta-hover: #e2ddd1;
+  /* Botones Primarios CTA */
+  --cta-bg: #3b82f6;
+  --cta-fg: #ffffff;
+  --cta-hover: #2563eb;
 
-  --border-hairline: rgba(243, 240, 232, 0.09);
-  --border-strong: rgba(243, 240, 232, 0.18);
-  --border-accent: rgba(212, 171, 106, 0.42);
+  /* Bordes y Separadores */
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-accent: rgba(59, 130, 246, 0.4);
 
-  --status-healthy: #38c988;
-  --status-degraded: #e59a38;
-  --status-down: #e25252;
-  --status-recovering: #5db8b8;
-  --status-pending: #8a8880;
+  /* Estados de Salud HTTP / Red */
+  --status-healthy: #10b981;
+  --status-healthy-subtle: rgba(16, 185, 129, 0.14);
+  --status-degraded: #f59e0b;
+  --status-degraded-subtle: rgba(245, 158, 11, 0.14);
+  --status-down: #f43f5e;
+  --status-down-subtle: rgba(244, 63, 94, 0.16);
+  --status-recovering: #06b6d4;
+  --status-recovering-subtle: rgba(6, 182, 212, 0.14);
+  --status-pending: #64748b;
+  --status-pending-subtle: rgba(100, 116, 139, 0.14);
 
-  --cursor-glow: rgba(212, 171, 106, 0.065);
-  --shadow-subtle: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --backdrop-overlay: rgba(5, 6, 5, 0.72);
+  /* Sombras y Luces */
+  --cursor-glow: rgba(59, 130, 246, 0.04);
+  --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.25), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --backdrop-overlay: rgba(3, 7, 18, 0.78);
 }
 
 [data-theme='light'] {
-  --bg-canvas: #f6f4ef;
-  --bg-topbar: rgba(236, 233, 225, 0.94);
+  /* Lienzo y Superficies (Clean Studio Slate) */
+  --bg-canvas: #f8fafc;
+  --bg-topbar: rgba(255, 255, 255, 0.92);
   --bg-surface: #ffffff;
-  --bg-surface-alt: #efece4;
+  --bg-surface-alt: #f1f5f9;
+  --bg-surface-hover: #f8fafc;
   --bg-input: #ffffff;
 
-  --text-primary: #161614;
-  --text-secondary: #55534c;
-  --text-muted: #858379;
+  /* Tipografia y Contraste */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
 
-  --accent-gold: #966822;
-  --accent-gold-subtle: rgba(150, 104, 34, 0.1);
-  --accent-jade: #167c52;
-  --accent-jade-subtle: rgba(22, 124, 82, 0.1);
+  /* Acentos de Marca e Ingenieria */
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-subtle: rgba(37, 99, 235, 0.08);
+  --accent-gold: #d97706;
+  --accent-gold-subtle: rgba(217, 119, 6, 0.08);
+  --accent-jade: #059669;
+  --accent-jade-subtle: rgba(5, 150, 105, 0.08);
 
-  --cta-bg: #161614;
-  --cta-fg: #f6f4ef;
-  --cta-hover: #2d2c28;
+  /* Botones Primarios CTA */
+  --cta-bg: #2563eb;
+  --cta-fg: #ffffff;
+  --cta-hover: #1d4ed8;
 
-  --border-hairline: rgba(22, 22, 20, 0.1);
-  --border-strong: rgba(22, 22, 20, 0.2);
-  --border-accent: rgba(150, 104, 34, 0.4);
+  /* Bordes y Separadores */
+  --border-hairline: rgba(15, 23, 42, 0.08);
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-accent: rgba(37, 99, 235, 0.35);
 
-  --status-healthy: #167c52;
-  --status-degraded: #c47414;
-  --status-down: #c42b2b;
-  --status-recovering: #22767c;
-  --status-pending: #7a786f;
+  /* Estados de Salud HTTP / Red */
+  --status-healthy: #059669;
+  --status-healthy-subtle: rgba(5, 150, 105, 0.1);
+  --status-degraded: #d97706;
+  --status-degraded-subtle: rgba(217, 119, 6, 0.1);
+  --status-down: #e11d48;
+  --status-down-subtle: rgba(225, 29, 72, 0.1);
+  --status-recovering: #0891b2;
+  --status-recovering-subtle: rgba(8, 145, 178, 0.1);
+  --status-pending: #64748b;
+  --status-pending-subtle: rgba(100, 116, 139, 0.1);
 
-  --cursor-glow: rgba(150, 104, 34, 0.075);
-  --shadow-subtle: 0 12px 28px rgba(22, 22, 20, 0.08);
-  --backdrop-overlay: rgba(22, 22, 20, 0.42);
+  /* Sombras y Luces */
+  --cursor-glow: rgba(37, 99, 235, 0.03);
+  --shadow-subtle: 0 4px 16px -2px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --backdrop-overlay: rgba(15, 23, 42, 0.45);
 }
 
 *,
@@ -84,43 +121,75 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 15px;
 }
 
 body {
   min-height: 100vh;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 15px;
-  line-height: 1.55;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.font-serif-editorial {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-weight: 400;
-}
-
+/* Numeros y metadatos tecnicos de precisión */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
+.font-mono {
+  font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+/* Eliminamos la dependencia de tipografias cursivas/editoriales para datos tecnicos */
+.font-serif-editorial {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Estilo consistente para controles */
 button,
 input,
-select {
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+  outline: none;
 }
 
 button {
   cursor: pointer;
+  border: none;
+  background: none;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Scrollbar ergonomico y limpio */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
