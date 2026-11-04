@@ -17,13 +17,13 @@
 
       <nav class="topbar-nav" aria-label="Navegación principal">
         @if (authService.isAuthenticated()) {
-          <a href="#monitor" class="topbar-link">Mis Endpoints</a>
+          <a href="#monitor" class="topbar-link" (click)="scrollToSection($event, 'monitor')">Mis Endpoints</a>
         } @else {
-          <a href="#demostracion" class="topbar-link">Demostración en Vivo</a>
-          <a href="#caracteristicas" class="topbar-link">Características</a>
+          <a href="#demostracion" class="topbar-link" (click)="scrollToSection($event, 'demostracion')">Demostración en Vivo</a>
+          <a href="#caracteristicas" class="topbar-link" (click)="scrollToSection($event, 'caracteristicas')">Características</a>
         }
-        <a href="#api-publica" class="topbar-link">API Pública</a>
-        <a href="#arquitectura" class="topbar-link">Arquitectura</a>
+        <a href="#api-publica" class="topbar-link" (click)="scrollToSection($event, 'api-publica')">API Pública</a>
+        <a href="#arquitectura" class="topbar-link" (click)="scrollToSection($event, 'arquitectura')">Arquitectura</a>
       </nav>
 
       <div class="topbar-actions">

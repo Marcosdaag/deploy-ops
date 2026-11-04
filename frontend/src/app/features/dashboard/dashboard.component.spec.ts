@@ -349,4 +349,21 @@ describe('DashboardComponent', () => {
     expect(component.desktopNotificationsEnabled()).toBeFalse();
     component.playNotificationTone(); // Web Audio fallback check
   });
+
+  it('deberia navegar suavemente a la seccion solicitada con scrollToSection', () => {
+    const dummyElement = document.createElement('div');
+    dummyElement.id = 'demostracion';
+    document.body.appendChild(dummyElement);
+
+    const scrollSpy = spyOn(dummyElement, 'scrollIntoView');
+    const dummyEvent = new MouseEvent('click');
+    spyOn(dummyEvent, 'preventDefault');
+
+    component.scrollToSection(dummyEvent, 'demostracion');
+
+    expect(dummyEvent.preventDefault).toHaveBeenCalled();
+    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth' });
+
+    document.body.removeChild(dummyElement);
+  });
 });

@@ -294,6 +294,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  scrollToSection(event: Event, sectionId: string): void {
+    if (event) {
+      event.preventDefault();
+    }
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      if (typeof history !== 'undefined') {
+        history.replaceState(null, '', `${window.location.pathname}#${sectionId}`);
+      }
+    }
+  }
+
   ngOnInit(): void {
     this.initTheme();
     this.initDesktopNotifications();
