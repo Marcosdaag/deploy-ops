@@ -514,7 +514,7 @@
 
               <tbody>
 
-                @for (ep of featuredPair(); track ep.id) {
+                @for (ep of featuredPair(); track (ep.id + '-' + $index)) {
 
                   <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
 
@@ -1158,7 +1158,7 @@
 
               <tbody>
 
-                @for (ep of filteredEndpoints(); track ep.id) {
+                @for (ep of filteredEndpoints(); track (ep.id + '-' + $index)) {
 
                   <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
 
@@ -2828,7 +2828,7 @@
 
               <div class="incident-timeline">
 
-                @for (inc of selectedEndpointIncidents(); track inc.id) {
+                @for (inc of selectedEndpointIncidents(); track (inc.id + '-' + $index)) {
 
                   <div class="incident-card" [class.inc-ongoing]="inc.status === 'ONGOING'">
 
