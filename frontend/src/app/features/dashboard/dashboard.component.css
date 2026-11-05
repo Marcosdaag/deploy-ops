@@ -1,20 +1,4 @@
-/*
-
-
-
- * DeployOps Dashboard Stylesheet
-
-
-
- * Diseno de observabilidad y SRE de alta precision y legibilidad.
-
-
-
- * Sin elementos superfluos ni gradientes artificiales de IA.
-
-
-
- */
+/* DeployOps Dashboard */
 
 
 
@@ -81,15 +65,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Topbar Superior Fija
-
-
-
-   ========================================================================== */
+/* Topbar */
 
 
 
@@ -1145,15 +1121,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Contenedor Principal & Encabezado Overview
-
-
-
-   ========================================================================== */
+/* Contenedor principal */
 
 
 
@@ -1177,15 +1145,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Home / Landing para Usuarios No Autenticados (Simple y Claro)
-
-
-
-   ========================================================================== */
+/* Vista de visitante */
 
 
 
@@ -2331,15 +2291,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Tarjetas KPI Superiores
-
-
-
-   ========================================================================== */
+/* Tarjetas KPI */
 
 
 
@@ -2703,15 +2655,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Panel de Registro de Endpoints
-
-
-
-   ========================================================================== */
+/* Registro de endpoints */
 
 
 
@@ -3843,15 +3787,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Barra de Control de Endpoints (Filtros, Tabs, Buscador)
-
-
-
-   ========================================================================== */
+/* Barra de controles */
 
 
 
@@ -4643,15 +4579,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Tarjetas de Servicios (Ledger Cards)
-
-
-
-   ========================================================================== */
+/* Tarjetas de servicios */
 
 
 
@@ -6171,15 +6099,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Secciones Informativas (Estados, API, Arquitectura)
-
-
-
-   ========================================================================== */
+/* Secciones informativas */
 
 
 
@@ -7463,15 +7383,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Footer
-
-
-
-   ========================================================================== */
+/* Pie de página */
 
 
 
@@ -7759,15 +7671,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Inspector Drawer (Panel Lateral)
-
-
-
-   ========================================================================== */
+/* Panel lateral de inspección */
 
 
 
@@ -9747,15 +9651,7 @@
 
 
 
-/* ==========================================================================
-
-
-
-   Modales (Auth, Profile, Edit, Confirm)
-
-
-
-   ========================================================================== */
+/* Modales de diálogo */
 
 
 
@@ -11243,15 +11139,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-
-
-   Media Queries & Responsive Layout
-
-
-
-   ========================================================================== */
+/* Adaptabilidad responsiva */
 
 
 
@@ -12847,15 +12735,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-
-
-   NUEVO HERO MINIMALISTA SRE & STRIP DE MÉTRICAS GLOBALES
-
-
-
-   ========================================================================== */
+/* Hero y métricas globales */
 
 
 
@@ -13699,15 +13579,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-
-
-   SRE DATA TABLE (TABLA DE ALTA DENSIDAD DE OBSERVABILIDAD)
-
-
-
-   ========================================================================== */
+/* Tabla de telemetría SRE */
 
 
 
@@ -14495,15 +14367,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-
-
-   PIPELINE DE ARQUITECTURA INTERACTIVO (ESTILO DATADOG / AWS)
-
-
-
-   ========================================================================== */
+/* Pipeline de monitoreo */
 
 
 
@@ -15491,15 +15355,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-
-
-   PIPELINE STEPPER & SIMULATOR CONTROLS (INTERACTIVO & SWIPEABLE)
-
-
-
-   ========================================================================== */
+/* Controles de simulación */
 
 
 
@@ -15971,11 +15827,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-
-   ANIMACIONES VIVAS AUTÓNOMAS & TERMINAL SRE
-
-   ========================================================================== */
+/* Animaciones de estado y terminal */
 
 .pipeline-progress-rail {
 
@@ -16155,9 +16007,7 @@ textarea.form-control {
 
 
 
-/* ==========================================================================
-   TRANSICIONES FLUIDAS DE PIPELINE Y CONSOLA DESACOPLADA (SIN CAJITA)
-   ========================================================================== */
+/* Consola técnica de la API */
 .pipeline-detail-card {
   animation: pipelineCardSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -16211,7 +16061,7 @@ textarea.form-control {
   100% { transform: scaleX(1); opacity: 1; }
 }
 
-/* Sección API REST Desacoplada (Sin tarjeta contenedora de IA) */
+/* Seccion de API REST publica */
 .api-console-section {
   display: flex;
   flex-direction: column;
@@ -16237,9 +16087,7 @@ textarea.form-control {
   box-shadow: none !important;
 }
 
-/* ==========================================================================
-   SRE OBSERVABILITY LEDGER & RESPONSIVE PERFECTION (SIN CHORICERÍA DE DIVS)
-   ========================================================================== */
+/* Libro mayor de observabilidad */
 .sre-kicker-row {
   display: flex;
   align-items: center;
@@ -16372,9 +16220,7 @@ textarea.form-control {
   transform: translateY(-1px);
 }
 
-/* ==========================================================================
-   RESPONSIVE AUDIT & BREAKPOINTS HARMONIZATION
-   ========================================================================== */
+/* Ajustes responsivos */
 @media (max-width: 1200px) {
   .hero-metrics-strip {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -16490,9 +16336,7 @@ textarea.form-control {
 }
 
 
-/* ==========================================================================
-   MODO DEMO: BOTONES, BADGES Y BANNER DE SESION
-   ========================================================================== */
+/* Modo demo */
 
 /* Boton Demo en Topbar */
 .btn-topbar-demo {

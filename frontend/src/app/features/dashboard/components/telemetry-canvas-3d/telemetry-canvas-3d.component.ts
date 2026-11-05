@@ -47,14 +47,14 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
   readonly isAutoRotating = signal<boolean>(true);
   readonly isPulseActive = signal<boolean>(false);
 
-  // Three.js Core Objects
+  // Escena y renderizado WebGL
   private renderer: THREE.WebGLRenderer | null = null;
   private scene: THREE.Scene | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
 
-  // 3D Visual Objects
+  // Objetos de la escena
   private globeGroup: THREE.Group | null = null;
   private earthMesh: THREE.Mesh | null = null;
   private innerCoreMesh: THREE.Mesh | null = null;
@@ -63,9 +63,9 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
   private shockwaveRing: THREE.Mesh | null = null;
   private telemetryNodes: TelemetryPoint[] = [];
 
-  // Interaction & Inertia Model
+  // Control de inercia y rotación
   private rotationX = 0.2;
-  private rotationY = -1.2; // Initially face Americas/Atlantic
+  private rotationY = -1.2; // Orientación inicial hacia el Atlántico
   private velocityX = 0;
   private velocityY = 0;
   private isDragging = false;
@@ -90,7 +90,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
   private createEarthTexture(isDark: boolean): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    // High-resolution 4096x2048 texture for crisp continental outlines on 3D sphere
+    // Generación procedural del mapa terrestre (4096x2048)
     canvas.width = 4096;
     canvas.height = 2048;
     const ctx = canvas.getContext('2d');
@@ -99,11 +99,11 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     const w = canvas.width;
     const h = canvas.height;
 
-    // 1. Deep Ocean Background
+    // Capa base oceánica
     ctx.fillStyle = isDark ? '#070d18' : '#eef4fa';
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Graticule (Parallels & Meridians every 30 deg)
+    // Retícula de paralelos y meridianos
     ctx.lineWidth = 2;
     ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.07)';
 
@@ -123,7 +123,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       ctx.stroke();
     }
 
-    // Highlight Equator & Prime Meridian
+    // Línea ecuatorial y meridiano de Greenwich
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.22)' : 'rgba(2, 132, 199, 0.18)';
     ctx.beginPath();
@@ -136,11 +136,11 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     ctx.lineTo(w * 0.5, h);
     ctx.stroke();
 
-    // 3. Render High-Fidelity Continents (Natural Earth)
+    // Trazado de masas continentales
     const toX = (lon: number) => ((lon + 180) / 360) * w;
     const toY = (lat: number) => ((90 - lat) / 180) * h;
 
-    // First pass: Landmass fills with strong contrast
+    // Relleno continental
     ctx.fillStyle = isDark ? 'rgba(16, 37, 66, 0.96)' : 'rgba(219, 234, 254, 0.94)';
     CONTINENT_DATA.forEach((poly) => {
       if (poly.length < 3) return;
@@ -155,7 +155,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       ctx.fill();
     });
 
-    // Second pass: Outer luminous contour glow
+    // Resplandor perimetral
     ctx.lineWidth = 8;
     ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.38)' : 'rgba(2, 132, 199, 0.28)';
     ctx.lineJoin = 'round';
@@ -173,7 +173,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       ctx.stroke();
     });
 
-    // Third pass: Razor-sharp core coastline stroke
+    // Perfil de costa
     ctx.lineWidth = 3.2;
     ctx.strokeStyle = isDark ? '#67e8f9' : '#0284c7';
     ctx.lineJoin = 'round';
@@ -207,12 +207,12 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     const width = container.clientWidth || 460;
     const height = container.clientHeight || 420;
 
-    // 1. Scene & Camera
+    // Configuración de escena y cámara
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     this.camera.position.set(0, 0, 7.2);
 
-    // 2. WebGL Renderer
+    // Inicialización del renderizador WebGL
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -222,7 +222,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-    // 3. Globe Master Group
+    // Contenedor del globo
     this.globeGroup = new THREE.Group();
     this.globeGroup.rotation.x = this.rotationX;
     this.globeGroup.rotation.y = this.rotationY;
@@ -230,7 +230,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
     const isDark = this.theme === 'dark';
 
-    // 4. Smooth Round Earth Sphere Geometry with Continents
+    // Malla esférica de la Tierra
     const globeGeo = new THREE.SphereGeometry(2.35, 64, 64);
     const earthTexture = this.createEarthTexture(isDark);
     const earthMat = new THREE.MeshBasicMaterial({
@@ -241,7 +241,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.earthMesh = new THREE.Mesh(globeGeo, earthMat);
     this.globeGroup.add(this.earthMesh);
 
-    // 5. Solid Inner Core
+    // Núcleo interno
     const innerGeo = new THREE.SphereGeometry(2.31, 32, 32);
     const innerMat = new THREE.MeshBasicMaterial({
       color: isDark ? 0x090f1a : 0xffffff
@@ -249,7 +249,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.innerCoreMesh = new THREE.Mesh(innerGeo, innerMat);
     this.globeGroup.add(this.innerCoreMesh);
 
-    // 6. Atmospheric Rim Halo
+    // Halo de atmósfera exterior
     const haloGeo = new THREE.SphereGeometry(2.42, 48, 48);
     const haloMat = new THREE.MeshBasicMaterial({
       color: isDark ? 0x38bdf8 : 0x0284c7,
@@ -260,7 +260,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.atmosphereHalo = new THREE.Mesh(haloGeo, haloMat);
     this.globeGroup.add(this.atmosphereHalo);
 
-    // 7. Monitored Service Nodes on Exact Geographical Coordinates
+    // Marcadores de nodos geolocalizados
     const nodeConfigs = [
       { lat: 38.0, lon: -78.0, name: 'Render Clúster (US-East)', status: 'HEALTHY' as const },
       { lat: -34.6, lon: -58.4, name: 'Buenos Aires (Ingress)', status: 'HEALTHY' as const },
@@ -275,14 +275,14 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       const isHealthy = cfg.status === 'HEALTHY';
       const nodeColor = isHealthy ? 0x3fb950 : 0xd29922;
 
-      // Small round node marker
+      // Punto de nodo
       const nodeGeo = new THREE.SphereGeometry(0.08, 16, 16);
       const nodeMat = new THREE.MeshBasicMaterial({ color: nodeColor });
       const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
       nodeMesh.position.copy(pos);
       this.globeGroup!.add(nodeMesh);
 
-      // Gentle, calm breathing ping ring (no harsh flashing)
+      // Anillo de emisión de señal
       const ringGeo = new THREE.RingGeometry(0.1, 0.16, 32);
       const ringMat = new THREE.MeshBasicMaterial({
         color: nodeColor,
@@ -305,13 +305,9 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       });
     });
 
-    // 8. Inter-continental Telemetry Data Arcs
-    this.createDataArc(nodeConfigs[0], nodeConfigs[1], isDark ? 0x38bdf8 : 0x0284c7); // US-East <-> Buenos Aires
-    this.createDataArc(nodeConfigs[0], nodeConfigs[3], isDark ? 0x3fb950 : 0x16a34a); // US-East <-> Paris
-    this.createDataArc(nodeConfigs[3], nodeConfigs[4], isDark ? 0x38bdf8 : 0x0284c7); // Paris <-> Tokyo
-    this.createDataArc(nodeConfigs[4], nodeConfigs[5], isDark ? 0xd29922 : 0xd97706); // Tokyo <-> Sydney
-
-    // 9. Floating Ambient Space Particles
+    // Conexiones de telemetría intercontinental
+    this.createDataArc(nodeConfigs[0], nodeConfigs[1], isDark ? 0x38bdf8 : 0x0284c7);     this.createDataArc(nodeConfigs[0], nodeConfigs[3], isDark ? 0x3fb950 : 0x16a34a);     this.createDataArc(nodeConfigs[3], nodeConfigs[4], isDark ? 0x38bdf8 : 0x0284c7);     this.createDataArc(nodeConfigs[4], nodeConfigs[5], isDark ? 0xd29922 : 0xd97706); 
+    // Campo de partículas espaciales
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -334,7 +330,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.particlesMesh = new THREE.Points(particleGeo, particleMat);
     this.scene.add(this.particlesMesh);
 
-    // 10. Calm Shockwave Ring
+    // Anillo de pulso para simulación
     const shockwaveGeo = new THREE.RingGeometry(0.1, 0.2, 64);
     const shockwaveMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
@@ -345,7 +341,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.shockwaveRing = new THREE.Mesh(shockwaveGeo, shockwaveMat);
     this.globeGroup.add(this.shockwaveRing);
 
-    // 11. Run Render Loop Outside Angular Zone
+    // Bucle de renderizado fuera de NgZone
     this.ngZone.runOutsideAngular(() => {
       this.animate();
     });
@@ -360,7 +356,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     const vFrom = this.latLonToSphereVector(from.lat, from.lon, 2.37);
     const vTo = this.latLonToSphereVector(to.lat, to.lon, 2.37);
 
-    // Quadratic Bezier midpoint elevated above globe
+    // Vértice de elevación de la curva Bezier
     const mid = vFrom.clone().add(vTo).multiplyScalar(0.5);
     const distance = vFrom.distanceTo(vTo);
     mid.normalize().multiplyScalar(2.37 + distance * 0.24);
@@ -408,13 +404,13 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
     if (this.globeGroup) {
       if (!this.isDragging) {
-        // Inertia friction
+        // Decaimiento por fricción
         this.rotationX += this.velocityX;
         this.rotationY += this.velocityY;
         this.velocityX *= 0.92;
         this.velocityY *= 0.92;
 
-        // Auto-rotation advances smoothly along the current tilted orientation
+        // Rotación continua sobre el ángulo actual
         if (this.isAutoRotating()) {
           this.rotationY += 0.0025;
         }
@@ -424,16 +420,15 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       this.globeGroup.rotation.y = this.rotationY;
     }
 
-    // Drifting ambient particles
+    // Desplazamiento de partículas
     if (this.particlesMesh) {
       this.particlesMesh.rotation.y -= 0.0006;
       this.particlesMesh.rotation.x += 0.0003;
     }
 
-    // Gentle, calm breathing pulse for each service node
+    // Pulsación de los marcadores de nodo
     this.telemetryNodes.forEach((node) => {
-      node.ringScale += 0.007; // 3x slower, gentle breathing
-      if (node.ringScale > 1.5) {
+      node.ringScale += 0.007;       if (node.ringScale > 1.5) {
         node.ringScale = 0.2;
       }
       node.ring.scale.set(node.ringScale, node.ringScale, 1);
@@ -441,7 +436,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       ringMat.opacity = Math.max(0, 0.55 - node.ringScale * 0.35);
     });
 
-    // Shockwave expansion
+    // Expansión de la onda de prueba
     if (this.shockwaveRing && this.shockwaveOpacity > 0.01) {
       this.shockwaveScale += 0.05;
       this.shockwaveOpacity *= 0.95;
@@ -476,7 +471,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.isAutoRotating.set(!this.isAutoRotating());
   }
 
-  // Pointer Interaction Handlers
+  // Controladores de interacción táctil y puntero
   onPointerMove(event: MouseEvent): void {
     if (this.isDragging) {
       const deltaX = event.clientX - this.previousMousePosition.x;
@@ -485,7 +480,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       this.velocityX = deltaY * 0.005;
       this.rotationY += this.velocityY;
       this.rotationX += this.velocityX;
-      // Clamp vertical angle to avoid upside down
+      // Restricción de ángulo vertical
       this.rotationX = Math.max(-1.3, Math.min(1.3, this.rotationX));
       this.previousMousePosition = { x: event.clientX, y: event.clientY };
     }

@@ -296,7 +296,7 @@
 
 
 
-              <!-- Strip de Salud Global (4 Métricas Ejecutivas con Iconos Vectoriales) -->
+              <!-- Resumen de disponibilidad y latencia global -->
 
               <div class="hero-metrics-strip">
 
@@ -460,7 +460,7 @@
 
 
 
-            <!-- Columna 3D Interactiva Three.js -->
+            <!-- Visualizador Three.js -->
 
             <div class="hero-3d-column">
 
@@ -482,7 +482,7 @@
 
 
 
-        <!-- Telemetría en Vivo: Observability Ledger Desacoplado (Sin choricería de divs anidados) -->
+        <!-- Tabla de telemetria de servicios -->
         <section class="demo-showcase-section" id="demostracion">
           <div class="demo-header-bar">
             <div>
@@ -501,7 +501,7 @@
             </div>
           </div>
 
-          <!-- SRE Data Table como Libro Mayor (Ledger) de Alta Densidad -->
+          <!-- Registro de endpoints -->
           <div class="sre-table-container">
             <table class="sre-table" aria-label="Tabla de servicios monitoreados en demostración">
               <thead>
@@ -569,7 +569,7 @@
               </tbody>
             </table>
 
-            <!-- Pie Integrado del Libro Mayor SRE -->
+            <!-- Resumen de estado de red -->
             <div class="sre-table-footer">
               <div class="sre-footer-summary">
                 <span class="sre-cluster-indicator">
@@ -685,7 +685,7 @@
 
 
 
-          <!-- 4 KPIs Ejecutivos -->
+          <!-- Indicadores clave de rendimiento -->
 
           <div class="kpi-grid">
 
@@ -801,7 +801,7 @@
 
 
 
-        <!-- Barra de Control y Lista de Endpoints en SRE Table -->
+        <!-- Filtros y búsqueda de endpoints -->
 
         <section class="endpoints-section">
 
@@ -1095,7 +1095,7 @@
 
 
 
-          <!-- SRE Data Table para Usuarios Autenticados -->
+          <!-- Lista de endpoints monitoreados -->
 
           <div class="sre-table-container">
 
@@ -1567,7 +1567,7 @@
 
         <div class="pipeline-explorer">
 
-          <!-- Barra de Progreso Visual de las 5 Etapas -->
+          <!-- Línea de tiempo de etapas -->
 
           <div class="pipeline-progress-rail">
 
@@ -1583,7 +1583,7 @@
 
 
 
-          <!-- Barra interactiva de etapas del pipeline con iconos tecnicos y cero overflow -->
+          <!-- Etapas del pipeline de monitoreo -->
 
           <div class="pipeline-track" role="tablist" aria-label="Etapas del pipeline de datos">
 
@@ -1687,7 +1687,7 @@
 
 
 
-          <!-- Panel de inspeccion de la etapa activa -->
+          <!-- Detalle de la etapa seleccionada -->
 
           @for (st of pipelineSteps; track st.step) {
 
@@ -2051,7 +2051,7 @@
 
 
 
-  <!-- Modal para Agregar Nuevo Endpoint (Limpio y Centrado para Usuarios Autenticados) -->
+  <!-- Modal para registrar endpoint -->
 
   @if (isCreateModalOpen()) {
 
@@ -3121,7 +3121,7 @@
 
 
 
-  <!-- Toast Flotante -->
+  <!-- Notificaciones del sistema -->
 
   @if (toast(); as t) {
 
@@ -3407,7 +3407,7 @@
 
 
 
-  <!-- Modal de Perfil de Usuario -->
+  <!-- Modal de perfil -->
 
   @if (isProfileModalOpen()) {
 
