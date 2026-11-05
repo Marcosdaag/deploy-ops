@@ -120,6 +120,69 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly endpointToDelete = signal<EndpointResponse | null>(null);
   readonly isDeleting = signal<boolean>(false);
 
+  readonly activePipelineStep = signal<number>(1);
+  readonly pipelineSteps = [
+    {
+      step: 1,
+      tag: 'DISPATCH',
+      name: 'Loom Virtual Threads',
+      runtime: 'Java 21 · Executor Concurrente',
+      summary: 'Despacho masivo no bloqueante de hilos virtuales ultra-ligeros con memoria constante por cada endpoint evaluado.',
+      metrics: 'Memoria: ~1KB/hilo · Concurrencia O(N)',
+      codeSnippet: `Executors.newVirtualThreadPerTaskExecutor()
+  .submit(() -> monitorEngine.sweepEndpoint(endpoint));`
+    },
+    {
+      step: 2,
+      tag: 'SEGURIDAD',
+      name: 'Escudo Anti-SSRF & DNS Guard',
+      runtime: 'UrlSecurityValidator (RFC 1918)',
+      summary: 'Resolucion e inspeccion previa a la conexion. Bloqueo estricto de loopbacks IPv4/IPv6, rangos privados y metadatos cloud (169.254.169.254).',
+      metrics: 'RFC 1918 / 6598 · Puertos 22/3306/5432 filtrados',
+      codeSnippet: `InetAddress address = InetAddress.getByName(uri.getHost());
+if (isPrivateOrLoopback(address) || SENSITIVE_PORTS.contains(port)) {
+    throw new SecurityException("SSRF blocked");
+}`
+    },
+    {
+      step: 3,
+      tag: 'ESTADO',
+      name: 'Maquina de Estados & Anti-Flapping',
+      runtime: 'Finite State Machine (4 Estados)',
+      summary: 'Amortiguacion de micro-cortes transitorios. Requiere 3 fallos consecutivos para abrir incidentes y 2 exitos seguidos para confirmar recuperacion.',
+      metrics: 'Estados: HEALTHY -> DEGRADED -> DOWN -> RECOVERING',
+      codeSnippet: `if (failures >= 3 && currentState == DEGRADED) {
+    transitionTo(DOWN);
+    incidentRepository.open(endpoint);
+}`
+    },
+    {
+      step: 4,
+      tag: 'PERSISTENCIA',
+      name: 'SLA O(1) & PostgreSQL 16',
+      runtime: 'Supabase Cloud Managed DB',
+      summary: 'Calculo de disponibilidad de 30 dias en base a particionamiento y consultas agregadas sin sobrecarga de consultas N+1.',
+      metrics: 'Uptime mensual instantaneo · Indices temporales',
+      codeSnippet: `SELECT service_id, COUNT(*) FILTER (WHERE status = 200) * 100.0 / COUNT(*)
+FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_id;`
+    },
+    {
+      step: 5,
+      tag: 'TELEMETRIA',
+      name: 'Transmision Reactiva SSE',
+      runtime: 'Spring WebFlux -> Angular 20 Signals',
+      summary: 'Canal Server-Sent Events permanente que emite la telemetria en tiempo real actualizando los Signals del frontend sin sobrecargar la red.',
+      metrics: 'Brotli/Gzip · Reconexion con backoff exponencial',
+      codeSnippet: `sseEmitter.send(SseEmitter.event()
+  .name("telemetry-pulse")
+  .data(serviceSummaryDto));`
+    }
+  ];
+
+  setPipelineStep(step: number): void {
+    this.activePipelineStep.set(step);
+  }
+
   readonly activeStateNode = signal<ServiceStatus>('HEALTHY');
   readonly activeApiTab = signal<ApiMethodTab>('GET');
   readonly liveJsonOutput = signal<string>('');
@@ -988,6 +1051,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getStatusClass(status: ServiceStatus): string {
     return `status-indicator status-${status.toLowerCase()}`;
+  }
+
+  getLatencyClass(latency: number | null): string {
+    if (latency === null || latency <= 0) return 'latency-muted';
+    if (latency < 200) return 'latency-healthy';
+    if (latency < 800) return 'latency-degraded';
+    return 'latency-danger';
   }
 
   getStatusDescription(endpoint: EndpointResponse): string {

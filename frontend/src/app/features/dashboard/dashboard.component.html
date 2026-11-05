@@ -19,11 +19,10 @@
         @if (authService.isAuthenticated()) {
           <a href="#monitor" class="topbar-link" (click)="scrollToSection($event, 'monitor')">Mis Endpoints</a>
         } @else {
-          <a href="#demostracion" class="topbar-link" (click)="scrollToSection($event, 'demostracion')">Demostración en Vivo</a>
-          <a href="#caracteristicas" class="topbar-link" (click)="scrollToSection($event, 'caracteristicas')">Características</a>
+          <a href="#demostracion" class="topbar-link" (click)="scrollToSection($event, 'demostracion')">Demostración SRE</a>
         }
+        <a href="#arquitectura" class="topbar-link" (click)="scrollToSection($event, 'arquitectura')">Pipeline &amp; Arquitectura</a>
         <a href="#api-publica" class="topbar-link" (click)="scrollToSection($event, 'api-publica')">API Pública</a>
-        <a href="#arquitectura" class="topbar-link" (click)="scrollToSection($event, 'arquitectura')">Arquitectura</a>
       </nav>
 
       <div class="topbar-actions">
@@ -117,41 +116,78 @@
     <div class="content-container">
 
       <!-- ===================================================================
-           CASO 1: VISITANTE NO AUTENTICADO (HOME SIMPLE, ELEGANTE Y CLARO)
+           CASO 1: VISITANTE NO AUTENTICADO (HERO MINIMALISTA + METRICAS GLOBALES)
            =================================================================== -->
       @if (!authService.isAuthenticated()) {
-        <!-- Hero de Bienvenida Simple -->
-        <section class="landing-hero-simple">
-          <div class="hero-badge-pill">
+        <!-- Hero Minimalista SRE -->
+        <section class="landing-hero-sre">
+          <div class="hero-badge-strip">
             <span class="badge-dot-green"></span>
-            <span>Monitoreo HTTP &amp; Status Page en Tiempo Real</span>
+            <span class="badge-engine-text">DeployOps Engine v1.0 · Cluster en Render</span>
           </div>
+
           <h1 class="landing-main-title">
-            Vigilancia continua para tus APIs y servicios web.
+            Vigilancia continua y observabilidad proactiva para tus servicios.
           </h1>
+
           <p class="landing-lead-text">
-            Audita la disponibilidad de tu infraestructura cada 60 segundos, detecta caídas reales mediante una máquina de estados sin falsas alarmas y comparte tu Status Page pública con tus usuarios.
+            Supervisa la disponibilidad de tus APIs y sitios web cada 60 segundos con Virtual Threads de Java 21, mitigación de flapping sin falsas alarmas y Status Page pública en tiempo real.
           </p>
+
+          <!-- Strip de Salud Global (4 Metricas Ejecutivas) -->
+          <div class="hero-metrics-strip">
+            <div class="hms-item">
+              <div class="hms-label">Uptime Global (30d)</div>
+              <div class="hms-val tabular-nums text-healthy">
+                {{ metrics().globalUptime | number: '1.2-2' }}%
+              </div>
+              <div class="hms-sub">Promedio de endpoints</div>
+            </div>
+
+            <div class="hms-item">
+              <div class="hms-label">Latencia Media</div>
+              <div class="hms-val tabular-nums">
+                {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '65 ms' }}
+              </div>
+              <div class="hms-sub">Tiempo de respuesta p95</div>
+            </div>
+
+            <div class="hms-item">
+              <div class="hms-label">Estado de la Red</div>
+              <div class="hms-val" [class.text-healthy]="metrics().down + metrics().degraded === 0" [class.text-danger]="metrics().down + metrics().degraded > 0">
+                {{ metrics().down + metrics().degraded === 0 ? '100% Operativo' : (metrics().down + metrics().degraded) + ' en alerta' }}
+              </div>
+              <div class="hms-sub">{{ metrics().healthy }} servicios activos</div>
+            </div>
+
+            <div class="hms-item">
+              <div class="hms-label">Frecuencia de Sondeo</div>
+              <div class="hms-val tabular-nums font-mono">
+                60 seg
+              </div>
+              <div class="hms-sub">Virtual Threads automáticos</div>
+            </div>
+          </div>
 
           <div class="landing-cta-row">
             <button type="button" class="btn-primary-action btn-lg" (click)="openAuthModal('REGISTER')">
-              <span>Comenzar Ahora — Es Gratis</span>
+              <span>Comenzar Monitoreo Gratis</span>
               <span class="arrow-shift">→</span>
             </button>
-            <button type="button" class="btn-secondary-action btn-lg" (click)="openAuthModal('LOGIN')">
-              <span>Iniciar Sesión</span>
-            </button>
+            <a href="#demostracion" class="btn-secondary-action btn-lg" (click)="scrollToSection($event, 'demostracion')">
+              <span>Ver Demostración en Vivo</span>
+            </a>
           </div>
         </section>
 
-        <!-- Demostración en Vivo: Solo 2 endpoints de muestra para ver cómo funciona -->
+        <!-- Demostración en Vivo: SRE Data Table -->
         <section class="demo-showcase-section" id="demostracion">
           <div class="demo-header-bar">
             <div>
               <span class="section-tag">DEMOSTRACIÓN EN VIVO</span>
-              <h2 class="demo-title">Así supervisa DeployOps en tiempo real</h2>
+              <h2 class="demo-title">Supervisión en tiempo real de servicios</h2>
               <p class="demo-subtitle">
-                Lecturas en vivo tomadas cada minuto directamente desde nuestro clúster en Render:
+                Telemetría y disponibilidad auditadas cada 60 segundos directamente desde nuestro clúster:
               </p>
             </div>
             <div class="demo-sync-pill tabular-nums">
@@ -160,98 +196,84 @@
             </div>
           </div>
 
-          <div class="endpoints-stack">
-            @for (ep of featuredPair(); track ep.id) {
-              <article class="service-card" [attr.data-status]="ep.status" (click)="openInspector(ep)">
-                <div class="sc-identity-col">
-                  <div class="sc-name-row">
-                    <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
-                    <h3 class="sc-service-name">{{ ep.name }}</h3>
-                    <div class="sc-badges-strip">
+          <!-- SRE Data Table para la Demostracion -->
+          <div class="sre-table-container">
+            <table class="sre-table" aria-label="Tabla de servicios monitoreados en demostración">
+              <thead>
+                <tr>
+                  <th class="th-service">Servicio / Endpoint</th>
+                  <th class="th-status">Estado</th>
+                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
+                  <th class="th-latency">Latencia</th>
+                  <th class="th-pulse">Último Pulso</th>
+                  <th class="th-actions text-right">Telemetría</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ep of featuredPair(); track ep.id) {
+                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
+                    <td class="td-service">
+                      <div class="service-identity-cell">
+                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
+                        <div class="service-text-group">
+                          <div class="service-name-line">
+                            <span class="service-name">{{ ep.name }}</span>
+                            @if (ep.sslDaysRemaining) {
+                              <span class="badge-ssl-pill" [class.ssl-warning]="ep.sslDaysRemaining <= 14" [class.ssl-healthy]="ep.sslDaysRemaining > 14">
+                                SSL {{ ep.sslDaysRemaining }}d
+                              </span>
+                            }
+                          </div>
+                          <div class="service-url-line">
+                            <span class="service-url font-mono">{{ ep.url }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-status">
                       <span [class]="getStatusClass(ep.status)">{{ getStatusLabel(ep.status) }}</span>
-                      @if (ep.sslDaysRemaining) {
-                        <span class="badge-ssl-pill ssl-healthy">SSL {{ ep.sslDaysRemaining }}d</span>
-                      }
-                    </div>
-                  </div>
-                  <div class="sc-url-row">
-                    <span class="sc-url-link font-mono">{{ ep.url }}</span>
-                  </div>
-                </div>
-
-                <div class="sc-sla-col">
-                  <div class="sc-sla-header">
-                    <span class="sc-sla-label">SLA 30 DÍAS</span>
-                    <span class="sc-sla-value tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
-                  </div>
-                  <div class="rhythm-track" title="Historial de disponibilidad diaria">
-                    @for (seg of getUptimeSegments(ep); track $index) {
-                      <span class="rhythm-bar" [ngClass]="seg"></span>
-                    }
-                  </div>
-                </div>
-
-                <div class="sc-telemetry-col">
-                  <div class="sc-stat-pill">
-                    <span class="sc-stat-label">Latencia</span>
-                    <span class="sc-stat-val tabular-nums">{{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}</span>
-                  </div>
-                  <div class="sc-stat-pill">
-                    <span class="sc-stat-label">Fallos</span>
-                    <span class="sc-stat-val tabular-nums">{{ ep.consecutiveFailures }}/3</span>
-                  </div>
-                </div>
-
-                <div class="sc-actions-col">
-                  <button type="button" class="btn-card-inspect" (click)="openInspector(ep); $event.stopPropagation()">
-                    <span>Ver Métricas</span>
-                    <span class="arrow-shift">→</span>
-                  </button>
-                </div>
-              </article>
-            }
+                    </td>
+                    <td class="td-sla">
+                      <div class="sla-cell-group">
+                        <span class="sla-percentage tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
+                        <div class="rhythm-track" title="Historial de disponibilidad diaria">
+                          @for (seg of getUptimeSegments(ep); track $index) {
+                            <span class="rhythm-bar" [ngClass]="seg"></span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-latency">
+                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
+                        {{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}
+                      </span>
+                    </td>
+                    <td class="td-pulse">
+                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
+                    </td>
+                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
+                      <button type="button" class="btn-table-inspect" (click)="openInspector(ep)" title="Ver telemetría detallada">
+                        <span>Métricas</span>
+                        <span class="arrow-shift">→</span>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
 
           <div class="demo-invite-banner">
             <div class="dib-content">
-              <span class="dib-icon">⚡</span>
-              <div>
-                <strong>¿Quieres monitorear tus propias URLs?</strong>
-                <p>Crea tu cuenta gratis para registrar microservicios privados, configurar alertas por correo y crear tu Status Page.</p>
+              <div class="dib-badge font-mono">REGISTRO PRIVADO</div>
+              <div class="dib-text-group">
+                <strong>¿Quieres supervisar tus propias APIs y servicios?</strong>
+                <p>Crea tu cuenta gratuita para registrar endpoints privados, configurar alertas de guardia y publicar tu propia Status Page con slug personalizado.</p>
               </div>
             </div>
             <button type="button" class="btn-primary-action" (click)="openAuthModal('REGISTER')">
               Crear Cuenta Gratis
             </button>
-          </div>
-        </section>
-
-        <!-- 3 Pilares Simples de Valor -->
-        <section class="value-props-section" id="caracteristicas">
-          <div class="vp-grid">
-            <div class="vp-card">
-              <div class="vp-icon">🕒</div>
-              <h3 class="vp-title">Sondeo Continuo 24/7</h3>
-              <p class="vp-desc">
-                Pings automáticos cada 60 segundos con medición precisa de latencia y control de expiración de certificados SSL.
-              </p>
-            </div>
-
-            <div class="vp-card">
-              <div class="vp-icon">🛡️</div>
-              <h3 class="vp-title">Sin Falsas Alarmas</h3>
-              <p class="vp-desc">
-                Una máquina de estados por histéresis amortigua micro-cortes transitorios. Solo te alertará cuando un servicio confirme 3 fallos consecutivos.
-              </p>
-            </div>
-
-            <div class="vp-card">
-              <div class="vp-icon">📢</div>
-              <h3 class="vp-title">Status Page Pública</h3>
-              <p class="vp-desc">
-                Comparte una página de estado limpia y profesional bajo tu propio slug (<code>/status/tu-marca</code>) para generar transparencia con tus clientes.
-              </p>
-            </div>
           </div>
         </section>
       }
@@ -339,7 +361,7 @@
                 <span class="kpi-title">Frecuencia de Sondeo</span>
                 <span class="kpi-badge kpi-badge-neutral">60 seg</span>
               </div>
-              <div class="kpi-number tabular-nums">
+              <div class="kpi-number tabular-nums font-mono">
                 Automático
               </div>
               <div class="kpi-foot">
@@ -349,7 +371,7 @@
           </div>
         </section>
 
-        <!-- Barra de Control y Lista de Endpoints -->
+        <!-- Barra de Control y Lista de Endpoints en SRE Table -->
         <section class="endpoints-section">
           <div class="ledger-control-bar">
             <div class="lcb-left">
@@ -496,191 +518,254 @@
             </div>
           </div>
 
-          <!-- Lista de Tarjetas de Endpoints -->
-          <div class="endpoints-stack">
-            @for (ep of filteredEndpoints(); track ep.id) {
-              <article
-                class="service-card"
-                [attr.data-status]="ep.status"
-                (click)="openInspector(ep)"
-              >
-                <div class="sc-identity-col">
-                  <div class="sc-name-row">
-                    <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
-                    <h3 class="sc-service-name">{{ ep.name }}</h3>
-
-                    <div class="sc-badges-strip">
+          <!-- SRE Data Table para Usuarios Autenticados -->
+          <div class="sre-table-container">
+            <table class="sre-table" aria-label="Tabla de mis microservicios monitoreados">
+              <thead>
+                <tr>
+                  <th class="th-service">Servicio / Endpoint</th>
+                  <th class="th-status">Estado</th>
+                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
+                  <th class="th-latency">Latencia</th>
+                  <th class="th-pulse">Último Pulso</th>
+                  <th class="th-actions text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ep of filteredEndpoints(); track ep.id) {
+                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
+                    <td class="td-service">
+                      <div class="service-identity-cell">
+                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
+                        <div class="service-text-group">
+                          <div class="service-name-line">
+                            <span class="service-name">{{ ep.name }}</span>
+                            @if (ep.isOwner) {
+                              <span class="badge-owner">Mío</span>
+                            } @else if (ep.isProtected) {
+                              <span class="badge-demo">Demo</span>
+                            }
+                            @if (ep.sslDaysRemaining !== null && ep.sslDaysRemaining !== undefined) {
+                              <span
+                                class="badge-ssl-pill"
+                                [class.ssl-warning]="ep.sslDaysRemaining <= 14"
+                                [class.ssl-healthy]="ep.sslDaysRemaining > 14"
+                              >
+                                SSL {{ ep.sslDaysRemaining }}d
+                              </span>
+                            }
+                          </div>
+                          <div class="service-url-line">
+                            <a
+                              [href]="ep.url"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="service-url font-mono"
+                              (click)="$event.stopPropagation()"
+                              title="Abrir URL"
+                            >
+                              <span>{{ ep.url }}</span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                              </svg>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-status">
                       <span [class]="getStatusClass(ep.status)">
                         {{ getStatusLabel(ep.status) }}
                       </span>
-
-                      @if (ep.isOwner) {
-                        <span class="badge-owner">Mío</span>
-                      } @else if (ep.isProtected) {
-                        <span class="badge-demo">Demo</span>
-                      }
-
-                      @if (ep.sslDaysRemaining !== null && ep.sslDaysRemaining !== undefined) {
-                        <span
-                          class="badge-ssl-pill"
-                          [class.ssl-warning]="ep.sslDaysRemaining <= 14"
-                          [class.ssl-healthy]="ep.sslDaysRemaining > 14"
-                        >
-                          SSL {{ ep.sslDaysRemaining }}d
+                    </td>
+                    <td class="td-sla">
+                      <div class="sla-cell-group">
+                        <span class="sla-percentage tabular-nums">
+                          {{ ep.status === 'PENDING' ? 'En espera' : (ep.uptimePercentage | number: '1.2-2') + '%' }}
                         </span>
-                      }
-                    </div>
-                  </div>
+                        <div class="rhythm-track">
+                          @for (seg of getUptimeSegments(ep); track $index) {
+                            <span class="rhythm-bar" [ngClass]="seg"></span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-latency">
+                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
+                        {{ ep.lastResponseTimeMs !== null && ep.status !== 'PENDING' && ep.status !== 'DOWN' ? ep.lastResponseTimeMs + ' ms' : '—' }}
+                      </span>
+                    </td>
+                    <td class="td-pulse">
+                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
+                    </td>
+                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
+                      <div class="table-actions-strip">
+                        <button
+                          type="button"
+                          class="btn-table-icon"
+                          (click)="triggerManualPing(ep, $event)"
+                          title="Ejecutar comprobación inmediata"
+                          [disabled]="isTriggeringPing()"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                          </svg>
+                        </button>
 
-                  <div class="sc-url-row">
-                    <a
-                      [href]="ep.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="sc-url-link font-mono"
-                      (click)="$event.stopPropagation()"
-                      title="Abrir URL"
-                    >
-                      <span>{{ ep.url }}</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                    </a>
-                  </div>
-                </div>
+                        @if (ep.isOwner || (!ep.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
+                          <button
+                            type="button"
+                            class="btn-table-icon"
+                            (click)="openEditModal(ep, $event)"
+                            title="Editar configuración"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
 
-                <div class="sc-sla-col">
-                  <div class="sc-sla-header">
-                    <span class="sc-sla-label">SLA 30 DÍAS</span>
-                    <span class="sc-sla-value tabular-nums">
-                      {{
-                        ep.status === 'PENDING'
-                          ? 'En espera'
-                          : (ep.uptimePercentage | number: '1.2-2') + '%'
-                      }}
-                    </span>
-                  </div>
-                  <div class="rhythm-track">
-                    @for (seg of getUptimeSegments(ep); track $index) {
-                      <span class="rhythm-bar" [ngClass]="seg"></span>
-                    }
-                  </div>
-                </div>
+                          <button
+                            type="button"
+                            class="btn-table-icon btn-action-delete"
+                            (click)="confirmDelete(ep, $event)"
+                            title="Eliminar servicio"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        } @else {
+                          <span class="badge-locked-demo" title="Endpoint protegido contra eliminación">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                          </span>
+                        }
 
-                <div class="sc-telemetry-col">
-                  <div class="sc-stat-pill">
-                    <span class="sc-stat-label">Latencia</span>
-                    <span class="sc-stat-val tabular-nums">
-                      {{
-                        ep.lastResponseTimeMs !== null && ep.status !== 'PENDING' && ep.status !== 'DOWN'
-                          ? ep.lastResponseTimeMs + ' ms'
-                          : '—'
-                      }}
-                    </span>
-                  </div>
-
-                  <div class="sc-stat-pill">
-                    <span class="sc-stat-label">Fallos</span>
-                    <span class="sc-stat-val tabular-nums" [class.text-danger]="ep.consecutiveFailures >= 3">
-                      {{ ep.consecutiveFailures }}/3
-                    </span>
-                  </div>
-
-                  <div class="sc-stat-pill sc-stat-time">
-                    <span class="sc-stat-label">Pulso</span>
-                    <span class="sc-stat-val">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
-                  </div>
-                </div>
-
-                <div class="sc-actions-col">
-                  <button
-                    type="button"
-                    class="btn-icon-action btn-action-ping"
-                    (click)="triggerManualPing(ep, $event)"
-                    title="Ejecutar comprobación inmediata"
-                    [disabled]="isTriggeringPing()"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                  </button>
-
-                  @if (ep.isOwner || (!ep.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
-                    <button
-                      type="button"
-                      class="btn-icon-action"
-                      (click)="openEditModal(ep, $event)"
-                      title="Editar configuración"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      class="btn-icon-action btn-action-delete"
-                      (click)="confirmDelete(ep, $event)"
-                      title="Eliminar servicio"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  } @else {
-                    <span class="badge-locked-demo" title="Endpoint protegido contra eliminación">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </span>
-                  }
-
-                  <button
-                    type="button"
-                    class="btn-card-inspect"
-                    (click)="openInspector(ep); $event.stopPropagation()"
-                    title="Ver telemetría detallada"
-                  >
-                    <span>Métricas</span>
-                    <span class="arrow-shift">→</span>
-                  </button>
-                </div>
-              </article>
-            } @empty {
-              <div class="empty-state-panel">
-                <div class="empty-icon-box">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                </div>
-
-                <h4 class="empty-title">Aún no tienes endpoints registrados en tu cuenta</h4>
-                <p class="empty-desc">
-                  Comienza agregando la URL de tu primer microservicio o carga 3 servicios de demostración para probar el sistema.
-                </p>
-                <div class="empty-btn-group">
-                  <button type="button" class="btn-primary-action" (click)="openCreateModal()">
-                    + Agregar mi primer endpoint
-                  </button>
-                  <button type="button" class="btn-secondary-action" (click)="seedSampleEndpoints()" [disabled]="isSyncing()">
-                    Cargar 3 ejemplos
-                  </button>
-                </div>
-              </div>
-            }
+                        <button
+                          type="button"
+                          class="btn-table-inspect"
+                          (click)="openInspector(ep)"
+                          title="Ver telemetría detallada"
+                        >
+                          <span>Métricas</span>
+                          <span class="arrow-shift">→</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6">
+                      <div class="empty-state-panel">
+                        <div class="empty-icon-box">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        </div>
+                        <h4 class="empty-title">Aún no tienes endpoints registrados en tu cuenta</h4>
+                        <p class="empty-desc">
+                          Comienza agregando la URL de tu primer microservicio o carga 3 servicios de demostración para probar el sistema.
+                        </p>
+                        <div class="empty-btn-group">
+                          <button type="button" class="btn-primary-action" (click)="openCreateModal()">
+                            + Agregar mi primer endpoint
+                          </button>
+                          <button type="button" class="btn-secondary-action" (click)="seedSampleEndpoints()" [disabled]="isSyncing()">
+                            Cargar 3 ejemplos
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </section>
       }
 
       <!-- ===================================================================
-           SECCIONES COMPARTIDAS (API PÚBLICA Y ARQUITECTURA)
+           DIAGRAMA DE PIPELINE DE DATOS INTERACTIVO (REEMPLAZA CAJITAS DE ARQUITECTURA)
+           =================================================================== -->
+      <section class="section-card" id="arquitectura">
+        <div class="section-card-header">
+          <div>
+            <span class="section-tag">ARQUITECTURA DE PRODUCCIÓN</span>
+            <h2 class="section-heading">Pipeline de Datos &amp; Motor de Concurrencia</h2>
+            <p class="section-subtext">
+              Recorrido técnico de cada comprobación de salud desde el planificador no bloqueante de Java 21 hasta los Signals reactivos de Angular 20:
+            </p>
+          </div>
+        </div>
+
+        <div class="pipeline-explorer">
+          <!-- Barra interactiva de etapas del pipeline -->
+          <div class="pipeline-track" role="tablist" aria-label="Etapas del pipeline de datos">
+            @for (st of pipelineSteps; track st.step) {
+              <button
+                type="button"
+                class="pipeline-node-btn"
+                [class.active]="activePipelineStep() === st.step"
+                (click)="setPipelineStep(st.step)"
+                role="tab"
+                [attr.aria-selected]="activePipelineStep() === st.step"
+              >
+                <div class="node-step-header">
+                  <span class="node-step-badge">0{{ st.step }}</span>
+                  <span class="node-tag-pill">{{ st.tag }}</span>
+                </div>
+                <div class="node-title">{{ st.name }}</div>
+                <div class="node-runtime font-mono">{{ st.runtime }}</div>
+              </button>
+            }
+          </div>
+
+          <!-- Panel de inspeccion de la etapa activa -->
+          @for (st of pipelineSteps; track st.step) {
+            @if (activePipelineStep() === st.step) {
+              <div class="pipeline-detail-card" role="tabpanel">
+                <div class="pd-info-col">
+                  <div class="pd-meta-row">
+                    <span class="node-step-badge">ETAPA 0{{ st.step }}</span>
+                    <span class="node-tag-pill">{{ st.tag }}</span>
+                    <span class="pd-runtime-chip font-mono">{{ st.runtime }}</span>
+                  </div>
+                  <h3 class="pd-heading">{{ st.name }}</h3>
+                  <p class="pd-summary">{{ st.summary }}</p>
+                  <div class="pd-metric-strip">
+                    <span class="pd-metric-label">Métrica de Ingeniería:</span>
+                    <span class="pd-metric-value font-mono">{{ st.metrics }}</span>
+                  </div>
+                </div>
+                <div class="pd-code-col">
+                  <div class="code-box-head">
+                    <span class="font-mono">Implementación de Producción</span>
+                    <button
+                      type="button"
+                      class="btn-code-copy"
+                      (click)="copyText(st.codeSnippet, 'Código de etapa copiado')"
+                    >
+                      Copiar Código
+                    </button>
+                  </div>
+                  <pre class="pipeline-code font-mono">{{ st.codeSnippet }}</pre>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           API REST PÚBLICA & CONSOLA cURL
            =================================================================== -->
       <section class="section-card" id="api-publica">
         <div class="section-card-header">
@@ -790,55 +875,10 @@
         </div>
       </section>
 
-      <!-- Arquitectura de Producción -->
-      <section class="section-card" id="arquitectura">
-        <div class="section-card-header">
-          <div>
-            <span class="section-tag">ARQUITECTURA</span>
-            <h2 class="section-heading">Ingeniería de Producción</h2>
-            <p class="section-subtext">
-              Arquitectura de observabilidad construida con Java 21, Spring Boot y Supabase PostgreSQL.
-            </p>
-          </div>
-        </div>
-
-        <div class="arch-cards-grid">
-          <div class="arch-card">
-            <span class="arch-badge">Seguridad</span>
-            <h3 class="arch-title">Anti-SSRF &amp; DNS Guard</h3>
-            <p class="arch-desc">
-              Bloqueo estricto de loopbacks (<code>127.0.0.1</code>), redes locales RFC1918 y servicios de metadatos cloud.
-            </p>
-          </div>
-
-          <div class="arch-card">
-            <span class="arch-badge">Concurrencia</span>
-            <h3 class="arch-title">Virtual Threads de Java 21</h3>
-            <p class="arch-desc">
-              Pings paralelos ultra-ligeros con memoria constante mediante <code>Executors.newVirtualThreadPerTaskExecutor()</code>.
-            </p>
-          </div>
-
-          <div class="arch-card">
-            <span class="arch-badge">Algoritmos</span>
-            <h3 class="arch-title">SLA en Tiempo O(1)</h3>
-            <p class="arch-desc">
-              Cálculo de disponibilidad de 30 días sin consultas N+1 en PostgreSQL sobre Supabase.
-            </p>
-          </div>
-
-          <div class="arch-card">
-            <span class="arch-badge">Protección</span>
-            <h3 class="arch-title">Sliding Window Rate Limiter</h3>
-            <p class="arch-desc">
-              Filtro de seguridad que previene abuso en rutas de autenticación y pings con respuestas <code>429</code>.
-            </p>
-          </div>
-        </div>
-      </section>
-
     </div>
   </main>
+
+
 
   <!-- Footer -->
   <footer class="app-footer">

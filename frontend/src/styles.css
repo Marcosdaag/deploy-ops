@@ -1,114 +1,114 @@
 /*
  * DeployOps Global Design System & Variables
- * Paleta de observabilidad de alta legibilidad inspirada en herramientas de ingenieria (Datadog, Better Stack, Cloudflare, Linear).
- * Evita gradientes de neon exagerados y prioriza el descanso visual, contraste WCAG AAA y jerarquia de datos.
+ * Inspirado en herramientas tecnicas de observabilidad e ingenieria (GitHub Primer, Stripe, Linear y Datadog).
+ * Cero gradientes de neon y cero efectos artificiales; maximo descanso visual, contraste WCAG 2.1 AA y jerarquia de datos.
  */
 
 :root,
 [data-theme='dark'] {
-  /* Lienzo y Superficies (Slate Oscuro de Alta Ergonomia) */
-  --bg-canvas: #090d16;
-  --bg-topbar: rgba(9, 13, 22, 0.9);
-  --bg-surface: #0f172a;
-  --bg-surface-alt: #131c31;
-  --bg-surface-hover: #18223c;
-  --bg-input: #0b1120;
+  /* Lienzo y Superficies (Grafito Neutro GitHub / Stripe Dark) */
+  --bg-canvas: #0d1117;
+  --bg-topbar: rgba(13, 17, 23, 0.92);
+  --bg-surface: #161b22;
+  --bg-surface-alt: #21262d;
+  --bg-surface-hover: #262c36;
+  --bg-input: #0d1117;
 
   /* Tipografia y Contraste */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #f0f6fc;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
 
   /* Acentos de Marca e Ingenieria */
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #2563eb;
-  --accent-primary-subtle: rgba(59, 130, 246, 0.12);
-  --accent-gold: #f59e0b;
-  --accent-gold-subtle: rgba(245, 158, 11, 0.12);
-  --accent-jade: #10b981;
-  --accent-jade-subtle: rgba(16, 185, 129, 0.12);
+  --accent-primary: #2f81f7;
+  --accent-primary-hover: #388bfd;
+  --accent-primary-subtle: rgba(47, 129, 247, 0.12);
+  --accent-gold: #d29922;
+  --accent-gold-subtle: rgba(210, 153, 34, 0.12);
+  --accent-jade: #3fb950;
+  --accent-jade-subtle: rgba(63, 185, 80, 0.12);
 
   /* Botones Primarios CTA */
-  --cta-bg: #3b82f6;
+  --cta-bg: #2f81f7;
   --cta-fg: #ffffff;
-  --cta-hover: #2563eb;
+  --cta-hover: #388bfd;
 
-  /* Bordes y Separadores */
-  --border-hairline: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-accent: rgba(59, 130, 246, 0.4);
+  /* Bordes y Separadores Estructurales */
+  --border-hairline: rgba(240, 246, 252, 0.1);
+  --border-subtle: #30363d;
+  --border-strong: #484f58;
+  --border-accent: rgba(47, 129, 247, 0.5);
 
-  /* Estados de Salud HTTP / Red */
-  --status-healthy: #10b981;
-  --status-healthy-subtle: rgba(16, 185, 129, 0.14);
-  --status-degraded: #f59e0b;
-  --status-degraded-subtle: rgba(245, 158, 11, 0.14);
-  --status-down: #f43f5e;
-  --status-down-subtle: rgba(244, 63, 94, 0.16);
-  --status-recovering: #06b6d4;
-  --status-recovering-subtle: rgba(6, 182, 212, 0.14);
-  --status-pending: #64748b;
-  --status-pending-subtle: rgba(100, 116, 139, 0.14);
+  /* Estados Semanticos de Salud HTTP / Red */
+  --status-healthy: #3fb950;
+  --status-healthy-subtle: rgba(46, 160, 67, 0.15);
+  --status-degraded: #d29922;
+  --status-degraded-subtle: rgba(187, 128, 9, 0.15);
+  --status-down: #f85149;
+  --status-down-subtle: rgba(248, 81, 73, 0.15);
+  --status-recovering: #38bdf8;
+  --status-recovering-subtle: rgba(56, 189, 248, 0.15);
+  --status-pending: #8b949e;
+  --status-pending-subtle: rgba(110, 118, 129, 0.15);
 
-  /* Sombras y Luces */
-  --cursor-glow: rgba(59, 130, 246, 0.04);
-  --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.25), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
-  --backdrop-overlay: rgba(3, 7, 18, 0.78);
+  /* Sombras y Luces Sobrias */
+  --cursor-glow: transparent;
+  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --backdrop-overlay: rgba(1, 4, 9, 0.75);
 }
 
 [data-theme='light'] {
-  /* Lienzo y Superficies (Clean Studio Slate) */
-  --bg-canvas: #f8fafc;
-  --bg-topbar: rgba(255, 255, 255, 0.92);
+  /* Lienzo y Superficies (Clean GitHub / Stripe Light) */
+  --bg-canvas: #f6f8fa;
+  --bg-topbar: rgba(255, 255, 255, 0.94);
   --bg-surface: #ffffff;
-  --bg-surface-alt: #f1f5f9;
-  --bg-surface-hover: #f8fafc;
+  --bg-surface-alt: #f6f8fa;
+  --bg-surface-hover: #eaeef2;
   --bg-input: #ffffff;
 
   /* Tipografia y Contraste */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8c959f;
 
   /* Acentos de Marca e Ingenieria */
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #1d4ed8;
-  --accent-primary-subtle: rgba(37, 99, 235, 0.08);
-  --accent-gold: #d97706;
-  --accent-gold-subtle: rgba(217, 119, 6, 0.08);
-  --accent-jade: #059669;
-  --accent-jade-subtle: rgba(5, 150, 105, 0.08);
+  --accent-primary: #0969da;
+  --accent-primary-hover: #0860ca;
+  --accent-primary-subtle: rgba(9, 105, 218, 0.08);
+  --accent-gold: #9a6700;
+  --accent-gold-subtle: rgba(154, 103, 0, 0.08);
+  --accent-jade: #1a7f37;
+  --accent-jade-subtle: rgba(26, 127, 55, 0.08);
 
   /* Botones Primarios CTA */
-  --cta-bg: #2563eb;
+  --cta-bg: #1f2328;
   --cta-fg: #ffffff;
-  --cta-hover: #1d4ed8;
+  --cta-hover: #32383f;
 
-  /* Bordes y Separadores */
-  --border-hairline: rgba(15, 23, 42, 0.08);
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --border-accent: rgba(37, 99, 235, 0.35);
+  /* Bordes y Separadores Estructurales */
+  --border-hairline: #e1e4e8;
+  --border-subtle: #d0d7de;
+  --border-strong: #afb8c1;
+  --border-accent: rgba(9, 105, 218, 0.4);
 
-  /* Estados de Salud HTTP / Red */
-  --status-healthy: #059669;
-  --status-healthy-subtle: rgba(5, 150, 105, 0.1);
-  --status-degraded: #d97706;
-  --status-degraded-subtle: rgba(217, 119, 6, 0.1);
-  --status-down: #e11d48;
-  --status-down-subtle: rgba(225, 29, 72, 0.1);
-  --status-recovering: #0891b2;
-  --status-recovering-subtle: rgba(8, 145, 178, 0.1);
-  --status-pending: #64748b;
-  --status-pending-subtle: rgba(100, 116, 139, 0.1);
+  /* Estados Semanticos de Salud HTTP / Red */
+  --status-healthy: #1a7f37;
+  --status-healthy-subtle: #dafbe1;
+  --status-degraded: #9a6700;
+  --status-degraded-subtle: #fff8c5;
+  --status-down: #cf222e;
+  --status-down-subtle: #ffebe9;
+  --status-recovering: #0969da;
+  --status-recovering-subtle: #ddf4ff;
+  --status-pending: #656d76;
+  --status-pending-subtle: #f6f8fa;
 
-  /* Sombras y Luces */
-  --cursor-glow: rgba(37, 99, 235, 0.03);
-  --shadow-subtle: 0 4px 16px -2px rgba(15, 23, 42, 0.06);
-  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --backdrop-overlay: rgba(15, 23, 42, 0.45);
+  /* Sombras y Luces Sobrias */
+  --cursor-glow: transparent;
+  --shadow-subtle: 0 1px 3px rgba(31, 35, 40, 0.08);
+  --shadow-card: 0 3px 6px rgba(140, 149, 159, 0.15);
+  --backdrop-overlay: rgba(31, 35, 40, 0.5);
 }
 
 *,
@@ -140,24 +140,29 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Numeros y metadatos tecnicos de precisión */
-.tabular-nums {
+/* Numeros tabulares y tipografia tecnica de precision */
+.tabular-nums,
+[tabular-nums] {
   font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum';
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
 .font-mono {
-  font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
-/* Eliminamos la dependencia de tipografias cursivas/editoriales para datos tecnicos */
-.font-serif-editorial {
-  font-family: inherit;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+/* Accesibilidad de foco (WCAG 2.1 AA) */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
-/* Estilo consistente para controles */
+/* Estilo consistente y ergonomico para controles */
 button,
 input,
 select,
@@ -179,10 +184,10 @@ button:disabled {
   opacity: 0.55;
 }
 
-/* Scrollbar ergonomico y limpio */
+/* Scrollbar tecnico ultra limpio */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -190,10 +195,10 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 4px;
+  background: var(--border-subtle);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--border-strong);
 }
