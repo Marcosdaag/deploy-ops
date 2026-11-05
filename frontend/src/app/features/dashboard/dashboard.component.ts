@@ -179,8 +179,48 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
     }
   ];
 
+  readonly isSimulatingPipeline = signal<boolean>(false);
+  private pipelineSimIntervalId: ReturnType<typeof setInterval> | null = null;
+
   setPipelineStep(step: number): void {
     this.activePipelineStep.set(step);
+    if (this.isSimulatingPipeline() && this.pipelineSimIntervalId) {
+      clearInterval(this.pipelineSimIntervalId);
+      this.isSimulatingPipeline.set(false);
+    }
+  }
+
+  nextPipelineStep(): void {
+    const curr = this.activePipelineStep();
+    this.setPipelineStep(curr < 5 ? curr + 1 : 1);
+  }
+
+  prevPipelineStep(): void {
+    const curr = this.activePipelineStep();
+    this.setPipelineStep(curr > 1 ? curr - 1 : 5);
+  }
+
+  simulatePipelineRun(): void {
+    if (this.isSimulatingPipeline()) {
+      if (this.pipelineSimIntervalId) clearInterval(this.pipelineSimIntervalId);
+      this.isSimulatingPipeline.set(false);
+      return;
+    }
+
+    this.isSimulatingPipeline.set(true);
+    this.activePipelineStep.set(1);
+    let currentStep = 1;
+
+    this.pipelineSimIntervalId = setInterval(() => {
+      currentStep++;
+      if (currentStep > 5) {
+        if (this.pipelineSimIntervalId) clearInterval(this.pipelineSimIntervalId);
+        this.isSimulatingPipeline.set(false);
+        this.toast.set({ type: 'success', message: 'Recorrido simulado: Comprobacion evaluada y despachada por SSE exitosamente.' });
+      } else {
+        this.activePipelineStep.set(currentStep);
+      }
+    }, 900);
   }
 
   readonly activeStateNode = signal<ServiceStatus>('HEALTHY');

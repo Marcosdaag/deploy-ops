@@ -134,18 +134,29 @@
             Supervisa la disponibilidad de tus APIs y sitios web cada 60 segundos con Virtual Threads de Java 21, mitigación de flapping sin falsas alarmas y Status Page pública en tiempo real.
           </p>
 
-          <!-- Strip de Salud Global (4 Metricas Ejecutivas) -->
+          <!-- Strip de Salud Global (4 Metricas Ejecutivas con Iconos Tecnicos) -->
           <div class="hero-metrics-strip">
             <div class="hms-item">
-              <div class="hms-label">Uptime Global (30d)</div>
+              <div class="hms-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+                <span>Uptime Global (30d)</span>
+              </div>
               <div class="hms-val tabular-nums text-healthy">
                 {{ metrics().globalUptime | number: '1.2-2' }}%
               </div>
-              <div class="hms-sub">Promedio de endpoints</div>
+              <div class="hms-sub">Promedio de disponibilidad</div>
             </div>
 
             <div class="hms-item">
-              <div class="hms-label">Latencia Media</div>
+              <div class="hms-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>Latencia Media</span>
+              </div>
               <div class="hms-val tabular-nums">
                 {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '65 ms' }}
               </div>
@@ -153,15 +164,28 @@
             </div>
 
             <div class="hms-item">
-              <div class="hms-label">Estado de la Red</div>
+              <div class="hms-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/>
+                  <line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <span>Estado de la Red</span>
+              </div>
               <div class="hms-val" [class.text-healthy]="metrics().down + metrics().degraded === 0" [class.text-danger]="metrics().down + metrics().degraded > 0">
                 {{ metrics().down + metrics().degraded === 0 ? '100% Operativo' : (metrics().down + metrics().degraded) + ' en alerta' }}
               </div>
-              <div class="hms-sub">{{ metrics().healthy }} servicios activos</div>
+              <div class="hms-sub">{{ metrics().healthy }} servicios en línea</div>
             </div>
 
             <div class="hms-item">
-              <div class="hms-label">Frecuencia de Sondeo</div>
+              <div class="hms-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>Frecuencia de Sondeo</span>
+              </div>
               <div class="hms-val tabular-nums font-mono">
                 60 seg
               </div>
@@ -693,7 +717,7 @@
       }
 
       <!-- ===================================================================
-           DIAGRAMA DE PIPELINE DE DATOS INTERACTIVO (REEMPLAZA CAJITAS DE ARQUITECTURA)
+           DIAGRAMA DE PIPELINE DE DATOS INTERACTIVO CON STEPPER Y SIMULADOR
            =================================================================== -->
       <section class="section-card" id="arquitectura">
         <div class="section-card-header">
@@ -701,13 +725,68 @@
             <span class="section-tag">ARQUITECTURA DE PRODUCCIÓN</span>
             <h2 class="section-heading">Pipeline de Datos &amp; Motor de Concurrencia</h2>
             <p class="section-subtext">
-              Recorrido técnico de cada comprobación de salud desde el planificador no bloqueante de Java 21 hasta los Signals reactivos de Angular 20:
+              Recorrido interactivo de cada comprobación de salud desde el planificador de Java 21 hasta los Signals reactivos de Angular 20:
             </p>
+          </div>
+
+          <!-- Controles de Navegación y Simulación del Pipeline -->
+          <div class="pipeline-controls-strip">
+            <button
+              type="button"
+              class="btn-pipeline-nav"
+              (click)="prevPipelineStep()"
+              title="Etapa anterior"
+              aria-label="Etapa anterior del pipeline"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              <span>Anterior</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-pipeline-sim"
+              [class.simulating]="isSimulatingPipeline()"
+              (click)="simulatePipelineRun()"
+              title="Simular el flujo completo de una comprobación a través de las 5 etapas"
+            >
+              @if (isSimulatingPipeline()) {
+                <span class="pulse-beam-dot"></span>
+                <span>Pausar Simulación</span>
+              } @else {
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Simular Recorrido de Ping</span>
+              }
+            </button>
+
+            <button
+              type="button"
+              class="btn-pipeline-nav"
+              (click)="nextPipelineStep()"
+              title="Siguiente etapa"
+              aria-label="Siguiente etapa del pipeline"
+            >
+              <span>Siguiente</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
         </div>
 
         <div class="pipeline-explorer">
-          <!-- Barra interactiva de etapas del pipeline -->
+          <!-- Barra de Progreso Visual de las 5 Etapas -->
+          <div class="pipeline-progress-rail">
+            <div
+              class="pipeline-progress-indicator"
+              [style.width.%]="(activePipelineStep() - 1) * 25"
+            ></div>
+          </div>
+
+          <!-- Barra interactiva de etapas del pipeline con iconos tecnicos y cero overflow -->
           <div class="pipeline-track" role="tablist" aria-label="Etapas del pipeline de datos">
             @for (st of pipelineSteps; track st.step) {
               <button
@@ -719,7 +798,38 @@
                 [attr.aria-selected]="activePipelineStep() === st.step"
               >
                 <div class="node-step-header">
-                  <span class="node-step-badge">0{{ st.step }}</span>
+                  <div class="node-icon-wrap">
+                    @if (st.step === 1) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="4" y="4" width="16" height="16" rx="2"/>
+                        <rect x="9" y="9" width="6" height="6"/>
+                        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+                        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+                        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+                        <line x1="1" y1="9" x2="4" y1="9"/><line x1="1" y1="14" x2="4" y1="14"/>
+                      </svg>
+                    } @else if (st.step === 2) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      </svg>
+                    } @else if (st.step === 3) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
+                        <path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/>
+                      </svg>
+                    } @else if (st.step === 4) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                      </svg>
+                    } @else {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                      </svg>
+                    }
+                    <span class="node-step-badge">0{{ st.step }}</span>
+                  </div>
                   <span class="node-tag-pill">{{ st.tag }}</span>
                 </div>
                 <div class="node-title">{{ st.name }}</div>
