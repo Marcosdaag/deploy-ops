@@ -29,6 +29,7 @@ import {
 } from '../../core/constants/showcase.constants';
 import { EndpointService } from '../../core/services/endpoint.service';
 import { AuthService } from '../../core/services/auth.service';
+import { TelemetryCanvas3dComponent } from './components/telemetry-canvas-3d/telemetry-canvas-3d.component';
 
 type StatusFilter = 'ALL' | 'HEALTHY' | 'ALERT' | 'PENDING' | 'MINE';
 type ThemeMode = 'dark' | 'light';
@@ -37,7 +38,7 @@ type ApiMethodTab = 'GET' | 'POST' | 'DELETE';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, TelemetryCanvas3dComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })

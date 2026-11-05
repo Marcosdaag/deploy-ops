@@ -1,0 +1,75 @@
+<div
+  #canvasContainer
+  class="telemetry-3d-wrap"
+  (pointermove)="onPointerMove($event)"
+  (pointerdown)="onPointerDown($event)"
+  (pointerup)="onPointerUp()"
+  (pointerleave)="onPointerUp()"
+  title="Observabilidad de Clúster 3D Interactiva: Arrastra para rotar la esfera"
+>
+  <!-- Canvas WebGL Three.js -->
+  <canvas #webglCanvas class="telemetry-webgl-canvas"></canvas>
+
+  <!-- HUD Superior de Telemetria -->
+  <div class="hud-top-bar">
+    <div class="hud-pill-status">
+      <span class="hud-beacon-dot"></span>
+      <span class="font-mono hud-pill-text">CLÚSTER MESH · US-EAST</span>
+    </div>
+    <div class="hud-fps-pill tabular-nums font-mono">
+      <span>60 FPS</span>
+    </div>
+  </div>
+
+  <!-- HUD Metricas Flotantes en Vivo -->
+  <div class="hud-stats-overlay">
+    <div class="hud-stat-box">
+      <div class="hud-stat-label">Latencia p95</div>
+      <div class="hud-stat-val tabular-nums">{{ latency }} ms</div>
+    </div>
+    <div class="hud-stat-box">
+      <div class="hud-stat-label">Disponibilidad SLA</div>
+      <div class="hud-stat-val tabular-nums text-healthy">{{ uptime | number: '1.2-2' }}%</div>
+    </div>
+    <div class="hud-stat-box">
+      <div class="hud-stat-label">Conexiones Loom</div>
+      <div class="hud-stat-val tabular-nums font-mono">120 hilos</div>
+    </div>
+  </div>
+
+  <!-- Barra de Controles Interactivos 3D Inferior -->
+  <div class="hud-bottom-bar">
+    <div class="hud-controls-group">
+      <button
+        type="button"
+        class="hud-btn-action"
+        [class.btn-active]="isPulseActive()"
+        (click)="triggerPulse()"
+        title="Enviar pulso de ping en tiempo real a todos los nodos del clúster"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        <span>Emitir Pulso 3D</span>
+      </button>
+
+      <button
+        type="button"
+        class="hud-btn-action"
+        [class.btn-active]="isAutoRotating()"
+        (click)="toggleAutoRotation()"
+        [title]="isAutoRotating() ? 'Pausar auto-rotación orbital' : 'Reanudar auto-rotación orbital'"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+        <span>{{ isAutoRotating() ? 'Rotación: ON' : 'Rotación: OFF' }}</span>
+      </button>
+    </div>
+
+    <div class="hud-interaction-hint font-mono">
+      <span>Gira con el cursor</span>
+      <span class="hint-arrow">↔</span>
+    </div>
+  </div>
+</div>
