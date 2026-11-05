@@ -1414,41 +1414,15 @@
 
 
 .demo-showcase-section {
-
-
-
   display: flex;
-
-
-
   flex-direction: column;
-
-
-
-  gap: 1.25rem;
-
-
-
-  background-color: var(--bg-surface);
-
-
-
-  border: 1px solid var(--border-subtle);
-
-
-
-  border-radius: 14px;
-
-
-
-  padding: 1.75rem;
-
-
-
-  box-shadow: var(--shadow-card);
-
-
-
+  gap: 1.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  margin: 3.5rem 0 2rem;
 }
 
 
@@ -16261,4 +16235,256 @@ textarea.form-control {
   border: none !important;
   padding: 0 !important;
   box-shadow: none !important;
+}
+
+/* ==========================================================================
+   SRE OBSERVABILITY LEDGER & RESPONSIVE PERFECTION (SIN CHORICERÍA DE DIVS)
+   ========================================================================== */
+.sre-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.35rem;
+}
+
+.sre-live-beacon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--status-healthy);
+  box-shadow: 0 0 8px var(--status-healthy);
+  animation: beaconPulse 1.8s ease-in-out infinite;
+}
+
+.badge-ssl-tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.badge-ssl-tag.ssl-healthy {
+  color: var(--status-healthy);
+  border-color: rgba(63, 185, 80, 0.3);
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.badge-ssl-tag.ssl-warning {
+  color: var(--status-warning);
+  border-color: rgba(210, 153, 34, 0.3);
+  background: rgba(210, 153, 34, 0.08);
+}
+
+.sre-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.sre-status-label.status-up,
+.sre-status-label.status-healthy,
+.sre-status-label.status-operativo {
+  color: var(--status-healthy);
+}
+
+.sre-status-label.status-down,
+.sre-status-label.status-degraded {
+  color: var(--status-danger);
+}
+
+.mini-status-bullet {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.sre-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.sre-footer-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.sre-cluster-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.pulse-dot-green {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--status-healthy);
+  box-shadow: 0 0 6px var(--status-healthy);
+}
+
+.sre-footer-sep {
+  color: var(--text-muted);
+}
+
+.sre-footer-meta {
+  color: var(--text-muted);
+}
+
+.btn-sre-register {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.45rem 0.95rem;
+  background: var(--accent-primary);
+  color: #ffffff;
+  border: 1px solid var(--accent-primary-border, #1f6feb);
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-sre-register:hover {
+  background: var(--accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   RESPONSIVE AUDIT & BREAKPOINTS HARMONIZATION
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .hero-metrics-strip {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .topbar-nav {
+    gap: 1.15rem;
+  }
+  .topbar-link {
+    font-size: 0.82rem;
+  }
+  .hero-two-column-layout {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .hero-text-column {
+    text-align: center;
+  }
+  .landing-lead-text {
+    margin: 0 auto 24px auto !important;
+  }
+  .landing-cta-row {
+    justify-content: center !important;
+  }
+  .hero-metrics-strip {
+    margin: 0 auto !important;
+    max-width: 640px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .topbar-nav {
+    display: none !important;
+  }
+  .topbar-actions {
+    gap: 0.5rem;
+  }
+  .btn-topbar-register {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sre-table {
+    min-width: 680px !important;
+  }
+  .sre-table-footer {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 1rem 1.15rem !important;
+  }
+  .sre-footer-summary {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+  }
+  .sre-footer-sep {
+    display: none !important;
+  }
+  .btn-sre-register {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .btn-topbar-register {
+    padding: 0.35rem 0.55rem !important;
+    font-size: 0.76rem !important;
+  }
+  .topbar-actions {
+    gap: 0.35rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .landing-main-title {
+    font-size: 26px !important;
+    line-height: 1.25 !important;
+  }
+  .hero-metrics-strip {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .metric-pill {
+    padding: 10px 12px !important;
+  }
+  .metric-val {
+    font-size: 1.15rem !important;
+  }
+  .metric-label {
+    font-size: 10px !important;
+  }
+  .landing-cta-row {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  .btn-primary-action,
+  .btn-secondary-action {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .hero-badge-strip {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
 }

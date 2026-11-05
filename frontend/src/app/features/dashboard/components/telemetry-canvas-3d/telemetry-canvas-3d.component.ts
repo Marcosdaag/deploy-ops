@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import * as THREE from 'three';
+import { CONTINENT_DATA } from './continents-geo.data';
 
 interface TelemetryPoint {
   mesh: THREE.Mesh;
@@ -22,64 +23,6 @@ interface TelemetryPoint {
   name: string;
   status: 'HEALTHY' | 'ALERT';
 }
-
-const CONTINENT_DATA: number[][][] = [
-  // North America
-  [
-    [-168, 65], [-160, 71], [-140, 70], [-125, 70], [-115, 68], [-95, 70], [-85, 70],
-    [-80, 62], [-65, 58], [-60, 52], [-65, 45], [-70, 42], [-75, 35], [-80, 25],
-    [-82, 25], [-80, 30], [-90, 30], [-97, 26], [-97, 20], [-90, 16], [-83, 9],
-    [-77, 8], [-80, 15], [-92, 16], [-105, 20], [-110, 24], [-115, 30], [-124, 38],
-    [-125, 49], [-130, 55], [-140, 60], [-160, 58], [-168, 65]
-  ],
-  // South America
-  [
-    [-77, 8], [-72, 12], [-60, 10], [-50, 0], [-35, -5], [-35, -10], [-38, -13],
-    [-42, -23], [-50, -30], [-58, -34], [-65, -42], [-68, -54], [-75, -50], [-73, -40],
-    [-72, -30], [-76, -15], [-81, -5], [-77, 8]
-  ],
-  // Europe
-  [
-    [-9, 36], [-9, 43], [0, 43], [-1, 46], [-4, 48], [2, 51], [8, 54], [10, 57],
-    [5, 62], [15, 65], [25, 71], [30, 70], [35, 65], [30, 60], [25, 55], [20, 45],
-    [25, 40], [20, 38], [15, 38], [12, 44], [4, 43], [-3, 36], [-9, 36]
-  ],
-  // British Isles
-  [
-    [-5, 50], [-5, 58], [2, 53], [0, 50], [-5, 50]
-  ],
-  // Africa
-  [
-    [-6, 36], [10, 37], [25, 32], [32, 31], [34, 28], [43, 12], [51, 12], [42, 0],
-    [40, -10], [35, -20], [32, -28], [28, -32], [18, -34], [18, -28], [12, -18],
-    [10, -5], [10, 5], [2, 6], [-5, 5], [-15, 12], [-17, 15], [-17, 21], [-13, 28], [-6, 36]
-  ],
-  // Asia
-  [
-    [35, 65], [60, 70], [80, 75], [105, 78], [140, 75], [170, 66], [180, 65],
-    [160, 55], [140, 50], [130, 42], [120, 38], [122, 30], [118, 22], [108, 20],
-    [105, 10], [100, 5], [104, 1], [98, 8], [92, 16], [90, 22], [80, 16], [78, 8],
-    [72, 18], [68, 24], [60, 25], [55, 25], [50, 15], [44, 12], [36, 28], [35, 36],
-    [40, 40], [50, 42], [55, 50], [40, 55], [35, 65]
-  ],
-  // Japan
-  [
-    [130, 32], [135, 34], [140, 36], [142, 40], [145, 44], [141, 44], [138, 38], [130, 32]
-  ],
-  // Australia
-  [
-    [114, -22], [116, -34], [120, -35], [135, -34], [140, -38], [148, -38], [153, -28],
-    [150, -22], [145, -15], [142, -11], [136, -12], [130, -14], [122, -17], [114, -22]
-  ],
-  // New Zealand
-  [
-    [166, -46], [174, -41], [178, -38], [173, -35], [168, -44], [166, -46]
-  ],
-  // Antarctica
-  [
-    [-180, -78], [180, -78], [180, -89], [-180, -89], [-180, -78]
-  ]
-];
 
 @Component({
   selector: 'app-telemetry-canvas-3d',
@@ -147,21 +90,22 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
   private createEarthTexture(isDark: boolean): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 1024;
+    // High-resolution 4096x2048 texture for crisp continental outlines on 3D sphere
+    canvas.width = 4096;
+    canvas.height = 2048;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
 
     const w = canvas.width;
     const h = canvas.height;
 
-    // 1. Ocean Background
-    ctx.fillStyle = isDark ? '#0b1322' : '#ebf3fb';
+    // 1. Deep Ocean Background
+    ctx.fillStyle = isDark ? '#070d18' : '#eef4fa';
     ctx.fillRect(0, 0, w, h);
 
     // 2. Graticule (Parallels & Meridians every 30 deg)
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(9, 105, 218, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.07)';
 
     for (let lat = -60; lat <= 60; lat += 30) {
       const y = ((90 - lat) / 180) * h;
@@ -180,8 +124,8 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     // Highlight Equator & Prime Meridian
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(9, 105, 218, 0.22)';
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.22)' : 'rgba(2, 132, 199, 0.18)';
     ctx.beginPath();
     ctx.moveTo(0, h * 0.5);
     ctx.lineTo(w, h * 0.5);
@@ -192,11 +136,14 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     ctx.lineTo(w * 0.5, h);
     ctx.stroke();
 
-    // 3. Draw Continents
+    // 3. Render High-Fidelity Continents (Natural Earth)
     const toX = (lon: number) => ((lon + 180) / 360) * w;
     const toY = (lat: number) => ((90 - lat) / 180) * h;
 
+    // First pass: Landmass fills with strong contrast
+    ctx.fillStyle = isDark ? 'rgba(16, 37, 66, 0.96)' : 'rgba(219, 234, 254, 0.94)';
     CONTINENT_DATA.forEach((poly) => {
+      if (poly.length < 3) return;
       ctx.beginPath();
       poly.forEach(([lon, lat], idx) => {
         const px = toX(lon);
@@ -205,20 +152,52 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
         else ctx.lineTo(px, py);
       });
       ctx.closePath();
-
-      // Landmass fill
-      ctx.fillStyle = isDark ? 'rgba(37, 99, 235, 0.18)' : 'rgba(14, 116, 144, 0.14)';
       ctx.fill();
+    });
 
-      // Coastline stroke
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = isDark ? '#38bdf8' : '#0284c7';
+    // Second pass: Outer luminous contour glow
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.38)' : 'rgba(2, 132, 199, 0.28)';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    CONTINENT_DATA.forEach((poly) => {
+      if (poly.length < 3) return;
+      ctx.beginPath();
+      poly.forEach(([lon, lat], idx) => {
+        const px = toX(lon);
+        const py = toY(lat);
+        if (idx === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
+      ctx.stroke();
+    });
+
+    // Third pass: Razor-sharp core coastline stroke
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = isDark ? '#67e8f9' : '#0284c7';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    CONTINENT_DATA.forEach((poly) => {
+      if (poly.length < 3) return;
+      ctx.beginPath();
+      poly.forEach(([lon, lat], idx) => {
+        const px = toX(lon);
+        const py = toY(lat);
+        if (idx === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
       ctx.stroke();
     });
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = 4;
     return texture;
   }
 

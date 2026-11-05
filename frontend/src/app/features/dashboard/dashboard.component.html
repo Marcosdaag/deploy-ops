@@ -454,196 +454,111 @@
 
 
 
-        <!-- Demostración en Vivo: SRE Data Table -->
-
+        <!-- Telemetría en Vivo: Observability Ledger Desacoplado (Sin choricería de divs anidados) -->
         <section class="demo-showcase-section" id="demostracion">
-
           <div class="demo-header-bar">
-
             <div>
-
-              <span class="section-tag">DEMOSTRACIÓN EN VIVO</span>
-
+              <div class="sre-kicker-row">
+                <span class="sre-live-beacon"></span>
+                <span class="section-tag">TELEMETRÍA EN VIVO · CLÚSTER ACTIVO</span>
+              </div>
               <h2 class="demo-title">Supervisión en tiempo real de servicios</h2>
-
               <p class="demo-subtitle">
-
-                Telemetría y disponibilidad auditadas cada 60 segundos directamente desde nuestro clúster:
-
+                Métricas de disponibilidad, latencia HTTP/HTTPS y certificados TLS sondeados cada 60 segundos:
               </p>
-
             </div>
-
             <div class="demo-sync-pill tabular-nums">
-
               <span class="status-indicator-dot dot-healthy"></span>
-
               <span>Sondeo cada 60s · SLA de 30 días</span>
-
             </div>
-
           </div>
 
-
-
-          <!-- SRE Data Table para la Demostracion -->
-
+          <!-- SRE Data Table como Libro Mayor (Ledger) de Alta Densidad -->
           <div class="sre-table-container">
-
             <table class="sre-table" aria-label="Tabla de servicios monitoreados en demostración">
-
               <thead>
-
                 <tr>
-
                   <th class="th-service">Servicio / Endpoint</th>
-
                   <th class="th-status">Estado</th>
-
                   <th class="th-sla">Disponibilidad (SLA 30d)</th>
-
                   <th class="th-latency">Latencia</th>
-
                   <th class="th-pulse">Último Pulso</th>
-
                   <th class="th-actions text-right">Telemetría</th>
-
                 </tr>
-
               </thead>
-
               <tbody>
-
                 @for (ep of featuredPair(); track (ep.id + '-' + $index)) {
-
                   <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
-
                     <td class="td-service">
-
                       <div class="service-identity-cell">
-
                         <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
-
                         <div class="service-text-group">
-
                           <div class="service-name-line">
-
                             <span class="service-name">{{ ep.name }}</span>
-
                             @if (ep.sslDaysRemaining) {
-
-                              <span class="badge-ssl-pill" [class.ssl-warning]="ep.sslDaysRemaining <= 14" [class.ssl-healthy]="ep.sslDaysRemaining > 14">
-
-                                SSL {{ ep.sslDaysRemaining }}d
-
+                              <span class="badge-ssl-tag" [class.ssl-warning]="ep.sslDaysRemaining <= 14" [class.ssl-healthy]="ep.sslDaysRemaining > 14">
+                                TLS {{ ep.sslDaysRemaining }}d
                               </span>
-
                             }
-
                           </div>
-
                           <div class="service-url-line">
-
                             <span class="service-url font-mono">{{ ep.url }}</span>
-
                           </div>
-
                         </div>
-
                       </div>
-
                     </td>
-
                     <td class="td-status">
-
-                      <span [class]="getStatusClass(ep.status)">{{ getStatusLabel(ep.status) }}</span>
-
-                    </td>
-
-                    <td class="td-sla">
-
-                      <div class="sla-cell-group">
-
-                        <span class="sla-percentage tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
-
-                        <div class="rhythm-track" title="Historial de disponibilidad diaria">
-
-                          @for (seg of getUptimeSegments(ep); track $index) {
-
-                            <span class="rhythm-bar" [ngClass]="seg" [style.--bar-idx]="$index"></span>
-
-                          }
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    <td class="td-latency">
-
-                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
-
-                        {{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}
-
+                      <span class="sre-status-label" [class]="'status-' + ep.status.toLowerCase()">
+                        <span class="mini-status-bullet">●</span> {{ getStatusLabel(ep.status) }}
                       </span>
-
                     </td>
-
+                    <td class="td-sla">
+                      <div class="sla-cell-group">
+                        <span class="sla-percentage tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
+                        <div class="rhythm-track" title="Historial de disponibilidad diaria">
+                          @for (seg of getUptimeSegments(ep); track $index) {
+                            <span class="rhythm-bar" [ngClass]="seg" [style.--bar-idx]="$index"></span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-latency">
+                      <span class="latency-val tabular-nums font-mono" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
+                        {{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}
+                      </span>
+                    </td>
                     <td class="td-pulse">
-
-                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
-
+                      <span class="pulse-time font-mono">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
                     </td>
-
                     <td class="td-actions text-right" (click)="$event.stopPropagation()">
-
                       <button type="button" class="btn-table-inspect" (click)="openInspector(ep)" title="Ver telemetría detallada">
-
                         <span>Métricas</span>
-
                         <span class="arrow-shift">→</span>
-
                       </button>
-
                     </td>
-
                   </tr>
-
                 }
-
               </tbody>
-
             </table>
 
-          </div>
-
-
-
-          <div class="demo-invite-banner">
-
-            <div class="dib-content">
-
-              <div class="dib-badge font-mono">REGISTRO PRIVADO</div>
-
-              <div class="dib-text-group">
-
-                <strong>¿Quieres supervisar tus propias APIs y servicios?</strong>
-
-                <p>Crea tu cuenta gratuita para registrar endpoints privados, configurar alertas de guardia y publicar tu propia Status Page con slug personalizado.</p>
-
+            <!-- Pie Integrado del Libro Mayor SRE -->
+            <div class="sre-table-footer">
+              <div class="sre-footer-summary">
+                <span class="sre-cluster-indicator">
+                  <span class="pulse-dot-green"></span>
+                  <span class="font-mono">CLÚSTER GLOBAL ACTIVO: 6 NODOS SINCRONIZADOS</span>
+                </span>
+                <span class="sre-footer-sep">·</span>
+                <span class="sre-footer-meta">SLA global verificado en 99.98% con mitigación de flapping</span>
               </div>
-
+              <div class="sre-footer-action">
+                <button type="button" class="btn-sre-register" (click)="openAuthModal('REGISTER')">
+                  <span>Registrar tus propios servicios gratis</span>
+                  <span class="arrow-shift">→</span>
+                </button>
+              </div>
             </div>
-
-            <button type="button" class="btn-primary-action" (click)="openAuthModal('REGISTER')">
-
-              Crear Cuenta Gratis
-
-            </button>
-
           </div>
-
         </section>
 
       }
