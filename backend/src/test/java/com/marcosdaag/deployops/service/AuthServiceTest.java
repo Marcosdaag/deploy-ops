@@ -205,6 +205,25 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Inicia sesion en modo demo creando el usuario si no existe")
+    void whenLoginAsDemo_shouldCreateOrReturnDemoUser() {
+        when(userRepository.findByEmail("demo@deployops.io")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
+            UserEntity u = invocation.getArgument(0);
+            u.setId(999L);
+            return u;
+        });
+        when(jwtService.generateToken(any(UserEntity.class))).thenReturn("demo.jwt.token");
+
+        AuthResponse response = authService.loginAsDemo();
+
+        assertNotNull(response);
+        assertEquals("demo.jwt.token", response.getToken());
+        assertEquals("demo@deployops.io", response.getEmail());
+        assertEquals("Usuario Demo (SRE)", response.getName());
+    }
+
+    @Test
     @DisplayName("Lanza ResourceNotFoundException si el usuario actual no existe")
     void whenGetCurrentUserNotFound_shouldThrowException() {
         when(userRepository.findByEmail("nadie@example.com")).thenReturn(Optional.empty());

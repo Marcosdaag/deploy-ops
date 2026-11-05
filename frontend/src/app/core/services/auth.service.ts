@@ -22,6 +22,10 @@ export class AuthService {
 
   readonly currentUser = signal<AuthUser | null>(this.loadStoredUser());
   readonly isAuthenticated = computed(() => !!this.currentUser());
+  readonly isDemoSession = computed(() => {
+    const user = this.currentUser();
+    return user?.provider === 'DEMO' || user?.email === 'demo@deployops.io';
+  });
 
   register(payload: RegisterRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.authBaseUrl}/register`, payload).pipe(
@@ -39,6 +43,25 @@ export class AuthService {
     const payload: GoogleLoginRequest = { credential };
     return this.http.post<AuthResponse>(`${this.authBaseUrl}/google`, payload).pipe(
       tap((res) => this.persistSession(res))
+    );
+  }
+
+  loginAsDemo(): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.authBaseUrl}/demo`, {}).pipe(
+      tap((res) => this.persistSession(res)),
+      catchError(() => {
+        const fallbackDemo: AuthResponse = {
+          token: 'deployops_demo_token_session',
+          id: 99999,
+          name: 'Usuario Demo (SRE)',
+          email: 'demo@deployops.io',
+          role: 'ROLE_USER',
+          provider: 'DEMO',
+          publicSlug: 'demo-user'
+        };
+        this.persistSession(fallbackDemo);
+        return of(fallbackDemo);
+      })
     );
   }
 
@@ -64,6 +87,21 @@ export class AuthService {
       return of(null);
     }
 
+    if (this.isDemoSession() && token === 'deployops_demo_token_session') {
+      const user = this.currentUser();
+      if (user) {
+        return of({
+          token,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          provider: user.provider,
+          publicSlug: user.publicSlug
+        });
+      }
+    }
+
     return this.http.get<AuthResponse>(`${this.authBaseUrl}/me`).pipe(
       tap((res) => this.persistSession(res)),
       catchError(() => {
@@ -79,7 +117,8 @@ export class AuthService {
       name: response.name,
       email: response.email,
       role: response.role,
-      provider: response.provider
+      provider: response.provider,
+      publicSlug: response.publicSlug
     };
 
     if (typeof window !== 'undefined') {

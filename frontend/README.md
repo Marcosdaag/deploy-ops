@@ -1,59 +1,43 @@
-# Frontend
+# DeployOps - Frontend SPA
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.8.
+Cliente web de observabilidad de alta densidad y monitoreo en tiempo real desarrollado con **Angular 20.3** y **Three.js r187**.
 
-## Development server
+## Tecnologías y Arquitectura
 
-To start a local development server, run:
+- **Framework:** Angular 20.3 (arquitectura basada en componentes Standalone, Signals reactivas y sintaxis de flujo de control moderna `@if`, `@for`).
+- **Visualización 3D:** Three.js r187 con WebGL para el globo terráqueo de telemetría, mapeo geodésico de nodos, arcos de datos intercontinentales y física de rotación continua con inercia.
+- **Cartografía Vectorial:** Textura procedural de alta definición (4096 x 2048 px) basada en polígonos continentales de Natural Earth con trazo dual de resplandor.
+- **Estilos:** CSS puro modular con sistema de variables para modo oscuro y modo claro conmutables, alineado a estándares de accesibilidad WCAG 2.1 AA.
+- **Canal de Datos en Vivo:** Consumo reactivo de eventos Server-Sent Events (SSE) vía `/api/endpoints/stream`.
 
+## Requisitos
+
+- Node.js versión 20.x o 22.x LTS
+- npm versión 10 o superior
+
+## Comandos de Desarrollo
+
+### 1. Instalación de Dependencias
 ```bash
-ng serve
+npm install
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
+### 2. Servidor de Desarrollo
 ```bash
-ng generate component component-name
+npm start
+# O alternativamente:
+npx ng serve
+```
+El panel estará disponible en `http://localhost:4200`.
+
+### 3. Pruebas Unitarias Automatizadas
+Ejecución de las 33 pruebas unitarias con Jasmine y Karma en Chrome Headless:
+```bash
+npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
+### 4. Compilación de Producción
 ```bash
-ng generate --help
+npm run build
 ```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Genera los artefactos optimizados en el directorio `dist/frontend` con presupuestos estrictos de bundle y chunks diferidos.
