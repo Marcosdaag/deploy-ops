@@ -36,6 +36,18 @@
 
         @if (authService.isAuthenticated()) {
 
+          @if (authService.isDemoSession()) {
+
+            <span class="badge-demo-active" title="Sesión activa como usuario de demostración">
+
+              <span class="badge-demo-pulse"></span>
+
+              <span>Modo Demo</span>
+
+            </span>
+
+          }
+
           <a href="#monitor" class="topbar-link" (click)="scrollToSection($event, 'monitor')">Mis Endpoints</a>
 
         } @else {
@@ -151,6 +163,14 @@
           </div>
 
         } @else {
+
+          <button type="button" class="btn-topbar-demo" (click)="loginAsDemo()" title="Probar el dashboard en modo demo sin registrarte">
+
+            <span class="btn-demo-dot"></span>
+
+            <span>Probar Demo</span>
+
+          </button>
 
           <button type="button" class="btn-topbar-ghost" (click)="openAuthModal('LOGIN')">
 
@@ -420,6 +440,14 @@
 
                 </button>
 
+                <button type="button" class="btn-hero-demo btn-lg" (click)="loginAsDemo()" title="Explorar el dashboard interactivo de inmediato">
+
+                  <span class="demo-bullet">◈</span>
+
+                  <span>Probar como Usuario Demo</span>
+
+                </button>
+
                 <a href="#demostracion" class="btn-secondary-action btn-lg" (click)="scrollToSection($event, 'demostracion')">
 
                   <span>Ver Demostración en Vivo</span>
@@ -600,6 +628,28 @@
                 Supervisa la disponibilidad de tus microservicios y gestiona la guardia activa por correo.
 
               </p>
+
+              @if (authService.isDemoSession()) {
+
+                <div class="demo-session-banner">
+
+                  <div class="demo-banner-content">
+
+                    <span class="demo-badge-indicator font-mono">MODO DEMO ACTIVO</span>
+
+                    <span class="demo-banner-msg">
+
+                      Estás explorando DeployOps como usuario demo sin vincular cuentas externas. Puedes interactuar con la telemetría, registrar endpoints y probar pings en vivo.
+
+                    </span>
+
+                  </div>
+
+                  <button type="button" class="btn-demo-banner-exit" (click)="logout()">Salir de Demo</button>
+
+                </div>
+
+              }
 
             </div>
 
@@ -3320,6 +3370,34 @@
           </div>
 
         </form>
+
+        <div class="auth-demo-shortcut-box">
+
+          <div class="auth-demo-divider">
+
+            <span>o prueba la plataforma sin registrarte</span>
+
+          </div>
+
+          <button
+
+            type="button"
+
+            class="btn-auth-demo-action"
+
+            (click)="loginAsDemo()"
+
+            [disabled]="isAuthSubmitting()"
+
+          >
+
+            <span class="demo-sparkle">◈</span>
+
+            <span>Entrar como Usuario Demo (Acceso Inmediato)</span>
+
+          </button>
+
+        </div>
 
       </div>
 

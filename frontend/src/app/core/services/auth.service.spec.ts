@@ -60,6 +60,40 @@ describe('AuthService', () => {
     req.flush(mockResponse);
   });
 
+  it('debe permitir iniciar sesion en modo demo con backend', () => {
+    const demoResponse: AuthResponse = {
+      token: 'demo-jwt-backend',
+      id: 99,
+      name: 'Usuario Demo (SRE)',
+      email: 'demo@deployops.io',
+      role: 'ROLE_USER',
+      provider: 'LOCAL',
+      publicSlug: 'demo-user'
+    };
+
+    service.loginAsDemo().subscribe((res) => {
+      expect(res.email).toBe('demo@deployops.io');
+      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isDemoSession()).toBeTrue();
+    });
+
+    const req = httpTesting.expectOne(`${service.authBaseUrl}/demo`);
+    expect(req.request.method).toBe('POST');
+    req.flush(demoResponse);
+  });
+
+  it('debe iniciar sesion en modo demo con fallback local si el backend no responde', () => {
+    service.loginAsDemo().subscribe((res) => {
+      expect(res.email).toBe('demo@deployops.io');
+      expect(service.currentUser()?.name).toBe('Usuario Demo (SRE)');
+      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isDemoSession()).toBeTrue();
+    });
+
+    const req = httpTesting.expectOne(`${service.authBaseUrl}/demo`);
+    req.error(new ProgressEvent('Network error'));
+  });
+
   it('debe cerrar sesion limpiando localStorage y reseteando currentUser', () => {
     localStorage.setItem('deployops_auth_token', 'token');
     service.logout();

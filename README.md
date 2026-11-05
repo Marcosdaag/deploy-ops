@@ -11,7 +11,7 @@ Enlace a la aplicación en producción: [https://deployopsapp.vercel.app/](https
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions)](./.github/workflows/backend-ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-149_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
+[![Tests](https://img.shields.io/badge/Tests-152_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
 
 ---
 
@@ -46,6 +46,11 @@ Sistema de diseño conmutable de descanso visual inspirado en estándares de Git
 Diseño responsive de precisión verificado en pantallas móviles: colapso inteligente de navegación, adaptación de métricas, protección de ancho mínimo en tablas de telemetría y cero desbordamiento horizontal (`hasOverflow: false`).
 
 ![Adaptabilidad Móvil](./docs/screenshots/06_mobile_responsive_ledger.png)
+
+### 7. Modo Demo Interactivo sin Registro
+Acceso de prueba inmediato con rol de operador SRE para explorar el panel privado de control, interactuar con telemetría en tiempo real, añadir endpoints y probar pings sin necesidad de vincular cuentas externas ni registros previos.
+
+![Acceso Rápido y Panel Modo Demo](./docs/screenshots/09_panel_modo_demo_activo.png)
 
 ---
 
@@ -193,13 +198,13 @@ flowchart TD
 
 ## Cobertura de Pruebas y Calidad de Código
 
-El repositorio cuenta con una suite integral de **149 pruebas automatizadas** ejecutadas en entornos de integración continua:
+El repositorio cuenta con una suite integral de **152 pruebas automatizadas** ejecutadas en entornos de integración continua:
 
 | Módulo | Pruebas | Framework / Herramientas | Enfoque |
 | :--- | :--- | :--- | :--- |
-| **Backend Core** | 116 | JUnit 5, Mockito, MockMvc, H2 Database | Validación anti-SSRF (44 tests), transiciones de máquina de estados, cálculo de Uptime sin N+1, purga de logs, auditoría SSL y autenticación JWT |
-| **Frontend SPA** | 33 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, filtrado de estados, ordenamiento de telemetría, canvas WebGL 3D, drawers de inspección, servicios HTTP e interceptores |
-| **Total** | **149** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
+| **Backend Core** | 117 | JUnit 5, Mockito, MockMvc, H2 Database | Validación anti-SSRF (44 tests), transiciones de máquina de estados, cálculo de Uptime sin N+1, purga de logs, auditoría SSL y autenticación JWT (incluye modo demo) |
+| **Frontend SPA** | 35 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, filtrado de estados, ordenamiento de telemetría, canvas WebGL 3D, drawers de inspección, servicios HTTP, interceptores y modo demo |
+| **Total** | **152** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
 
 ---
 
@@ -332,7 +337,7 @@ docker compose up -d
 ```bash
 cd backend
 
-# Ejecutar las 116 pruebas unitarias y de integracion
+# Ejecutar las 117 pruebas unitarias y de integracion
 ./mvnw test
 
 # Iniciar la aplicacion
@@ -347,7 +352,7 @@ cd frontend
 # Instalar dependencias
 npm install
 
-# Ejecutar las 33 pruebas unitarias
+# Ejecutar las 35 pruebas unitarias
 npm test -- --watch=false --browsers=ChromeHeadless
 
 # Iniciar servidor de desarrollo

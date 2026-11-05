@@ -113,6 +113,24 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public AuthResponse loginAsDemo() {
+        String email = "demo@deployops.io";
+        UserEntity user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            user = new UserEntity();
+            user.setName("Usuario Demo (SRE)");
+            user.setEmail(email);
+            user.setProvider(AuthProvider.LOCAL);
+            user.setRole(UserRole.ROLE_USER);
+            user.setCreatedAt(LocalDateTime.now());
+            user.setPublicSlug("demo-user");
+            user = userRepository.save(user);
+        }
+        String token = jwtService.generateToken(user);
+        return new AuthResponse(token, user);
+    }
+
     public String generateUniqueSlug(String name) {
         String base = (name == null || name.isBlank())
                 ? "dev"
