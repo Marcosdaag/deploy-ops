@@ -45,8 +45,6 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
   readonly isAutoRotating = signal<boolean>(true);
   readonly isPulseActive = signal<boolean>(false);
-  readonly hoveredNodeName = signal<string | null>(null);
-  readonly liveFps = signal<number>(60);
 
   // Three.js Core Objects
   private renderer: THREE.WebGLRenderer | null = null;
@@ -65,9 +63,11 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
   private shockwaveRing: THREE.Mesh | null = null;
   private telemetryNodes: TelemetryPoint[] = [];
 
-  // Interaction State
-  private targetRotationX = 0;
-  private targetRotationY = 0;
+  // Interaction & Inertia Model
+  private rotationX = 0.15;
+  private rotationY = 0;
+  private velocityX = 0;
+  private velocityY = 0;
   private isDragging = false;
   private previousMousePosition = { x: 0, y: 0 };
   private shockwaveScale = 0;
@@ -111,6 +111,8 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
     // 3. Globe Master Group
     this.globeGroup = new THREE.Group();
+    this.globeGroup.rotation.x = this.rotationX;
+    this.globeGroup.rotation.y = this.rotationY;
     this.scene.add(this.globeGroup);
 
     // 4. Wireframe Outer Geodesic Sphere
@@ -322,16 +324,21 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
     this.animationFrameId = requestAnimationFrame(this.animate);
 
     if (this.globeGroup) {
-      // Auto-rotation when active
-      if (this.isAutoRotating() && !this.isDragging) {
-        this.globeGroup.rotation.y += 0.0035;
+      if (!this.isDragging) {
+        // Apply inertia rotation with friction
+        this.rotationX += this.velocityX;
+        this.rotationY += this.velocityY;
+        this.velocityX *= 0.92;
+        this.velocityY *= 0.92;
+
+        // Auto-rotation advances continuously from current angle
+        if (this.isAutoRotating()) {
+          this.rotationY += 0.003;
+        }
       }
 
-      // Smooth damping interpolation toward target mouse rotation
-      this.globeGroup.rotation.x += (this.targetRotationX - this.globeGroup.rotation.x) * 0.06;
-      if (!this.isAutoRotating() || this.isDragging) {
-        this.globeGroup.rotation.y += (this.targetRotationY - this.globeGroup.rotation.y) * 0.06;
-      }
+      this.globeGroup.rotation.x = this.rotationX;
+      this.globeGroup.rotation.y = this.rotationY;
     }
 
     // Rotate Orbital Rings & Satellites
@@ -383,7 +390,6 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       (this.shockwaveRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
     }
 
-    // Node flash
     this.telemetryNodes.forEach((node) => {
       node.ringScale = 0.1;
     });
@@ -399,27 +405,23 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
 
   // Pointer Interaction Handlers
   onPointerMove(event: MouseEvent): void {
-    const rect = this.containerRef.nativeElement.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-
     if (this.isDragging) {
       const deltaX = event.clientX - this.previousMousePosition.x;
       const deltaY = event.clientY - this.previousMousePosition.y;
-      this.targetRotationY += deltaX * 0.012;
-      this.targetRotationX += deltaY * 0.012;
+      this.velocityY = deltaX * 0.006;
+      this.velocityX = deltaY * 0.006;
+      this.rotationY += this.velocityY;
+      this.rotationX += this.velocityX;
+      // Clamp vertical tilt to avoid flipping
+      this.rotationX = Math.max(-1.3, Math.min(1.3, this.rotationX));
       this.previousMousePosition = { x: event.clientX, y: event.clientY };
-    } else {
-      // Subtle tilt based on cursor coordinates
-      this.targetRotationX = y * 0.35;
-      if (!this.isAutoRotating()) {
-        this.targetRotationY = x * 0.5;
-      }
     }
   }
 
   onPointerDown(event: MouseEvent): void {
     this.isDragging = true;
+    this.velocityX = 0;
+    this.velocityY = 0;
     this.previousMousePosition = { x: event.clientX, y: event.clientY };
   }
 

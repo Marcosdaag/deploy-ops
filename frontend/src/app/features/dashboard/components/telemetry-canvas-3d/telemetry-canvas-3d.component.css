@@ -39,7 +39,7 @@
 }
 
 /* ==========================================================================
-   HUD Superior (Status + FPS)
+   HUD Superior (Status)
    ========================================================================== */
 .hud-top-bar {
   position: absolute;
@@ -48,7 +48,7 @@
   right: 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   pointer-events: none;
   z-index: 10;
 }
@@ -89,59 +89,6 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--text-primary);
-}
-
-.hud-fps-pill {
-  font-size: 10px;
-  color: var(--text-muted);
-  padding: 4px 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  box-shadow: var(--shadow-subtle);
-}
-
-/* ==========================================================================
-   HUD Métricas Flotantes
-   ========================================================================== */
-.hud-stats-overlay {
-  position: absolute;
-  top: 56px;
-  left: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.hud-stat-box {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  padding: 7px 12px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-shadow: var(--shadow-subtle);
-}
-
-.hud-stat-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.hud-stat-val {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.hud-stat-val.text-healthy {
-  color: var(--status-healthy);
 }
 
 /* ==========================================================================
@@ -226,8 +173,5 @@
   .telemetry-3d-wrap {
     height: 380px;
     min-height: 360px;
-  }
-  .hud-stats-overlay {
-    display: none;
   }
 }

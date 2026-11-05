@@ -1,1912 +1,3834 @@
-<div class="landing-canvas">
-  <!-- Capas de Profundidad Atmosférica y Grid de Ingeniería -->
-  <div class="ambient-glow ambient-glow-top" aria-hidden="true"></div>
-  <div class="ambient-glow ambient-glow-left" aria-hidden="true"></div>
-  <div class="ambient-glow ambient-glow-right" aria-hidden="true"></div>
-  <div class="ambient-grid-overlay" aria-hidden="true"></div>
-  <!-- Barra de navegacion superior fija -->
-  <header class="topbar-fixed" [class.topbar-scrolled]="isScrolled()">
-    <div class="topbar-inner">
-      <div class="brand-group">
-        <a href="#" class="brand-cluster" (click)="scrollToTop($event)">
-          <img
-            src="deployops-icon.png"
-            alt="DeployOps"
-            class="brand-icon-img"
-            width="28"
-            height="28"
-          />
-          <span class="brand-wordmark">DeployOps</span>
-        </a>
-      </div>
-
-      <nav class="topbar-nav" aria-label="Navegación principal">
-        @if (authService.isAuthenticated()) {
-          <a href="#monitor" class="topbar-link" (click)="scrollToSection($event, 'monitor')">Mis Endpoints</a>
-        } @else {
-          <a href="#demostracion" class="topbar-link" (click)="scrollToSection($event, 'demostracion')">Demostración SRE</a>
-        }
-        <a href="#arquitectura" class="topbar-link" (click)="scrollToSection($event, 'arquitectura')">Pipeline &amp; Arquitectura</a>
-        <a href="#api-publica" class="topbar-link" (click)="scrollToSection($event, 'api-publica')">API Pública</a>
-      </nav>
-
-      <div class="topbar-actions">
-        <div
-          class="api-status-badge"
-          [class.api-status-connecting]="!lastSyncedAt()"
-          [title]="lastSyncedAt() ? 'Conectado en tiempo real con el backend en Render' : 'Conectando con Render...'"
-        >
-          <span class="status-dot-live"></span>
-          <span class="status-live-text">{{ lastSyncedAt() ? 'En línea' : 'Conectando...' }}</span>
-        </div>
-
-        @if (authService.isAuthenticated()) {
-          <a
-            [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']"
-            target="_blank"
-            class="btn-status-nav"
-            title="Abrir Status Page Pública en nueva pestaña"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-            <span>Status Page</span>
-          </a>
-
-          <div class="user-profile-menu">
-            <button
-              type="button"
-              class="user-btn-trigger"
-              (click)="openProfileModal()"
-              [title]="'Perfil de ' + (authService.currentUser()?.email || '')"
-            >
-              <span class="user-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</span>
-              <span class="user-display-name">{{ authService.currentUser()?.name }}</span>
-            </button>
-            <button
-              type="button"
-              class="btn-quick-logout"
-              (click)="logout()"
-              title="Cerrar sesión"
-              aria-label="Cerrar sesión"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        } @else {
-          <button type="button" class="btn-topbar-ghost" (click)="openAuthModal('LOGIN')">
-            Iniciar Sesión
-          </button>
-          <button type="button" class="btn-primary-action btn-sm" (click)="openAuthModal('REGISTER')">
-            Crear Cuenta Gratis
-          </button>
-        }
-
-        <button
-          type="button"
-          class="theme-toggle-btn"
-          (click)="toggleTheme()"
-          [title]="theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-          aria-label="Alternar tema claro y oscuro"
-        >
-          @if (theme() === 'dark') {
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" />
-              <line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-          } @else {
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          }
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <main class="dashboard-main-content">
-    <div class="content-container">
-
-      <!-- ===================================================================
-           CASO 1: VISITANTE NO AUTENTICADO (HERO MINIMALISTA + METRICAS GLOBALES)
-           =================================================================== -->
-      @if (!authService.isAuthenticated()) {
-        <!-- Hero SRE de Alta Precisión con Mesh 3D Interactiva -->
-        <section class="landing-hero-sre">
-          <div class="hero-two-column-layout">
-            <div class="hero-text-column">
-              <div class="hero-badge-strip">
-                <span class="badge-dot-live"></span>
-                <span class="badge-engine-text">DeployOps Engine v1.0 · Clúster Activo en Render</span>
-                <span class="badge-tag-mesh font-mono">3D MESH LIVE</span>
-              </div>
-
-              <h1 class="landing-main-title">
-                Vigilancia continua y observabilidad proactiva para tus servicios.
-              </h1>
-
-              <p class="landing-lead-text">
-                Supervisa la disponibilidad de tus APIs y sitios web cada 60 segundos con Virtual Threads de Java 21, mitigación de flapping sin falsas alarmas y Status Page pública en tiempo real.
-              </p>
-
-              <!-- Strip de Salud Global (4 Métricas Ejecutivas con Iconos Vectoriales) -->
-              <div class="hero-metrics-strip">
-                <div class="hms-item">
-                  <div class="hms-label">
-                    <div class="hms-icon-wrap icon-uptime">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                      </svg>
-                    </div>
-                    <span>Uptime Global</span>
-                  </div>
-                  <div class="hms-val tabular-nums text-healthy">
-                    {{ metrics().globalUptime | number: '1.2-2' }}%
-                  </div>
-                  <div class="hms-sub">Promedio móvil (30d)</div>
-                </div>
-
-                <div class="hms-item">
-                  <div class="hms-label">
-                    <div class="hms-icon-wrap icon-latency">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                    </div>
-                    <span>Latencia Media</span>
-                  </div>
-                  <div class="hms-val tabular-nums">
-                    {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '65 ms' }}
-                  </div>
-                  <div class="hms-sub">Tiempo respuesta p95</div>
-                </div>
-
-                <div class="hms-item">
-                  <div class="hms-label">
-                    <div class="hms-icon-wrap icon-network">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                        <line x1="6" y1="6" x2="6.01" y2="6"/>
-                        <line x1="6" y1="18" x2="6.01" y2="18"/>
-                      </svg>
-                    </div>
-                    <span>Red de Clúster</span>
-                  </div>
-                  <div class="hms-val" [class.text-healthy]="metrics().down + metrics().degraded === 0" [class.text-danger]="metrics().down + metrics().degraded > 0">
-                    {{ metrics().down + metrics().degraded === 0 ? '100% Operativo' : (metrics().down + metrics().degraded) + ' en alerta' }}
-                  </div>
-                  <div class="hms-sub">{{ metrics().healthy }} servicios activos</div>
-                </div>
-
-                <div class="hms-item">
-                  <div class="hms-label">
-                    <div class="hms-icon-wrap icon-freq">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                      </svg>
-                    </div>
-                    <span>Frecuencia Sondeo</span>
-                  </div>
-                  <div class="hms-val tabular-nums font-mono">
-                    60 seg
-                  </div>
-                  <div class="hms-sub">Virtual Threads automáticos</div>
-                </div>
-              </div>
-
-              <div class="landing-cta-row">
-                <button type="button" class="btn-primary-action btn-lg" (click)="openAuthModal('REGISTER')">
-                  <span>Comenzar Monitoreo Gratis</span>
-                  <span class="arrow-shift">→</span>
-                </button>
-                <a href="#demostracion" class="btn-secondary-action btn-lg" (click)="scrollToSection($event, 'demostracion')">
-                  <span>Ver Demostración en Vivo</span>
-                </a>
-              </div>
-            </div>
-
-            <!-- Columna 3D Interactiva Three.js -->
-            <div class="hero-3d-column">
-              <app-telemetry-canvas-3d
-                [theme]="theme()"
-                [uptime]="metrics().globalUptime"
-                [latency]="metrics().averageLatencyMs || 65"
-              ></app-telemetry-canvas-3d>
-            </div>
-          </div>
-        </section>
-
-        <!-- Demostración en Vivo: SRE Data Table -->
-        <section class="demo-showcase-section" id="demostracion">
-          <div class="demo-header-bar">
-            <div>
-              <span class="section-tag">DEMOSTRACIÓN EN VIVO</span>
-              <h2 class="demo-title">Supervisión en tiempo real de servicios</h2>
-              <p class="demo-subtitle">
-                Telemetría y disponibilidad auditadas cada 60 segundos directamente desde nuestro clúster:
-              </p>
-            </div>
-            <div class="demo-sync-pill tabular-nums">
-              <span class="status-indicator-dot dot-healthy"></span>
-              <span>Sondeo cada 60s · SLA de 30 días</span>
-            </div>
-          </div>
-
-          <!-- SRE Data Table para la Demostracion -->
-          <div class="sre-table-container">
-            <table class="sre-table" aria-label="Tabla de servicios monitoreados en demostración">
-              <thead>
-                <tr>
-                  <th class="th-service">Servicio / Endpoint</th>
-                  <th class="th-status">Estado</th>
-                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
-                  <th class="th-latency">Latencia</th>
-                  <th class="th-pulse">Último Pulso</th>
-                  <th class="th-actions text-right">Telemetría</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (ep of featuredPair(); track ep.id) {
-                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
-                    <td class="td-service">
-                      <div class="service-identity-cell">
-                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
-                        <div class="service-text-group">
-                          <div class="service-name-line">
-                            <span class="service-name">{{ ep.name }}</span>
-                            @if (ep.sslDaysRemaining) {
-                              <span class="badge-ssl-pill" [class.ssl-warning]="ep.sslDaysRemaining <= 14" [class.ssl-healthy]="ep.sslDaysRemaining > 14">
-                                SSL {{ ep.sslDaysRemaining }}d
-                              </span>
-                            }
-                          </div>
-                          <div class="service-url-line">
-                            <span class="service-url font-mono">{{ ep.url }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="td-status">
-                      <span [class]="getStatusClass(ep.status)">{{ getStatusLabel(ep.status) }}</span>
-                    </td>
-                    <td class="td-sla">
-                      <div class="sla-cell-group">
-                        <span class="sla-percentage tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
-                        <div class="rhythm-track" title="Historial de disponibilidad diaria">
-                          @for (seg of getUptimeSegments(ep); track $index) {
-                            <span class="rhythm-bar" [ngClass]="seg"></span>
-                          }
-                        </div>
-                      </div>
-                    </td>
-                    <td class="td-latency">
-                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
-                        {{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}
-                      </span>
-                    </td>
-                    <td class="td-pulse">
-                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
-                    </td>
-                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
-                      <button type="button" class="btn-table-inspect" (click)="openInspector(ep)" title="Ver telemetría detallada">
-                        <span>Métricas</span>
-                        <span class="arrow-shift">→</span>
-                      </button>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <div class="demo-invite-banner">
-            <div class="dib-content">
-              <div class="dib-badge font-mono">REGISTRO PRIVADO</div>
-              <div class="dib-text-group">
-                <strong>¿Quieres supervisar tus propias APIs y servicios?</strong>
-                <p>Crea tu cuenta gratuita para registrar endpoints privados, configurar alertas de guardia y publicar tu propia Status Page con slug personalizado.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-primary-action" (click)="openAuthModal('REGISTER')">
-              Crear Cuenta Gratis
-            </button>
-          </div>
-        </section>
-      }
-
-      <!-- ===================================================================
-           CASO 2: USUARIO AUTENTICADO (PANEL PRIVADO DE CONTROL Y MONITOREO)
-           =================================================================== -->
-      @if (authService.isAuthenticated()) {
-        <section class="overview-section" id="monitor">
-          <div class="overview-header-row">
-            <div>
-              <div class="header-breadcrumbs">
-                <span class="crumb-root">DeployOps</span>
-                <span class="crumb-separator">/</span>
-                <span class="crumb-current">Panel de Monitoreo Privado</span>
-              </div>
-              <h1 class="overview-title">
-                Mis Servicios Monitoreados
-              </h1>
-              <p class="overview-subtitle">
-                Supervisa la disponibilidad de tus microservicios y gestiona la guardia activa por correo.
-              </p>
-            </div>
-
-            <div class="overview-header-actions">
-              <button
-                type="submit"
-                class="btn-primary-action btn-add-endpoint"
-                (click)="openCreateModal()"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Agregar Endpoint</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 4 KPIs Ejecutivos -->
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-card-head">
-                <span class="kpi-title">Disponibilidad (30d)</span>
-                <span class="kpi-badge kpi-badge-healthy">SLA</span>
-              </div>
-              <div class="kpi-number tabular-nums">
-                {{ metrics().globalUptime | number: '1.2-2' }}%
-              </div>
-              <div class="kpi-foot">
-                <span>Promedio móvil de 30 días</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-card-head">
-                <span class="kpi-title">Endpoints Activos</span>
-                <span class="kpi-badge kpi-badge-info">{{ myEndpointsCount() }} Míos</span>
-              </div>
-              <div class="kpi-number tabular-nums">
-                <span class="text-healthy">{{ metrics().healthy }}</span>
-                <span class="kpi-number-divider">/</span>
-                <span class="kpi-number-total">{{ metrics().total }}</span>
-              </div>
-              <div class="kpi-foot">
-                <span>{{ metrics().down + metrics().degraded }} en alerta</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-card-head">
-                <span class="kpi-title">Latencia Media</span>
-                <span class="kpi-badge kpi-badge-neutral">HTTP</span>
-              </div>
-              <div class="kpi-number tabular-nums">
-                {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '—' }}
-              </div>
-              <div class="kpi-foot">
-                <span>Tiempo de respuesta de red</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-card-head">
-                <span class="kpi-title">Frecuencia de Sondeo</span>
-                <span class="kpi-badge kpi-badge-neutral">60 seg</span>
-              </div>
-              <div class="kpi-number tabular-nums font-mono">
-                Automático
-              </div>
-              <div class="kpi-foot">
-                <span>Alertas ante 3 fallos seguidos</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Barra de Control y Lista de Endpoints en SRE Table -->
-        <section class="endpoints-section">
-          <div class="ledger-control-bar">
-            <div class="lcb-left">
-              <div class="scope-toggle-group">
-                <button
-                  type="button"
-                  class="scope-chip"
-                  [class.active]="activeScope() === 'mine'"
-                  (click)="switchScope('mine')"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                  <span>Mis Endpoints</span>
-                  <span class="scope-count tabular-nums">{{ myEndpointsCount() }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="scope-chip"
-                  [class.active]="activeScope() === 'showcase'"
-                  (click)="switchScope('showcase')"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  <span>Showcase Demo</span>
-                </button>
-              </div>
-
-              <div class="filter-tabs-group" role="tablist">
-                <button
-                  type="button"
-                  class="filter-tab"
-                  [class.active]="statusFilter() === 'ALL'"
-                  (click)="statusFilter.set('ALL')"
-                >
-                  <span>Todos</span>
-                  <span class="tab-count tabular-nums">{{ metrics().total }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="filter-tab"
-                  [class.active]="statusFilter() === 'HEALTHY'"
-                  (click)="statusFilter.set('HEALTHY')"
-                >
-                  <span class="tab-dot dot-healthy"></span>
-                  <span>Operativos</span>
-                  <span class="tab-count tabular-nums">{{ metrics().healthy }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="filter-tab"
-                  [class.active]="statusFilter() === 'ALERT'"
-                  (click)="statusFilter.set('ALERT')"
-                >
-                  <span class="tab-dot dot-down"></span>
-                  <span>En Alerta</span>
-                  <span class="tab-count tabular-nums">{{ metrics().down + metrics().degraded }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="filter-tab"
-                  [class.active]="statusFilter() === 'PENDING'"
-                  (click)="statusFilter.set('PENDING')"
-                >
-                  <span class="tab-dot dot-pending"></span>
-                  <span>En Espera</span>
-                  <span class="tab-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="lcb-right">
-              <div class="search-input-wrapper">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  class="search-input"
-                  placeholder="Buscar servicio..."
-                  [ngModel]="searchQuery()"
-                  (ngModelChange)="searchQuery.set($event)"
-                />
-              </div>
-
-              <div class="sort-select-wrapper">
-                <select
-                  [ngModel]="sortBy()"
-                  (ngModelChange)="sortBy.set($event)"
-                  class="sort-select"
-                  title="Criterio de ordenamiento"
-                >
-                  <option value="DEFAULT">Ordenar: Recientes</option>
-                  <option value="LATENCY_ASC">Latencia: Menor primero</option>
-                  <option value="LATENCY_DESC">Latencia: Mayor primero</option>
-                  <option value="UPTIME_ASC">SLA: Menor primero</option>
-                  <option value="NAME_ASC">Nombre (A-Z)</option>
-                </select>
-              </div>
-
-              <button
-                type="button"
-                class="btn-tool-action"
-                [class.active]="desktopNotificationsEnabled()"
-                (click)="toggleDesktopNotifications()"
-                [title]="desktopNotificationsEnabled() ? 'Alertas sonoras activadas' : 'Activar alertas sonoras'"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                @if (desktopNotificationsEnabled()) {
-                  <span class="badge-dot-active"></span>
-                }
-              </button>
-
-              <button
-                type="button"
-                class="btn-tool-action"
-                (click)="syncWithPublicApi()"
-                [disabled]="isSyncing()"
-                title="Sincronizar telemetría ahora"
-              >
-                <svg
-                  [class.spin]="isSyncing()"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                  <path d="M16 16h5v5" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- SRE Data Table para Usuarios Autenticados -->
-          <div class="sre-table-container">
-            <table class="sre-table" aria-label="Tabla de mis microservicios monitoreados">
-              <thead>
-                <tr>
-                  <th class="th-service">Servicio / Endpoint</th>
-                  <th class="th-status">Estado</th>
-                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
-                  <th class="th-latency">Latencia</th>
-                  <th class="th-pulse">Último Pulso</th>
-                  <th class="th-actions text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (ep of filteredEndpoints(); track ep.id) {
-                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
-                    <td class="td-service">
-                      <div class="service-identity-cell">
-                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
-                        <div class="service-text-group">
-                          <div class="service-name-line">
-                            <span class="service-name">{{ ep.name }}</span>
-                            @if (ep.isOwner) {
-                              <span class="badge-owner">Mío</span>
-                            } @else if (ep.isProtected) {
-                              <span class="badge-demo">Demo</span>
-                            }
-                            @if (ep.sslDaysRemaining !== null && ep.sslDaysRemaining !== undefined) {
-                              <span
-                                class="badge-ssl-pill"
-                                [class.ssl-warning]="ep.sslDaysRemaining <= 14"
-                                [class.ssl-healthy]="ep.sslDaysRemaining > 14"
-                              >
-                                SSL {{ ep.sslDaysRemaining }}d
-                              </span>
-                            }
-                          </div>
-                          <div class="service-url-line">
-                            <a
-                              [href]="ep.url"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="service-url font-mono"
-                              (click)="$event.stopPropagation()"
-                              title="Abrir URL"
-                            >
-                              <span>{{ ep.url }}</span>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                <polyline points="15 3 21 3 21 9"></polyline>
-                                <line x1="10" y1="14" x2="21" y2="3"></line>
-                              </svg>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="td-status">
-                      <span [class]="getStatusClass(ep.status)">
-                        {{ getStatusLabel(ep.status) }}
-                      </span>
-                    </td>
-                    <td class="td-sla">
-                      <div class="sla-cell-group">
-                        <span class="sla-percentage tabular-nums">
-                          {{ ep.status === 'PENDING' ? 'En espera' : (ep.uptimePercentage | number: '1.2-2') + '%' }}
-                        </span>
-                        <div class="rhythm-track">
-                          @for (seg of getUptimeSegments(ep); track $index) {
-                            <span class="rhythm-bar" [ngClass]="seg"></span>
-                          }
-                        </div>
-                      </div>
-                    </td>
-                    <td class="td-latency">
-                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
-                        {{ ep.lastResponseTimeMs !== null && ep.status !== 'PENDING' && ep.status !== 'DOWN' ? ep.lastResponseTimeMs + ' ms' : '—' }}
-                      </span>
-                    </td>
-                    <td class="td-pulse">
-                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
-                    </td>
-                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
-                      <div class="table-actions-strip">
-                        <button
-                          type="button"
-                          class="btn-table-icon"
-                          (click)="triggerManualPing(ep, $event)"
-                          title="Ejecutar comprobación inmediata"
-                          [disabled]="isTriggeringPing()"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                          </svg>
-                        </button>
-
-                        @if (ep.isOwner || (!ep.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
-                          <button
-                            type="button"
-                            class="btn-table-icon"
-                            (click)="openEditModal(ep, $event)"
-                            title="Editar configuración"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
-
-                          <button
-                            type="button"
-                            class="btn-table-icon btn-action-delete"
-                            (click)="confirmDelete(ep, $event)"
-                            title="Eliminar servicio"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        } @else {
-                          <span class="badge-locked-demo" title="Endpoint protegido contra eliminación">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                          </span>
-                        }
-
-                        <button
-                          type="button"
-                          class="btn-table-inspect"
-                          (click)="openInspector(ep)"
-                          title="Ver telemetría detallada"
-                        >
-                          <span>Métricas</span>
-                          <span class="arrow-shift">→</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="6">
-                      <div class="empty-state-panel">
-                        <div class="empty-icon-box">
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                        </div>
-                        <h4 class="empty-title">Aún no tienes endpoints registrados en tu cuenta</h4>
-                        <p class="empty-desc">
-                          Comienza agregando la URL de tu primer microservicio o carga 3 servicios de demostración para probar el sistema.
-                        </p>
-                        <div class="empty-btn-group">
-                          <button type="button" class="btn-primary-action" (click)="openCreateModal()">
-                            + Agregar mi primer endpoint
-                          </button>
-                          <button type="button" class="btn-secondary-action" (click)="seedSampleEndpoints()" [disabled]="isSyncing()">
-                            Cargar 3 ejemplos
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </section>
-      }
-
-      <!-- ===================================================================
-           DIAGRAMA DE PIPELINE DE DATOS INTERACTIVO CON STEPPER Y SIMULADOR
-           =================================================================== -->
-      <section class="section-card" id="arquitectura">
-        <div class="section-card-header">
-          <div>
-            <span class="section-tag">ARQUITECTURA DE PRODUCCIÓN</span>
-            <h2 class="section-heading">Pipeline de Datos &amp; Motor de Concurrencia</h2>
-            <p class="section-subtext">
-              Recorrido interactivo de cada comprobación de salud desde el planificador de Java 21 hasta los Signals reactivos de Angular 20:
-            </p>
-          </div>
-
-          <!-- Controles de Navegación y Simulación del Pipeline -->
-          <div class="pipeline-controls-strip">
-            <button
-              type="button"
-              class="btn-pipeline-nav"
-              (click)="prevPipelineStep()"
-              title="Etapa anterior"
-              aria-label="Etapa anterior del pipeline"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              <span>Anterior</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-pipeline-sim"
-              [class.simulating]="isSimulatingPipeline()"
-              (click)="simulatePipelineRun()"
-              title="Simular el flujo completo de una comprobación a través de las 5 etapas"
-            >
-              @if (isSimulatingPipeline()) {
-                <span class="pulse-beam-dot"></span>
-                <span>Pausar Simulación</span>
-              } @else {
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Simular Recorrido de Ping</span>
-              }
-            </button>
-
-            <button
-              type="button"
-              class="btn-pipeline-nav"
-              (click)="nextPipelineStep()"
-              title="Siguiente etapa"
-              aria-label="Siguiente etapa del pipeline"
-            >
-              <span>Siguiente</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="pipeline-explorer">
-          <!-- Barra de Progreso Visual de las 5 Etapas -->
-          <div class="pipeline-progress-rail">
-            <div
-              class="pipeline-progress-indicator"
-              [style.width.%]="(activePipelineStep() - 1) * 25"
-            ></div>
-          </div>
-
-          <!-- Barra interactiva de etapas del pipeline con iconos tecnicos y cero overflow -->
-          <div class="pipeline-track" role="tablist" aria-label="Etapas del pipeline de datos">
-            @for (st of pipelineSteps; track st.step) {
-              <button
-                type="button"
-                class="pipeline-node-btn"
-                [class.active]="activePipelineStep() === st.step"
-                (click)="setPipelineStep(st.step)"
-                role="tab"
-                [attr.aria-selected]="activePipelineStep() === st.step"
-              >
-                <div class="node-step-header">
-                  <div class="node-icon-wrap">
-                    @if (st.step === 1) {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="4" y="4" width="16" height="16" rx="2"/>
-                        <rect x="9" y="9" width="6" height="6"/>
-                        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
-                        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
-                        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
-                        <line x1="1" y1="9" x2="4" y1="9"/><line x1="1" y1="14" x2="4" y1="14"/>
-                      </svg>
-                    } @else if (st.step === 2) {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                      </svg>
-                    } @else if (st.step === 3) {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
-                        <path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/>
-                      </svg>
-                    } @else if (st.step === 4) {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                      </svg>
-                    } @else {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                      </svg>
-                    }
-                    <span class="node-step-badge">0{{ st.step }}</span>
-                  </div>
-                  <span class="node-tag-pill">{{ st.tag }}</span>
-                </div>
-                <div class="node-title">{{ st.name }}</div>
-                <div class="node-runtime font-mono">{{ st.runtime }}</div>
-              </button>
-            }
-          </div>
-
-          <!-- Panel de inspeccion de la etapa activa -->
-          @for (st of pipelineSteps; track st.step) {
-            @if (activePipelineStep() === st.step) {
-              <div class="pipeline-detail-card" role="tabpanel">
-                <div class="pd-info-col">
-                  <div class="pd-meta-row">
-                    <span class="node-step-badge">ETAPA 0{{ st.step }}</span>
-                    <span class="node-tag-pill">{{ st.tag }}</span>
-                    <span class="pd-runtime-chip font-mono">{{ st.runtime }}</span>
-                  </div>
-                  <h3 class="pd-heading">{{ st.name }}</h3>
-                  <p class="pd-summary">{{ st.summary }}</p>
-                  <div class="pd-metric-strip">
-                    <span class="pd-metric-label">Métrica de Ingeniería:</span>
-                    <span class="pd-metric-value font-mono">{{ st.metrics }}</span>
-                  </div>
-                </div>
-                <div class="pd-code-col">
-                  <div class="code-box-head">
-                    <span class="font-mono">Implementación de Producción</span>
-                    <button
-                      type="button"
-                      class="btn-code-copy"
-                      (click)="copyText(st.codeSnippet, 'Código de etapa copiado')"
-                    >
-                      Copiar Código
-                    </button>
-                  </div>
-                  <pre class="pipeline-code font-mono">{{ st.codeSnippet }}</pre>
-                </div>
-              </div>
-            }
-          }
-        </div>
-      </section>
-
-      <!-- ===================================================================
-           API REST PÚBLICA & CONSOLA cURL
-           =================================================================== -->
-      <section class="section-card" id="api-publica">
-        <div class="section-card-header">
-          <div>
-            <span class="section-tag">DESARROLLADORES</span>
-            <h2 class="section-heading">API REST Pública &amp; Consola cURL</h2>
-            <p class="section-subtext">
-              Backend alojado en Render con CORS abierto. Consulta el estado del motor desde cualquier terminal o aplicación.
-            </p>
-          </div>
-          <div class="api-url-chip font-mono">
-            <span>{{ endpointService.publicApiUrl }}</span>
-            <button
-              type="button"
-              class="btn-copy-chip"
-              (click)="copyText(endpointService.publicApiUrl, 'URL copiada al portapapeles')"
-              title="Copiar URL"
-            >
-              Copiar
-            </button>
-          </div>
-        </div>
-
-        <div class="api-console-split">
-          <div class="console-left">
-            <div class="console-method-tabs">
-              <button
-                type="button"
-                class="c-tab"
-                [class.active]="activeApiTab() === 'GET'"
-                (click)="activeApiTab.set('GET')"
-              >
-                <span class="badge-method-get">GET</span>
-                <span>/api/endpoints</span>
-              </button>
-              <button
-                type="button"
-                class="c-tab"
-                [class.active]="activeApiTab() === 'POST'"
-                (click)="activeApiTab.set('POST')"
-              >
-                <span class="badge-method-post">POST</span>
-                <span>/api/endpoints</span>
-              </button>
-              <button
-                type="button"
-                class="c-tab"
-                [class.active]="activeApiTab() === 'DELETE'"
-                (click)="activeApiTab.set('DELETE')"
-              >
-                <span class="badge-method-del">DELETE</span>
-                <span>/api/endpoints/&#123;id&#125;</span>
-              </button>
-            </div>
-
-            <div class="code-box">
-              <div class="code-box-head">
-                <span>Comando cURL</span>
-                <button
-                  type="button"
-                  class="btn-code-copy"
-                  (click)="copyText(getCurlSnippet(activeApiTab()), 'Comando cURL copiado')"
-                >
-                  Copiar comando
-                </button>
-              </div>
-              <pre class="code-content font-mono">{{ getCurlSnippet(activeApiTab()) }}</pre>
-            </div>
-
-            <button
-              type="button"
-              class="btn-primary-action w-100"
-              (click)="triggerPublicApiTest()"
-              [disabled]="isTestingPublicApi()"
-            >
-              @if (isTestingPublicApi()) {
-                <span class="spinner-inline"></span>
-                <span>Consultando servidor...</span>
-              } @else {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Ejecutar consulta en vivo</span>
-              }
-            </button>
-          </div>
-
-          <div class="console-right" [class.panel-refreshed]="apiPulseActive()">
-            <div class="code-box-head">
-              <div class="resp-status-line">
-                <span class="status-indicator-dot dot-healthy"></span>
-                <span class="resp-code">200 OK</span>
-                @if (apiLastLatencyMs() !== null) {
-                  <span class="resp-latency tabular-nums">· {{ apiLastLatencyMs() }} ms</span>
-                }
-              </div>
-              <button
-                type="button"
-                class="btn-code-copy"
-                (click)="copyText(liveJsonOutput(), 'JSON copiado al portapapeles')"
-              >
-                Copiar JSON
-              </button>
-            </div>
-            <pre class="json-content font-mono">{{ liveJsonOutput() || 'Conectando con Render...' }}</pre>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  </main>
-
-
-
-  <!-- Footer -->
-  <footer class="app-footer">
-    <div class="footer-container">
-      <div class="footer-left">
-        <div class="footer-brand">
-          <img src="deployops-icon.png" alt="DeployOps" width="22" height="22" class="footer-logo-img" />
-          <span class="footer-brand-text">DeployOps</span>
-        </div>
-        <p class="footer-summary">
-          Plataforma de monitoreo de disponibilidad HTTP y auditoría SLA en tiempo real.
-        </p>
-      </div>
-
-      <div class="footer-stack tabular-nums">
-        <span>Java 21</span>
-        <span class="dot">·</span>
-        <span>Spring Boot</span>
-        <span class="dot">·</span>
-        <span>Angular 20</span>
-        <span class="dot">·</span>
-        <span>PostgreSQL</span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Modal para Agregar Nuevo Endpoint (Limpio y Centrado para Usuarios Autenticados) -->
-  @if (isCreateModalOpen()) {
-    <div class="modal-backdrop" (click)="closeCreateModal()">
-      <div class="modal-dialog-box create-endpoint-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3 class="modal-title">+ Monitorear Nuevo Endpoint</h3>
-          <button type="button" class="btn-modal-close" (click)="closeCreateModal()" aria-label="Cerrar">✕</button>
-        </div>
-
-        <p class="modal-desc">
-          Registra la URL de tu microservicio o API. El motor comenzará a auditarlo cada 60 segundos.
-        </p>
-
-        @if (createErrors().length > 0) {
-          <div class="auth-error-alert" role="alert">
-            @for (err of createErrors(); track $index) {
-              <span>• {{ err }}</span>
-            }
-          </div>
-        }
-
-        <form (submit)="submitCreateEndpoint(); $event.preventDefault()" class="modal-form">
-          <div class="form-group">
-            <label for="newServiceNameInput" class="form-label">Nombre del servicio</label>
-            <input
-              id="newServiceNameInput"
-              type="text"
-              class="form-control"
-              placeholder="Ej. API Pagos / Auth Gateway"
-              maxlength="100"
-              [ngModel]="newServiceName()"
-              (ngModelChange)="newServiceName.set($event); clearCreateErrors()"
-              name="newServiceName"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="newServiceUrlInput" class="form-label">URL del Endpoint (HTTP / HTTPS)</label>
-            <input
-              id="newServiceUrlInput"
-              type="url"
-              class="form-control font-mono"
-              placeholder="https://api.tuempresa.com/health"
-              maxlength="500"
-              [ngModel]="newServiceUrl()"
-              (ngModelChange)="newServiceUrl.set($event); clearCreateErrors()"
-              name="newServiceUrl"
-              required
-            />
-          </div>
-
-          <div class="form-row-duo">
-            <div class="form-group">
-              <label for="newServiceMethodSelect" class="form-label">Método HTTP</label>
-              <select
-                id="newServiceMethodSelect"
-                class="form-control c-select"
-                [ngModel]="newServiceMethod()"
-                (ngModelChange)="newServiceMethod.set($event)"
-                name="newServiceMethod"
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="HEAD">HEAD</option>
-                <option value="PUT">PUT</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="newServiceExpectedStatusInput" class="form-label">Código esperado (Opcional)</label>
-              <input
-                id="newServiceExpectedStatusInput"
-                type="number"
-                class="form-control font-mono"
-                placeholder="200 (por defecto 2xx)"
-                [ngModel]="newServiceExpectedStatus()"
-                (ngModelChange)="setExpectedStatus($event)"
-                name="newServiceExpectedStatus"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="newServiceHeadersInput" class="form-label">Headers personalizados (Clave: Valor)</label>
-            <input
-              id="newServiceHeadersInput"
-              type="text"
-              class="form-control font-mono"
-              placeholder="Authorization: Bearer token"
-              [ngModel]="newServiceHeaders()"
-              (ngModelChange)="newServiceHeaders.set($event)"
-              name="newServiceHeaders"
-            />
-          </div>
-
-          <div class="form-group">
-            <label class="switch-checkbox-row">
-              <input
-                type="checkbox"
-                [ngModel]="newServiceIsPublic()"
-                (ngModelChange)="newServiceIsPublic.set($event)"
-                name="newServiceIsPublic"
-              />
-              <span>Publicar en mi Status Page Pública</span>
-            </label>
-          </div>
-
-          <div class="modal-actions-row">
-            <button type="button" class="btn-secondary-action" (click)="closeCreateModal()">
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              class="btn-primary-action"
-              [disabled]="isSubmittingCreate()"
-            >
-              {{ isSubmittingCreate() ? 'Verificando...' : 'Comenzar a Monitorear' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  }
-
-  <!-- Inspector Lateral de Telemetría -->
-  @if (selectedEndpoint(); as selected) {
-    <div class="drawer-backdrop" (click)="closeInspector()">
-      <aside class="inspector-drawer" (click)="$event.stopPropagation()">
-        <div class="drawer-header">
-          <div>
-            <div class="drawer-eyebrow">
-              <span class="status-indicator-dot" [class]="'dot-' + selected.status.toLowerCase()"></span>
-              <span>ID #{{ selected.id }} · Telemetría en Vivo</span>
-            </div>
-            <h2 class="drawer-title">{{ selected.name }}</h2>
-          </div>
-          <button type="button" class="btn-drawer-close" (click)="closeInspector()" aria-label="Cerrar">✕</button>
-        </div>
-
-        <div class="drawer-body">
-          <div class="drawer-status-box">
-            <div class="dsb-top">
-              <span [class]="getStatusClass(selected.status)">
-                {{ getStatusLabel(selected.status) }}
-              </span>
-              <span class="dsb-time">{{ formatRelativeTime(selected.lastCheckedAt) }}</span>
-            </div>
-            <p class="dsb-desc">{{ getStatusDescription(selected) }}</p>
-          </div>
-
-          <div class="drawer-section">
-            <div class="ds-head">
-              <span class="ds-title">Disponibilidad SLA (30 Días)</span>
-              <span class="ds-value tabular-nums">{{ selected.uptimePercentage | number: '1.2-2' }}%</span>
-            </div>
-            <div class="rhythm-track">
-              @for (seg of getUptimeSegments(selected); track $index) {
-                <span class="rhythm-bar" [ngClass]="seg"></span>
-              }
-            </div>
-          </div>
-
-          <div class="specs-grid">
-            <div class="spec-tile">
-              <span class="spec-label">URL Monitoreada</span>
-              <a [href]="selected.url" target="_blank" rel="noopener noreferrer" class="spec-url font-mono">{{ selected.url }}</a>
-            </div>
-
-            <div class="spec-tile">
-              <span class="spec-label">Última Latencia</span>
-              <span class="spec-val font-mono tabular-nums">
-                {{ selected.lastResponseTimeMs !== null ? selected.lastResponseTimeMs + ' ms' : 'En espera' }}
-              </span>
-            </div>
-
-            <div class="spec-tile">
-              <span class="spec-label">Fallos Consecutivos</span>
-              <span class="spec-val font-mono tabular-nums">{{ selected.consecutiveFailures }} de 3 (umbral)</span>
-            </div>
-
-            <div class="spec-tile">
-              <span class="spec-label">Último Pulso</span>
-              <span class="spec-val tabular-nums">{{ formatExactDate(selected.lastCheckedAt) }}</span>
-            </div>
-
-            @if (selected.sslDaysRemaining !== null && selected.sslDaysRemaining !== undefined) {
-              <div class="spec-tile">
-                <span class="spec-label">Certificado SSL/TLS</span>
-                <span
-                  class="badge-ssl-pill"
-                  [class.ssl-warning]="selected.sslDaysRemaining <= 14"
-                  [class.ssl-healthy]="selected.sslDaysRemaining > 14"
-                >
-                  {{ selected.sslDaysRemaining <= 14 ? '⚠️ Expira en ' + selected.sslDaysRemaining + ' días' : '✓ Válido (' + selected.sslDaysRemaining + ' días restantes)' }}
-                </span>
-              </div>
-            }
-          </div>
-
-          @if (selected.isOwner && authService.isAuthenticated()) {
-            <div class="guard-card">
-              <div class="gc-head">
-                <div class="gc-title-wrap">
-                  <span class="gc-dot"></span>
-                  <span class="gc-title">Guardia de Alerta por Correo</span>
-                </div>
-                <span class="badge-active-guard">Activa</span>
-              </div>
-              <p class="gc-desc">
-                Notificación inmediata a <strong>{{ authService.currentUser()?.email }}</strong> ante 3 fallos consecutivos.
-              </p>
-              <button
-                type="button"
-                class="btn-secondary-action"
-                [disabled]="isTestingAlert()"
-                (click)="triggerTestAlert(selected)"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                <span>{{ isTestingAlert() ? 'Enviando...' : 'Enviar Alerta de Prueba' }}</span>
-              </button>
-            </div>
-
-            <div class="status-page-switch-card">
-              <div class="spsc-head">
-                <span class="spsc-title">Visibilidad en Status Page</span>
-                <button
-                  type="button"
-                  class="toggle-switch-btn"
-                  [class.active]="selected.isPublicStatus"
-                  [disabled]="isTogglingVisibility()"
-                  (click)="toggleServiceVisibility(selected)"
-                  [title]="selected.isPublicStatus ? 'Desactivar de Status Page' : 'Hacer público en mi Status Page'"
-                >
-                  <span class="switch-pill"></span>
-                </button>
-              </div>
-              <p class="spsc-desc">
-                {{ selected.isPublicStatus
-                  ? 'Este servicio es visible en tu Status Page pública.'
-                  : 'Servicio privado. Activa el interruptor para incluirlo en tu Status Page pública.' }}
-              </p>
-              @if (selected.isPublicStatus) {
-                <div class="spsc-actions">
-                  <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" target="_blank" class="spsc-link">
-                    Abrir Status Page ↗
-                  </a>
-                  <button type="button" class="btn-text-small" (click)="copyStatusPageLink()">
-                    Copiar enlace
-                  </button>
-                </div>
-              }
-            </div>
-          }
-
-          <div class="drawer-section">
-            <div class="ds-head">
-              <span class="ds-title">Serie Temporal de Latencia</span>
-              <div class="range-selector-tabs">
-                <button
-                  type="button"
-                  class="btn-range"
-                  [class.active]="metricsRange() === '6h'"
-                  (click)="changeMetricsRange('6h')"
-                >6H</button>
-                <button
-                  type="button"
-                  class="btn-range"
-                  [class.active]="metricsRange() === '24h'"
-                  (click)="changeMetricsRange('24h')"
-                >24H</button>
-                <button
-                  type="button"
-                  class="btn-range"
-                  [class.active]="metricsRange() === '7d'"
-                  (click)="changeMetricsRange('7d')"
-                >7D</button>
-              </div>
-            </div>
-
-            @if (isLoadingMetrics()) {
-              <div class="loading-state-inline">
-                <span class="spinner-inline"></span>
-                <span>Cargando serie temporal...</span>
-              </div>
-            } @else if (metricsHistory(); as mh) {
-              <div class="latency-stats-row font-mono tabular-nums">
-                <div class="ls-cell">
-                  <span class="ls-label">Mín</span>
-                  <span class="ls-val">{{ mh.minLatencyMs }} ms</span>
-                </div>
-                <div class="ls-cell">
-                  <span class="ls-label">Promedio</span>
-                  <span class="ls-val">{{ mh.avgLatencyMs }} ms</span>
-                </div>
-                <div class="ls-cell">
-                  <span class="ls-label">p95</span>
-                  <span class="ls-val">{{ mh.p95LatencyMs }} ms</span>
-                </div>
-                <div class="ls-cell">
-                  <span class="ls-label">Máx</span>
-                  <span class="ls-val">{{ mh.maxLatencyMs }} ms</span>
-                </div>
-              </div>
-
-              @if (chartSvg().points.length > 0) {
-                <div class="chart-box">
-                  <svg viewBox="0 0 340 90" class="chart-svg" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
-                        <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path [attr.d]="chartSvg().areaPath" fill="url(#chartGradient)" />
-                    <path [attr.d]="chartSvg().linePath" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    @for (pt of chartSvg().points; track $index) {
-                      <circle
-                        [attr.cx]="pt.x"
-                        [attr.cy]="pt.y"
-                        [attr.r]="activeHoverPoint() === pt ? 4 : 2.5"
-                        [attr.fill]="pt.alive ? '#10b981' : '#f43f5e'"
-                        (mouseenter)="activeHoverPoint.set(pt)"
-                        (mouseleave)="activeHoverPoint.set(null)"
-                        class="chart-point"
-                      />
-                    }
-                  </svg>
-                  @if (activeHoverPoint(); as hp) {
-                    <div class="chart-tooltip tabular-nums">
-                      <span class="tt-time">{{ hp.time }}</span>
-                      <span class="tt-val" [class.tt-down]="!hp.alive">
-                        {{ hp.alive ? hp.latency + ' ms' : 'Fallo' }}
-                      </span>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <div class="chart-empty-state">
-                  <span>Sin registros en el rango seleccionado.</span>
-                </div>
-              }
-            }
-          </div>
-
-          <div class="drawer-section">
-            <div class="ds-head">
-              <span class="ds-title">Historial de Incidentes</span>
-              <span class="ds-badge tabular-nums">
-                {{ selectedEndpointIncidents().length }} evento{{ selectedEndpointIncidents().length === 1 ? '' : 's' }}
-              </span>
-            </div>
-
-            @if (isLoadingIncidents()) {
-              <div class="loading-state-inline">
-                <span class="spinner-inline"></span>
-                <span>Consultando incidentes...</span>
-              </div>
-            } @else if (selectedEndpointIncidents().length === 0) {
-              <div class="incidents-clean-state">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-                <span>Sin incidentes en los últimos 30 días. Operación 100% nominal.</span>
-              </div>
-            } @else {
-              <div class="incident-timeline">
-                @for (inc of selectedEndpointIncidents(); track inc.id) {
-                  <div class="incident-card" [class.inc-ongoing]="inc.status === 'ONGOING'">
-                    <div class="inc-head">
-                      <span class="badge-incident-status" [class.badge-inc-ongoing]="inc.status === 'ONGOING'">
-                        {{ inc.status === 'ONGOING' ? 'En Curso' : 'Resuelto' }}
-                      </span>
-                      <span class="inc-duration tabular-nums font-mono">
-                        {{ formatDuration(inc.durationSeconds) }} de corte
-                      </span>
-                    </div>
-                    <div class="inc-dates tabular-nums">
-                      <span>Inicio: {{ formatExactDate(inc.startedAt) }}</span>
-                      @if (inc.resolvedAt) {
-                        <span>· Resolución: {{ formatExactDate(inc.resolvedAt) }}</span>
-                      }
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-
-          <div class="drawer-section">
-            <div class="ds-head">
-              <span class="ds-title">Reporte Mensual SLA</span>
-              <div class="month-nav-group">
-                <button type="button" class="btn-month" (click)="changeReportMonth(-1)" title="Mes anterior">‹</button>
-                <span class="month-title">{{ selectedReport()?.periodLabel || (reportMonth() + '/' + reportYear()) }}</span>
-                <button type="button" class="btn-month" (click)="changeReportMonth(1)" title="Mes siguiente">›</button>
-              </div>
-            </div>
-
-            @if (isLoadingReport()) {
-              <div class="loading-state-inline">
-                <span class="spinner-inline"></span>
-                <span>Calculando cumplimiento...</span>
-              </div>
-            } @else if (selectedReport(); as r) {
-              <div class="report-summary-grid">
-                <div class="report-metric-tile">
-                  <span class="rm-label">SLA Real</span>
-                  <span class="rm-val tabular-nums text-healthy">{{ r.uptimePercentage | number: '1.2-2' }}%</span>
-                </div>
-                <div class="report-metric-tile">
-                  <span class="rm-label">Downtime</span>
-                  <span class="rm-val tabular-nums font-mono">{{ formatDuration(r.totalDowntimeSeconds) }}</span>
-                </div>
-                <div class="report-metric-tile">
-                  <span class="rm-label">Incidentes</span>
-                  <span class="rm-val tabular-nums">{{ r.totalIncidents }}</span>
-                </div>
-                <div class="report-metric-tile">
-                  <span class="rm-label">MTTR Promedio</span>
-                  <span class="rm-val tabular-nums font-mono">{{ r.mttrMinutes }}m</span>
-                </div>
-              </div>
-
-              <div class="report-buttons-row">
-                <button
-                  type="button"
-                  class="btn-secondary-action"
-                  (click)="downloadReportCsv(selected)"
-                  [disabled]="isDownloadingReportCsv()"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                  <span>{{ isDownloadingReportCsv() ? 'Descargando...' : 'Descargar CSV' }}</span>
-                </button>
-
-                @if (selected.isOwner && authService.isAuthenticated()) {
-                  <button
-                    type="button"
-                    class="btn-secondary-action"
-                    (click)="sendReportByEmail(selected)"
-                    [disabled]="isSendingReportEmail()"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-                    </svg>
-                    <span>{{ isSendingReportEmail() ? 'Enviando...' : 'Enviar por Correo' }}</span>
-                  </button>
-                }
-              </div>
-            }
-          </div>
-        </div>
-
-        <div class="drawer-footer">
-          <button
-            type="button"
-            class="btn-primary-action"
-            [disabled]="isTriggeringPing()"
-            (click)="triggerManualPing(selected)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            <span>{{ isTriggeringPing() ? 'Probando...' : 'Ejecutar Ping Ahora' }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn-secondary-action"
-            (click)="copyText(selected.url, 'URL copiada al portapapeles')"
-          >
-            Copiar URL
-          </button>
-
-          @if (selected.isOwner || (!selected.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
-            <button
-              type="button"
-              class="btn-secondary-action"
-              (click)="openEditModal(selected)"
-            >
-              Editar
-            </button>
-          }
-
-          @if (!selected.isProtected) {
-            <button
-              type="button"
-              class="btn-danger-action"
-              (click)="confirmDelete(selected)"
-            >
-              Eliminar
-            </button>
-          }
-        </div>
-      </aside>
-    </div>
-  }
-
-  <!-- Modal de Confirmación de Eliminación -->
-  @if (endpointToDelete(); as target) {
-    <div class="modal-backdrop" (click)="cancelDelete()">
-      <div class="modal-dialog-box" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3 class="modal-title text-danger">Confirmar Baja de Servicio</h3>
-          <button type="button" class="btn-modal-close" (click)="cancelDelete()">✕</button>
-        </div>
-        <p class="modal-desc">
-          ¿Seguro que deseas eliminar el servicio <strong>{{ target.name }}</strong> (<code>{{ target.url }}</code>)? Se detendrá el monitoreo y se purgará su historial en PostgreSQL.
-        </p>
-        <div class="modal-actions-row">
-          <button type="button" class="btn-secondary-action" (click)="cancelDelete()">
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class="btn-danger-action"
-            (click)="executeDelete()"
-            [disabled]="isDeleting()"
-          >
-            {{ isDeleting() ? 'Eliminando...' : 'Confirmar Eliminación' }}
-          </button>
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Toast Flotante -->
-  @if (toast(); as t) {
-    <div class="floating-toast" [class.toast-error]="t.type === 'error'">
-      <span class="toast-dot"></span>
-      <span class="toast-msg">{{ t.message }}</span>
-    </div>
-  }
-
-  <!-- Modal de Autenticación (Login / Registro) -->
-  @if (isAuthModalOpen()) {
-    <div class="modal-backdrop" (click)="closeAuthModal()">
-      <div class="modal-dialog-box auth-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div class="auth-tabs-group">
-            <button
-              type="button"
-              class="auth-switch-tab"
-              [class.active]="authModalTab() === 'LOGIN'"
-              (click)="switchAuthTab('LOGIN')"
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              class="auth-switch-tab"
-              [class.active]="authModalTab() === 'REGISTER'"
-              (click)="switchAuthTab('REGISTER')"
-            >
-              Crear Cuenta
-            </button>
-          </div>
-          <button type="button" class="btn-modal-close" (click)="closeAuthModal()" aria-label="Cerrar">✕</button>
-        </div>
-
-        <p class="modal-desc">
-          @if (authModalTab() === 'LOGIN') {
-            Ingresa a tu cuenta para administrar tus endpoints privados y configurar tu Status Page.
-          } @else {
-            Crea tu cuenta de desarrollador para monitorear tus propios servicios con aislamiento total.
-          }
-        </p>
-
-        <button type="button" class="btn-google-action" (click)="triggerGoogleAuth()">
-          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-          </svg>
-          <span>Continuar con Google</span>
-        </button>
-
-        <div class="auth-divider-line">
-          <span>o con credenciales de acceso</span>
-        </div>
-
-        <form (submit)="submitAuth(); $event.preventDefault()" class="modal-form">
-          @if (authModalTab() === 'REGISTER') {
-            <div class="form-group">
-              <label for="authName" class="form-label">Nombre completo</label>
-              <input
-                id="authName"
-                type="text"
-                class="form-control"
-                placeholder="Ej. Marcos Daniel"
-                [ngModel]="authName()"
-                (ngModelChange)="authName.set($event); clearAuthErrors()"
-                name="authName"
-                required
-              />
-            </div>
-          }
-
-          <div class="form-group">
-            <label for="authEmail" class="form-label">Correo electrónico</label>
-            <input
-              id="authEmail"
-              type="email"
-              class="form-control"
-              placeholder="tu@correo.com"
-              [ngModel]="authEmail()"
-              (ngModelChange)="authEmail.set($event); clearAuthErrors()"
-              name="authEmail"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="authPassword" class="form-label">Contraseña</label>
-            <input
-              id="authPassword"
-              type="password"
-              class="form-control"
-              placeholder="••••••••"
-              [ngModel]="authPassword()"
-              (ngModelChange)="authPassword.set($event); clearAuthErrors()"
-              name="authPassword"
-              required
-            />
-          </div>
-
-          @if (authErrors().length > 0) {
-            <div class="auth-error-alert" role="alert">
-              @for (err of authErrors(); track $index) {
-                <span>• {{ err }}</span>
-              }
-            </div>
-          }
-
-          <div class="modal-form-actions">
-            <button
-              type="submit"
-              class="btn-primary-action w-100"
-              [disabled]="isAuthSubmitting()"
-            >
-              @if (isAuthSubmitting()) {
-                <span>Procesando...</span>
-              } @else if (authModalTab() === 'LOGIN') {
-                <span>Iniciar Sesión</span>
-              } @else {
-                <span>Crear Cuenta</span>
-              }
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  }
-
-  <!-- Modal de Perfil de Usuario -->
-  @if (isProfileModalOpen()) {
-    <div class="modal-backdrop" (click)="closeProfileModal()">
-      <div class="modal-dialog-box profile-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div class="profile-header-user">
-            <div class="pm-avatar-large">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</div>
-            <div>
-              <h3 class="pm-name">{{ authService.currentUser()?.name }}</h3>
-              <span class="pm-email font-mono">{{ authService.currentUser()?.email }}</span>
-            </div>
-          </div>
-          <button type="button" class="btn-modal-close" (click)="closeProfileModal()">✕</button>
-        </div>
-
-        <div class="profile-body">
-          <div class="profile-stats-grid">
-            <div class="ps-stat-tile">
-              <span class="ps-label">Endpoints Propios</span>
-              <span class="ps-val tabular-nums">{{ myEndpointsCount() }}</span>
-            </div>
-            <div class="ps-stat-tile">
-              <span class="ps-label">Rol de Cuenta</span>
-              <span class="ps-val">{{ authService.currentUser()?.role === 'ROLE_ADMIN' ? 'Administrador' : 'Desarrollador' }}</span>
-            </div>
-          </div>
-
-          <div class="slug-config-card">
-            <label class="form-label">Ruta de tu Status Page Pública</label>
-            <div class="slug-input-row">
-              <span class="slug-prefix font-mono">/status/</span>
-              <input
-                type="text"
-                class="form-control font-mono slug-input"
-                [ngModel]="profileSlugInput()"
-                (ngModelChange)="profileSlugInput.set($event)"
-                placeholder="mi-organizacion"
-              />
-              <button
-                type="button"
-                class="btn-primary-action"
-                (click)="updateProfileSlug()"
-                [disabled]="isUpdatingSlug()"
-              >
-                {{ isUpdatingSlug() ? 'Guardando...' : 'Guardar' }}
-              </button>
-            </div>
-            @if (profileSlugSuccess(); as ok) {
-              <span class="slug-feedback-success">{{ ok }}</span>
-            }
-            @if (profileSlugError(); as err) {
-              <span class="slug-feedback-error">{{ err }}</span>
-            }
-          </div>
-
-          <div class="profile-actions-strip">
-            <a
-              [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']"
-              target="_blank"
-              class="btn-secondary-action"
-              (click)="closeProfileModal()"
-            >
-              <span>Ver Status Page Pública ↗</span>
-            </a>
-            <button type="button" class="btn-secondary-action" (click)="copyStatusPageLink()">
-              Copiar Enlace
-            </button>
-          </div>
-        </div>
-
-        <div class="profile-footer">
-          <button type="button" class="btn-danger-action w-100" (click)="logout(); closeProfileModal()">
-            Cerrar Sesión
-          </button>
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Modal de Edición de Endpoint -->
-  @if (isEditModalOpen()) {
-    <div class="modal-backdrop" (click)="closeEditModal()">
-      <div class="modal-dialog-box edit-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3 class="modal-title">Editar Endpoint</h3>
-          <button type="button" class="btn-modal-close" (click)="closeEditModal()" aria-label="Cerrar">✕</button>
-        </div>
-
-        <p class="modal-desc">
-          Modifica los parámetros de sondeo sin perder el historial de incidentes y SLA acumulado.
-        </p>
-
-        @if (editErrors().length > 0) {
-          <div class="auth-error-alert" role="alert">
-            @for (err of editErrors(); track $index) {
-              <span>• {{ err }}</span>
-            }
-          </div>
-        }
-
-        <form (submit)="submitEditEndpoint(); $event.preventDefault()" class="modal-form">
-          <div class="form-group">
-            <label for="editName" class="form-label">Nombre del servicio</label>
-            <input
-              id="editName"
-              type="text"
-              class="form-control"
-              placeholder="Ej. API Pagos"
-              [ngModel]="editName()"
-              (ngModelChange)="editName.set($event)"
-              name="editName"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="editUrl" class="form-label">URL del servicio (HTTP / HTTPS)</label>
-            <input
-              id="editUrl"
-              type="url"
-              class="form-control font-mono"
-              placeholder="https://api.empresa.com/health"
-              [ngModel]="editUrl()"
-              (ngModelChange)="editUrl.set($event)"
-              name="editUrl"
-              required
-            />
-          </div>
-
-          <div class="form-row-duo">
-            <div class="form-group">
-              <label for="editMethod" class="form-label">Método HTTP</label>
-              <select
-                id="editMethod"
-                class="form-control c-select"
-                [ngModel]="editMethod()"
-                (ngModelChange)="editMethod.set($event)"
-                name="editMethod"
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-                <option value="HEAD">HEAD</option>
-                <option value="OPTIONS">OPTIONS</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="editExpectedStatus" class="form-label">Código esperado (Opcional)</label>
-              <input
-                id="editExpectedStatus"
-                type="number"
-                class="form-control font-mono"
-                placeholder="200 (por defecto 2xx)"
-                [ngModel]="editExpectedStatus()"
-                (ngModelChange)="editExpectedStatus.set($event)"
-                name="editExpectedStatus"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="editHeaders" class="form-label">Headers personalizados (uno por línea)</label>
-            <textarea
-              id="editHeaders"
-              class="form-control font-mono"
-              placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
-              [ngModel]="editHeaders()"
-              (ngModelChange)="editHeaders.set($event)"
-              name="editHeaders"
-              rows="2"
-            ></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="switch-checkbox-row">
-              <input
-                type="checkbox"
-                [checked]="editIsPublic()"
-                (change)="editIsPublic.set(!editIsPublic())"
-              />
-              <span>Visible públicamente en mi Status Page</span>
-            </label>
-          </div>
-
-          <div class="modal-actions-row">
-            <button type="button" class="btn-secondary-action" (click)="closeEditModal()">
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              class="btn-primary-action"
-              [disabled]="isSubmittingEdit()"
-            >
-              {{ isSubmittingEdit() ? 'Guardando...' : 'Guardar Cambios' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  }
-</div>
+<div class="landing-canvas">
+
+  <!-- Capas de Profundidad Atmosférica y Grid de Ingeniería -->
+
+  <div class="ambient-glow ambient-glow-top" aria-hidden="true"></div>
+
+  <div class="ambient-glow ambient-glow-left" aria-hidden="true"></div>
+
+  <div class="ambient-glow ambient-glow-right" aria-hidden="true"></div>
+
+  <div class="ambient-grid-overlay" aria-hidden="true"></div>
+
+  <!-- Barra de navegacion superior fija -->
+
+  <header class="topbar-fixed" [class.topbar-scrolled]="isScrolled()">
+
+    <div class="topbar-inner">
+
+      <div class="brand-group">
+
+        <a href="#" class="brand-cluster" (click)="scrollToTop($event)">
+
+          <img
+
+            src="deployops-icon.png"
+
+            alt="DeployOps"
+
+            class="brand-icon-img"
+
+            width="28"
+
+            height="28"
+
+          />
+
+          <span class="brand-wordmark">DeployOps</span>
+
+        </a>
+
+      </div>
+
+
+
+      <nav class="topbar-nav" aria-label="Navegación principal">
+
+        @if (authService.isAuthenticated()) {
+
+          <a href="#monitor" class="topbar-link" (click)="scrollToSection($event, 'monitor')">Mis Endpoints</a>
+
+        } @else {
+
+          <a href="#demostracion" class="topbar-link" (click)="scrollToSection($event, 'demostracion')">Demostración SRE</a>
+
+        }
+
+        <a href="#arquitectura" class="topbar-link" (click)="scrollToSection($event, 'arquitectura')">Pipeline &amp; Arquitectura</a>
+
+        <a href="#api-publica" class="topbar-link" (click)="scrollToSection($event, 'api-publica')">API Pública</a>
+
+      </nav>
+
+
+
+      <div class="topbar-actions">
+
+        <div
+
+          class="api-status-badge"
+
+          [class.api-status-connecting]="!lastSyncedAt()"
+
+          [title]="lastSyncedAt() ? 'Conectado en tiempo real con el backend en Render' : 'Conectando con Render...'"
+
+        >
+
+          <span class="status-dot-live"></span>
+
+          <span class="status-live-text">{{ lastSyncedAt() ? 'En línea' : 'Conectando...' }}</span>
+
+        </div>
+
+
+
+        @if (authService.isAuthenticated()) {
+
+          <a
+
+            [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']"
+
+            target="_blank"
+
+            class="btn-status-nav"
+
+            title="Abrir Status Page Pública en nueva pestaña"
+
+          >
+
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+
+            </svg>
+
+            <span>Status Page</span>
+
+          </a>
+
+
+
+          <div class="user-profile-menu">
+
+            <button
+
+              type="button"
+
+              class="user-btn-trigger"
+
+              (click)="openProfileModal()"
+
+              [title]="'Perfil de ' + (authService.currentUser()?.email || '')"
+
+            >
+
+              <span class="user-avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</span>
+
+              <span class="user-display-name">{{ authService.currentUser()?.name }}</span>
+
+            </button>
+
+            <button
+
+              type="button"
+
+              class="btn-quick-logout"
+
+              (click)="logout()"
+
+              title="Cerrar sesión"
+
+              aria-label="Cerrar sesión"
+
+            >
+
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+
+                <polyline points="16 17 21 12 16 7"></polyline>
+
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+
+              </svg>
+
+            </button>
+
+          </div>
+
+        } @else {
+
+          <button type="button" class="btn-topbar-ghost" (click)="openAuthModal('LOGIN')">
+
+            Iniciar Sesión
+
+          </button>
+
+          <button type="button" class="btn-primary-action btn-sm" (click)="openAuthModal('REGISTER')">
+
+            Crear Cuenta Gratis
+
+          </button>
+
+        }
+
+
+
+        <button
+
+          type="button"
+
+          class="theme-toggle-btn"
+
+          (click)="toggleTheme()"
+
+          [title]="theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+
+          aria-label="Alternar tema claro y oscuro"
+
+        >
+
+          @if (theme() === 'dark') {
+
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+              <circle cx="12" cy="12" r="5" />
+
+              <line x1="12" y1="1" x2="12" y2="3" />
+
+              <line x1="12" y1="21" x2="12" y2="23" />
+
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+
+              <line x1="1" y1="12" x2="3" y2="12" />
+
+              <line x1="21" y1="12" x2="23" y2="12" />
+
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+
+            </svg>
+
+          } @else {
+
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+
+            </svg>
+
+          }
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+
+  <main class="dashboard-main-content">
+
+    <div class="content-container">
+
+
+
+      <!-- ===================================================================
+
+           CASO 1: VISITANTE NO AUTENTICADO (HERO MINIMALISTA + METRICAS GLOBALES)
+
+           =================================================================== -->
+
+      @if (!authService.isAuthenticated()) {
+
+        <!-- Hero SRE de Alta Precisión con Mesh 3D Interactiva -->
+
+        <section class="landing-hero-sre">
+
+          <div class="hero-two-column-layout">
+
+            <div class="hero-text-column">
+
+              <div class="hero-badge-strip">
+
+                <span class="badge-dot-live"></span>
+
+                <span class="badge-engine-text">DeployOps Engine v1.0 · Clúster Activo en Render</span>
+
+                <span class="badge-tag-mesh font-mono">3D MESH LIVE</span>
+
+              </div>
+
+
+
+              <h1 class="landing-main-title">
+
+                Vigilancia continua y observabilidad proactiva para tus servicios.
+
+              </h1>
+
+
+
+              <p class="landing-lead-text">
+
+                Supervisa la disponibilidad de tus APIs y sitios web cada 60 segundos con Virtual Threads de Java 21, mitigación de flapping sin falsas alarmas y Status Page pública en tiempo real.
+
+              </p>
+
+
+
+              <!-- Strip de Salud Global (4 Métricas Ejecutivas con Iconos Vectoriales) -->
+
+              <div class="hero-metrics-strip">
+
+                <div class="hms-item">
+
+                  <div class="hms-label">
+
+                    <div class="hms-icon-wrap icon-uptime">
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+
+                      </svg>
+
+                    </div>
+
+                    <span>Uptime Global</span>
+
+                  </div>
+
+                  <div class="hms-val tabular-nums text-healthy">
+
+                    {{ metrics().globalUptime | number: '1.2-2' }}%
+
+                  </div>
+
+                  <div class="hms-sub">Promedio móvil (30d)</div>
+
+                </div>
+
+
+
+                <div class="hms-item">
+
+                  <div class="hms-label">
+
+                    <div class="hms-icon-wrap icon-latency">
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                        <circle cx="12" cy="12" r="10"/>
+
+                        <polyline points="12 6 12 12 16 14"/>
+
+                      </svg>
+
+                    </div>
+
+                    <span>Latencia Media</span>
+
+                  </div>
+
+                  <div class="hms-val tabular-nums">
+
+                    {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '65 ms' }}
+
+                  </div>
+
+                  <div class="hms-sub">Tiempo respuesta p95</div>
+
+                </div>
+
+
+
+                <div class="hms-item">
+
+                  <div class="hms-label">
+
+                    <div class="hms-icon-wrap icon-network">
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+
+                      </svg>
+
+                    </div>
+
+                    <span>Red de Clúster</span>
+
+                  </div>
+
+                  <div class="hms-val" [class.text-healthy]="metrics().down + metrics().degraded === 0" [class.text-danger]="metrics().down + metrics().degraded > 0">
+
+                    {{ metrics().down + metrics().degraded === 0 ? '100% Operativo' : (metrics().down + metrics().degraded) + ' en alerta' }}
+
+                  </div>
+
+                  <div class="hms-sub">{{ metrics().healthy }} servicios activos</div>
+
+                </div>
+
+
+
+                <div class="hms-item">
+
+                  <div class="hms-label">
+
+                    <div class="hms-icon-wrap icon-freq">
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+
+                      </svg>
+
+                    </div>
+
+                    <span>Frecuencia Sondeo</span>
+
+                  </div>
+
+                  <div class="hms-val tabular-nums font-mono">
+
+                    60 seg
+
+                  </div>
+
+                  <div class="hms-sub">Virtual Threads automáticos</div>
+
+                </div>
+
+              </div>
+
+
+
+              <div class="landing-cta-row">
+
+                <button type="button" class="btn-primary-action btn-lg" (click)="openAuthModal('REGISTER')">
+
+                  <span>Comenzar Monitoreo Gratis</span>
+
+                  <span class="arrow-shift">→</span>
+
+                </button>
+
+                <a href="#demostracion" class="btn-secondary-action btn-lg" (click)="scrollToSection($event, 'demostracion')">
+
+                  <span>Ver Demostración en Vivo</span>
+
+                </a>
+
+              </div>
+
+            </div>
+
+
+
+            <!-- Columna 3D Interactiva Three.js -->
+
+            <div class="hero-3d-column">
+
+              <app-telemetry-canvas-3d
+
+                [theme]="theme()"
+
+                [uptime]="metrics().globalUptime"
+
+                [latency]="metrics().averageLatencyMs || 65"
+
+              ></app-telemetry-canvas-3d>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+
+        <!-- Demostración en Vivo: SRE Data Table -->
+
+        <section class="demo-showcase-section" id="demostracion">
+
+          <div class="demo-header-bar">
+
+            <div>
+
+              <span class="section-tag">DEMOSTRACIÓN EN VIVO</span>
+
+              <h2 class="demo-title">Supervisión en tiempo real de servicios</h2>
+
+              <p class="demo-subtitle">
+
+                Telemetría y disponibilidad auditadas cada 60 segundos directamente desde nuestro clúster:
+
+              </p>
+
+            </div>
+
+            <div class="demo-sync-pill tabular-nums">
+
+              <span class="status-indicator-dot dot-healthy"></span>
+
+              <span>Sondeo cada 60s · SLA de 30 días</span>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- SRE Data Table para la Demostracion -->
+
+          <div class="sre-table-container">
+
+            <table class="sre-table" aria-label="Tabla de servicios monitoreados en demostración">
+
+              <thead>
+
+                <tr>
+
+                  <th class="th-service">Servicio / Endpoint</th>
+
+                  <th class="th-status">Estado</th>
+
+                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
+
+                  <th class="th-latency">Latencia</th>
+
+                  <th class="th-pulse">Último Pulso</th>
+
+                  <th class="th-actions text-right">Telemetría</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                @for (ep of featuredPair(); track ep.id) {
+
+                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
+
+                    <td class="td-service">
+
+                      <div class="service-identity-cell">
+
+                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
+
+                        <div class="service-text-group">
+
+                          <div class="service-name-line">
+
+                            <span class="service-name">{{ ep.name }}</span>
+
+                            @if (ep.sslDaysRemaining) {
+
+                              <span class="badge-ssl-pill" [class.ssl-warning]="ep.sslDaysRemaining <= 14" [class.ssl-healthy]="ep.sslDaysRemaining > 14">
+
+                                SSL {{ ep.sslDaysRemaining }}d
+
+                              </span>
+
+                            }
+
+                          </div>
+
+                          <div class="service-url-line">
+
+                            <span class="service-url font-mono">{{ ep.url }}</span>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                    <td class="td-status">
+
+                      <span [class]="getStatusClass(ep.status)">{{ getStatusLabel(ep.status) }}</span>
+
+                    </td>
+
+                    <td class="td-sla">
+
+                      <div class="sla-cell-group">
+
+                        <span class="sla-percentage tabular-nums">{{ ep.uptimePercentage | number: '1.2-2' }}%</span>
+
+                        <div class="rhythm-track" title="Historial de disponibilidad diaria">
+
+                          @for (seg of getUptimeSegments(ep); track $index) {
+
+                            <span class="rhythm-bar" [ngClass]="seg" [style.--bar-idx]="$index"></span>
+
+                          }
+
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                    <td class="td-latency">
+
+                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
+
+                        {{ ep.lastResponseTimeMs ? ep.lastResponseTimeMs + ' ms' : '65 ms' }}
+
+                      </span>
+
+                    </td>
+
+                    <td class="td-pulse">
+
+                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
+
+                    </td>
+
+                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
+
+                      <button type="button" class="btn-table-inspect" (click)="openInspector(ep)" title="Ver telemetría detallada">
+
+                        <span>Métricas</span>
+
+                        <span class="arrow-shift">→</span>
+
+                      </button>
+
+                    </td>
+
+                  </tr>
+
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+
+
+          <div class="demo-invite-banner">
+
+            <div class="dib-content">
+
+              <div class="dib-badge font-mono">REGISTRO PRIVADO</div>
+
+              <div class="dib-text-group">
+
+                <strong>¿Quieres supervisar tus propias APIs y servicios?</strong>
+
+                <p>Crea tu cuenta gratuita para registrar endpoints privados, configurar alertas de guardia y publicar tu propia Status Page con slug personalizado.</p>
+
+              </div>
+
+            </div>
+
+            <button type="button" class="btn-primary-action" (click)="openAuthModal('REGISTER')">
+
+              Crear Cuenta Gratis
+
+            </button>
+
+          </div>
+
+        </section>
+
+      }
+
+
+
+      <!-- ===================================================================
+
+           CASO 2: USUARIO AUTENTICADO (PANEL PRIVADO DE CONTROL Y MONITOREO)
+
+           =================================================================== -->
+
+      @if (authService.isAuthenticated()) {
+
+        <section class="overview-section" id="monitor">
+
+          <div class="overview-header-row">
+
+            <div>
+
+              <div class="header-breadcrumbs">
+
+                <span class="crumb-root">DeployOps</span>
+
+                <span class="crumb-separator">/</span>
+
+                <span class="crumb-current">Panel de Monitoreo Privado</span>
+
+              </div>
+
+              <h1 class="overview-title">
+
+                Mis Servicios Monitoreados
+
+              </h1>
+
+              <p class="overview-subtitle">
+
+                Supervisa la disponibilidad de tus microservicios y gestiona la guardia activa por correo.
+
+              </p>
+
+            </div>
+
+
+
+            <div class="overview-header-actions">
+
+              <button
+
+                type="submit"
+
+                class="btn-primary-action btn-add-endpoint"
+
+                (click)="openCreateModal()"
+
+              >
+
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+
+                </svg>
+
+                <span>Agregar Endpoint</span>
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- 4 KPIs Ejecutivos -->
+
+          <div class="kpi-grid">
+
+            <div class="kpi-card">
+
+              <div class="kpi-card-head">
+
+                <span class="kpi-title">Disponibilidad (30d)</span>
+
+                <span class="kpi-badge kpi-badge-healthy">SLA</span>
+
+              </div>
+
+              <div class="kpi-number tabular-nums">
+
+                {{ metrics().globalUptime | number: '1.2-2' }}%
+
+              </div>
+
+              <div class="kpi-foot">
+
+                <span>Promedio móvil de 30 días</span>
+
+              </div>
+
+            </div>
+
+
+
+            <div class="kpi-card">
+
+              <div class="kpi-card-head">
+
+                <span class="kpi-title">Endpoints Activos</span>
+
+                <span class="kpi-badge kpi-badge-info">{{ myEndpointsCount() }} Míos</span>
+
+              </div>
+
+              <div class="kpi-number tabular-nums">
+
+                <span class="text-healthy">{{ metrics().healthy }}</span>
+
+                <span class="kpi-number-divider">/</span>
+
+                <span class="kpi-number-total">{{ metrics().total }}</span>
+
+              </div>
+
+              <div class="kpi-foot">
+
+                <span>{{ metrics().down + metrics().degraded }} en alerta</span>
+
+              </div>
+
+            </div>
+
+
+
+            <div class="kpi-card">
+
+              <div class="kpi-card-head">
+
+                <span class="kpi-title">Latencia Media</span>
+
+                <span class="kpi-badge kpi-badge-neutral">HTTP</span>
+
+              </div>
+
+              <div class="kpi-number tabular-nums">
+
+                {{ metrics().averageLatencyMs !== null ? metrics().averageLatencyMs + ' ms' : '—' }}
+
+              </div>
+
+              <div class="kpi-foot">
+
+                <span>Tiempo de respuesta de red</span>
+
+              </div>
+
+            </div>
+
+
+
+            <div class="kpi-card">
+
+              <div class="kpi-card-head">
+
+                <span class="kpi-title">Frecuencia de Sondeo</span>
+
+                <span class="kpi-badge kpi-badge-neutral">60 seg</span>
+
+              </div>
+
+              <div class="kpi-number tabular-nums font-mono">
+
+                Automático
+
+              </div>
+
+              <div class="kpi-foot">
+
+                <span>Alertas ante 3 fallos seguidos</span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+
+        <!-- Barra de Control y Lista de Endpoints en SRE Table -->
+
+        <section class="endpoints-section">
+
+          <div class="ledger-control-bar">
+
+            <div class="lcb-left">
+
+              <div class="scope-toggle-group">
+
+                <button
+
+                  type="button"
+
+                  class="scope-chip"
+
+                  [class.active]="activeScope() === 'mine'"
+
+                  (click)="switchScope('mine')"
+
+                >
+
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+
+                    <circle cx="12" cy="7" r="4" />
+
+                  </svg>
+
+                  <span>Mis Endpoints</span>
+
+                  <span class="scope-count tabular-nums">{{ myEndpointsCount() }}</span>
+
+                </button>
+
+                <button
+
+                  type="button"
+
+                  class="scope-chip"
+
+                  [class.active]="activeScope() === 'showcase'"
+
+                  (click)="switchScope('showcase')"
+
+                >
+
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                    <circle cx="12" cy="12" r="10" />
+
+                    <line x1="2" y1="12" x2="22" y2="12" />
+
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+
+                  </svg>
+
+                  <span>Showcase Demo</span>
+
+                </button>
+
+              </div>
+
+
+
+              <div class="filter-tabs-group" role="tablist">
+
+                <button
+
+                  type="button"
+
+                  class="filter-tab"
+
+                  [class.active]="statusFilter() === 'ALL'"
+
+                  (click)="statusFilter.set('ALL')"
+
+                >
+
+                  <span>Todos</span>
+
+                  <span class="tab-count tabular-nums">{{ metrics().total }}</span>
+
+                </button>
+
+                <button
+
+                  type="button"
+
+                  class="filter-tab"
+
+                  [class.active]="statusFilter() === 'HEALTHY'"
+
+                  (click)="statusFilter.set('HEALTHY')"
+
+                >
+
+                  <span class="tab-dot dot-healthy"></span>
+
+                  <span>Operativos</span>
+
+                  <span class="tab-count tabular-nums">{{ metrics().healthy }}</span>
+
+                </button>
+
+                <button
+
+                  type="button"
+
+                  class="filter-tab"
+
+                  [class.active]="statusFilter() === 'ALERT'"
+
+                  (click)="statusFilter.set('ALERT')"
+
+                >
+
+                  <span class="tab-dot dot-down"></span>
+
+                  <span>En Alerta</span>
+
+                  <span class="tab-count tabular-nums">{{ metrics().down + metrics().degraded }}</span>
+
+                </button>
+
+                <button
+
+                  type="button"
+
+                  class="filter-tab"
+
+                  [class.active]="statusFilter() === 'PENDING'"
+
+                  (click)="statusFilter.set('PENDING')"
+
+                >
+
+                  <span class="tab-dot dot-pending"></span>
+
+                  <span>En Espera</span>
+
+                  <span class="tab-count tabular-nums">{{ metrics().pending + metrics().recovering }}</span>
+
+                </button>
+
+              </div>
+
+            </div>
+
+
+
+            <div class="lcb-right">
+
+              <div class="search-input-wrapper">
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                  <circle cx="11" cy="11" r="8" />
+
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+
+                </svg>
+
+                <input
+
+                  type="text"
+
+                  class="search-input"
+
+                  placeholder="Buscar servicio..."
+
+                  [ngModel]="searchQuery()"
+
+                  (ngModelChange)="searchQuery.set($event)"
+
+                />
+
+              </div>
+
+
+
+              <div class="sort-select-wrapper">
+
+                <select
+
+                  [ngModel]="sortBy()"
+
+                  (ngModelChange)="sortBy.set($event)"
+
+                  class="sort-select"
+
+                  title="Criterio de ordenamiento"
+
+                >
+
+                  <option value="DEFAULT">Ordenar: Recientes</option>
+
+                  <option value="LATENCY_ASC">Latencia: Menor primero</option>
+
+                  <option value="LATENCY_DESC">Latencia: Mayor primero</option>
+
+                  <option value="UPTIME_ASC">SLA: Menor primero</option>
+
+                  <option value="NAME_ASC">Nombre (A-Z)</option>
+
+                </select>
+
+              </div>
+
+
+
+              <button
+
+                type="button"
+
+                class="btn-tool-action"
+
+                [class.active]="desktopNotificationsEnabled()"
+
+                (click)="toggleDesktopNotifications()"
+
+                [title]="desktopNotificationsEnabled() ? 'Alertas sonoras activadas' : 'Activar alertas sonoras'"
+
+              >
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+
+                </svg>
+
+                @if (desktopNotificationsEnabled()) {
+
+                  <span class="badge-dot-active"></span>
+
+                }
+
+              </button>
+
+
+
+              <button
+
+                type="button"
+
+                class="btn-tool-action"
+
+                (click)="syncWithPublicApi()"
+
+                [disabled]="isSyncing()"
+
+                title="Sincronizar telemetría ahora"
+
+              >
+
+                <svg
+
+                  [class.spin]="isSyncing()"
+
+                  width="14"
+
+                  height="14"
+
+                  viewBox="0 0 24 24"
+
+                  fill="none"
+
+                  stroke="currentColor"
+
+                  stroke-width="2"
+
+                >
+
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+
+                  <path d="M3 3v5h5" />
+
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+
+                  <path d="M16 16h5v5" />
+
+                </svg>
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- SRE Data Table para Usuarios Autenticados -->
+
+          <div class="sre-table-container">
+
+            <table class="sre-table" aria-label="Tabla de mis microservicios monitoreados">
+
+              <thead>
+
+                <tr>
+
+                  <th class="th-service">Servicio / Endpoint</th>
+
+                  <th class="th-status">Estado</th>
+
+                  <th class="th-sla">Disponibilidad (SLA 30d)</th>
+
+                  <th class="th-latency">Latencia</th>
+
+                  <th class="th-pulse">Último Pulso</th>
+
+                  <th class="th-actions text-right">Acciones</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                @for (ep of filteredEndpoints(); track ep.id) {
+
+                  <tr class="sre-row" [attr.data-status]="ep.status" (click)="openInspector(ep)">
+
+                    <td class="td-service">
+
+                      <div class="service-identity-cell">
+
+                        <span class="status-indicator-dot" [class]="'dot-' + ep.status.toLowerCase()"></span>
+
+                        <div class="service-text-group">
+
+                          <div class="service-name-line">
+
+                            <span class="service-name">{{ ep.name }}</span>
+
+                            @if (ep.isOwner) {
+
+                              <span class="badge-owner">Mío</span>
+
+                            } @else if (ep.isProtected) {
+
+                              <span class="badge-demo">Demo</span>
+
+                            }
+
+                            @if (ep.sslDaysRemaining !== null && ep.sslDaysRemaining !== undefined) {
+
+                              <span
+
+                                class="badge-ssl-pill"
+
+                                [class.ssl-warning]="ep.sslDaysRemaining <= 14"
+
+                                [class.ssl-healthy]="ep.sslDaysRemaining > 14"
+
+                              >
+
+                                SSL {{ ep.sslDaysRemaining }}d
+
+                              </span>
+
+                            }
+
+                          </div>
+
+                          <div class="service-url-line">
+
+                            <a
+
+                              [href]="ep.url"
+
+                              target="_blank"
+
+                              rel="noopener noreferrer"
+
+                              class="service-url font-mono"
+
+                              (click)="$event.stopPropagation()"
+
+                              title="Abrir URL"
+
+                            >
+
+                              <span>{{ ep.url }}</span>
+
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+
+                                <polyline points="15 3 21 3 21 9"></polyline>
+
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+
+                              </svg>
+
+                            </a>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                    <td class="td-status">
+
+                      <span [class]="getStatusClass(ep.status)">
+
+                        {{ getStatusLabel(ep.status) }}
+
+                      </span>
+
+                    </td>
+
+                    <td class="td-sla">
+
+                      <div class="sla-cell-group">
+
+                        <span class="sla-percentage tabular-nums">
+
+                          {{ ep.status === 'PENDING' ? 'En espera' : (ep.uptimePercentage | number: '1.2-2') + '%' }}
+
+                        </span>
+
+                        <div class="rhythm-track">
+
+                          @for (seg of getUptimeSegments(ep); track $index) {
+
+                            <span class="rhythm-bar" [ngClass]="seg" [style.--bar-idx]="$index"></span>
+
+                          }
+
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                    <td class="td-latency">
+
+                      <span class="latency-val tabular-nums" [ngClass]="getLatencyClass(ep.lastResponseTimeMs)">
+
+                        {{ ep.lastResponseTimeMs !== null && ep.status !== 'PENDING' && ep.status !== 'DOWN' ? ep.lastResponseTimeMs + ' ms' : '—' }}
+
+                      </span>
+
+                    </td>
+
+                    <td class="td-pulse">
+
+                      <span class="pulse-time">{{ formatRelativeTime(ep.lastCheckedAt) }}</span>
+
+                    </td>
+
+                    <td class="td-actions text-right" (click)="$event.stopPropagation()">
+
+                      <div class="table-actions-strip">
+
+                        <button
+
+                          type="button"
+
+                          class="btn-table-icon"
+
+                          (click)="triggerManualPing(ep, $event)"
+
+                          title="Ejecutar comprobación inmediata"
+
+                          [disabled]="isTriggeringPing()"
+
+                        >
+
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+
+                          </svg>
+
+                        </button>
+
+
+
+                        @if (ep.isOwner || (!ep.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
+
+                          <button
+
+                            type="button"
+
+                            class="btn-table-icon"
+
+                            (click)="openEditModal(ep, $event)"
+
+                            title="Editar configuración"
+
+                          >
+
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+
+                            </svg>
+
+                          </button>
+
+
+
+                          <button
+
+                            type="button"
+
+                            class="btn-table-icon btn-action-delete"
+
+                            (click)="confirmDelete(ep, $event)"
+
+                            title="Eliminar servicio"
+
+                          >
+
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                              <polyline points="3 6 5 6 21 6" />
+
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+
+                            </svg>
+
+                          </button>
+
+                        } @else {
+
+                          <span class="badge-locked-demo" title="Endpoint protegido contra eliminación">
+
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+
+                            </svg>
+
+                          </span>
+
+                        }
+
+
+
+                        <button
+
+                          type="button"
+
+                          class="btn-table-inspect"
+
+                          (click)="openInspector(ep)"
+
+                          title="Ver telemetría detallada"
+
+                        >
+
+                          <span>Métricas</span>
+
+                          <span class="arrow-shift">→</span>
+
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                } @empty {
+
+                  <tr>
+
+                    <td colspan="6">
+
+                      <div class="empty-state-panel">
+
+                        <div class="empty-icon-box">
+
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+
+                            <circle cx="12" cy="12" r="10" />
+
+                            <line x1="12" y1="8" x2="12" y2="12" />
+
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+
+                          </svg>
+
+                        </div>
+
+                        <h4 class="empty-title">Aún no tienes endpoints registrados en tu cuenta</h4>
+
+                        <p class="empty-desc">
+
+                          Comienza agregando la URL de tu primer microservicio o carga 3 servicios de demostración para probar el sistema.
+
+                        </p>
+
+                        <div class="empty-btn-group">
+
+                          <button type="button" class="btn-primary-action" (click)="openCreateModal()">
+
+                            + Agregar mi primer endpoint
+
+                          </button>
+
+                          <button type="button" class="btn-secondary-action" (click)="seedSampleEndpoints()" [disabled]="isSyncing()">
+
+                            Cargar 3 ejemplos
+
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+      }
+
+
+
+      <!-- ===================================================================
+
+           DIAGRAMA DE PIPELINE DE DATOS INTERACTIVO CON STEPPER Y SIMULADOR
+
+           =================================================================== -->
+
+      <section class="section-card" id="arquitectura">
+
+        <div class="section-card-header">
+
+          <div>
+
+            <span class="section-tag">ARQUITECTURA DE PRODUCCIÓN</span>
+
+            <h2 class="section-heading">Pipeline de Datos &amp; Motor de Concurrencia</h2>
+
+            <p class="section-subtext">
+
+              Recorrido interactivo de cada comprobación de salud desde el planificador de Java 21 hasta los Signals reactivos de Angular 20:
+
+            </p>
+
+          </div>
+
+
+
+          <!-- Controles de Navegación y Simulación del Pipeline -->
+
+          <div class="pipeline-controls-strip">
+
+            <button
+
+              type="button"
+
+              class="btn-pipeline-nav"
+
+              (click)="prevPipelineStep()"
+
+              title="Etapa anterior"
+
+              aria-label="Etapa anterior del pipeline"
+
+            >
+
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                <polyline points="15 18 9 12 15 6" />
+
+              </svg>
+
+              <span>Anterior</span>
+
+            </button>
+
+
+
+            <button
+
+              type="button"
+
+              class="btn-pipeline-sim"
+
+              [class.simulating]="isSimulatingPipeline()"
+
+              (click)="simulatePipelineRun()"
+
+              title="Simular el flujo completo de una comprobación a través de las 5 etapas"
+
+            >
+
+              @if (isSimulatingPipeline()) {
+
+                <span class="pulse-beam-dot"></span>
+
+                <span>Pausar Simulación</span>
+
+              } @else {
+
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+
+                </svg>
+
+                <span>Simular Recorrido de Ping</span>
+
+              }
+
+            </button>
+
+
+
+            <button
+
+              type="button"
+
+              class="btn-pipeline-nav"
+
+              (click)="nextPipelineStep()"
+
+              title="Siguiente etapa"
+
+              aria-label="Siguiente etapa del pipeline"
+
+            >
+
+              <span>Siguiente</span>
+
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+                <polyline points="9 18 15 12 9 6" />
+
+              </svg>
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="pipeline-explorer">
+
+          <!-- Barra de Progreso Visual de las 5 Etapas -->
+
+          <div class="pipeline-progress-rail">
+
+            <div
+
+              class="pipeline-progress-indicator"
+
+              [style.width.%]="(activePipelineStep() - 1) * 25"
+
+            ></div>
+
+          </div>
+
+
+
+          <!-- Barra interactiva de etapas del pipeline con iconos tecnicos y cero overflow -->
+
+          <div class="pipeline-track" role="tablist" aria-label="Etapas del pipeline de datos">
+
+            @for (st of pipelineSteps; track st.step) {
+
+              <button
+
+                type="button"
+
+                class="pipeline-node-btn"
+
+                [class.active]="activePipelineStep() === st.step"
+
+                (click)="setPipelineStep(st.step)"
+
+                role="tab"
+
+                [attr.aria-selected]="activePipelineStep() === st.step"
+
+              >
+
+                <div class="node-step-header">
+
+                  <div class="node-icon-wrap">
+
+                    @if (st.step === 1) {
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                        <rect x="4" y="4" width="16" height="16" rx="2"/>
+
+                        <rect x="9" y="9" width="6" height="6"/>
+
+                        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+
+                        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+
+                        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+
+                        <line x1="1" y1="9" x2="4" y1="9"/><line x1="1" y1="14" x2="4" y1="14"/>
+
+                      </svg>
+
+                    } @else if (st.step === 2) {
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+
+                      </svg>
+
+                    } @else if (st.step === 3) {
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
+
+                        <path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/>
+
+                      </svg>
+
+                    } @else if (st.step === 4) {
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+
+                      </svg>
+
+                    } @else {
+
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+
+                      </svg>
+
+                    }
+
+                    <span class="node-step-badge">0{{ st.step }}</span>
+
+                  </div>
+
+                  <span class="node-tag-pill">{{ st.tag }}</span>
+
+                </div>
+
+                <div class="node-title">{{ st.name }}</div>
+
+                <div class="node-runtime font-mono">{{ st.runtime }}</div>
+
+              </button>
+
+            }
+
+          </div>
+
+
+
+          <!-- Panel de inspeccion de la etapa activa -->
+
+          @for (st of pipelineSteps; track st.step) {
+
+            @if (activePipelineStep() === st.step) {
+
+              <div class="pipeline-detail-card" role="tabpanel">
+
+                <div class="pd-info-col">
+
+                  <div class="pd-meta-row">
+
+                    <span class="node-step-badge">ETAPA 0{{ st.step }}</span>
+
+                    <span class="node-tag-pill">{{ st.tag }}</span>
+
+                    <span class="pd-runtime-chip font-mono">{{ st.runtime }}</span>
+
+                  </div>
+
+                  <h3 class="pd-heading">{{ st.name }}</h3>
+
+                  <p class="pd-summary">{{ st.summary }}</p>
+
+                  <div class="pd-metric-strip">
+
+                    <span class="pd-metric-label">Métrica de Ingeniería:</span>
+
+                    <span class="pd-metric-value font-mono">{{ st.metrics }}</span>
+
+                  </div>
+
+                </div>
+
+                <div class="pd-code-col">
+
+                  <div class="code-box-head">
+
+                    <span class="font-mono">Implementación de Producción</span>
+
+                    <button
+
+                      type="button"
+
+                      class="btn-code-copy"
+
+                      (click)="copyText(st.codeSnippet, 'Código de etapa copiado')"
+
+                    >
+
+                      Copiar Código
+
+                    </button>
+
+                  </div>
+
+                  <pre class="pipeline-code font-mono">{{ st.codeSnippet }}</pre>
+
+                </div>
+
+              </div>
+
+            }
+
+          }
+
+        </div>
+
+      </section>
+
+
+
+      <!-- ===================================================================
+
+           API REST PÚBLICA & CONSOLA cURL
+
+           =================================================================== -->
+
+      <section class="section-card" id="api-publica">
+
+        <div class="section-card-header">
+
+          <div>
+
+            <span class="section-tag">DESARROLLADORES</span>
+
+            <h2 class="section-heading">API REST Pública &amp; Consola cURL</h2>
+
+            <p class="section-subtext">
+
+              Backend alojado en Render con CORS abierto. Consulta el estado del motor desde cualquier terminal o aplicación.
+
+            </p>
+
+          </div>
+
+          <div class="api-url-chip font-mono">
+
+            <span>{{ endpointService.publicApiUrl }}</span>
+
+            <button
+
+              type="button"
+
+              class="btn-copy-chip"
+
+              (click)="copyText(endpointService.publicApiUrl, 'URL copiada al portapapeles')"
+
+              title="Copiar URL"
+
+            >
+
+              Copiar
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="api-console-split">
+
+          <div class="console-left">
+
+            <div class="console-method-tabs">
+
+              <button
+
+                type="button"
+
+                class="c-tab"
+
+                [class.active]="activeApiTab() === 'GET'"
+
+                (click)="activeApiTab.set('GET')"
+
+              >
+
+                <span class="badge-method-get">GET</span>
+
+                <span>/api/endpoints</span>
+
+              </button>
+
+              <button
+
+                type="button"
+
+                class="c-tab"
+
+                [class.active]="activeApiTab() === 'POST'"
+
+                (click)="activeApiTab.set('POST')"
+
+              >
+
+                <span class="badge-method-post">POST</span>
+
+                <span>/api/endpoints</span>
+
+              </button>
+
+              <button
+
+                type="button"
+
+                class="c-tab"
+
+                [class.active]="activeApiTab() === 'DELETE'"
+
+                (click)="activeApiTab.set('DELETE')"
+
+              >
+
+                <span class="badge-method-del">DELETE</span>
+
+                <span>/api/endpoints/&#123;id&#125;</span>
+
+              </button>
+
+            </div>
+
+
+
+            <div class="code-box">
+
+              <div class="code-box-head">
+
+                <div class="terminal-dots">
+                  <span class="t-dot dot-red"></span>
+                  <span class="t-dot dot-yellow"></span>
+                  <span class="t-dot dot-green"></span>
+                </div>
+                <span>Comando cURL</span>
+
+                <button
+
+                  type="button"
+
+                  class="btn-code-copy"
+
+                  (click)="copyText(getCurlSnippet(activeApiTab()), 'Comando cURL copiado')"
+
+                >
+
+                  Copiar comando
+
+                </button>
+
+              </div>
+
+              <pre class="code-content font-mono">{{ getCurlSnippet(activeApiTab()) }}</pre>
+
+            </div>
+
+
+
+            <button
+
+              type="button"
+
+              class="btn-primary-action w-100"
+
+              (click)="triggerPublicApiTest()"
+
+              [disabled]="isTestingPublicApi()"
+
+            >
+
+              @if (isTestingPublicApi()) {
+
+                <span class="spinner-inline"></span>
+
+                <span>Consultando servidor...</span>
+
+              } @else {
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+
+                </svg>
+
+                <span>Ejecutar consulta en vivo</span>
+
+              }
+
+            </button>
+
+          </div>
+
+
+
+          <div class="console-right" [class.panel-refreshed]="apiPulseActive()">
+
+            <div class="code-box-head">
+
+              <div class="terminal-dots">
+                <span class="t-dot dot-red"></span>
+                <span class="t-dot dot-yellow"></span>
+                <span class="t-dot dot-green"></span>
+              </div>
+              <div class="resp-status-line">
+
+                <span class="status-indicator-dot dot-healthy"></span>
+
+                <span class="resp-code">200 OK</span>
+
+                @if (apiLastLatencyMs() !== null) {
+
+                  <span class="resp-latency tabular-nums">· {{ apiLastLatencyMs() }} ms</span>
+
+                }
+
+              </div>
+
+              <button
+
+                type="button"
+
+                class="btn-code-copy"
+
+                (click)="copyText(liveJsonOutput(), 'JSON copiado al portapapeles')"
+
+              >
+
+                Copiar JSON
+
+              </button>
+
+            </div>
+
+            <pre class="json-content font-mono">{{ liveJsonOutput() || 'Conectando con Render...' }}<span class="terminal-cursor"></span></pre>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+    </div>
+
+  </main>
+
+
+
+
+
+
+
+  <!-- Footer -->
+
+  <footer class="app-footer">
+
+    <div class="footer-container">
+
+      <div class="footer-left">
+
+        <div class="footer-brand">
+
+          <img src="deployops-icon.png" alt="DeployOps" width="22" height="22" class="footer-logo-img" />
+
+          <span class="footer-brand-text">DeployOps</span>
+
+        </div>
+
+        <p class="footer-summary">
+
+          Plataforma de monitoreo de disponibilidad HTTP y auditoría SLA en tiempo real.
+
+        </p>
+
+      </div>
+
+
+
+      <div class="footer-stack tabular-nums">
+
+        <span>Java 21</span>
+
+        <span class="dot">·</span>
+
+        <span>Spring Boot</span>
+
+        <span class="dot">·</span>
+
+        <span>Angular 20</span>
+
+        <span class="dot">·</span>
+
+        <span>PostgreSQL</span>
+
+      </div>
+
+    </div>
+
+  </footer>
+
+
+
+  <!-- Modal para Agregar Nuevo Endpoint (Limpio y Centrado para Usuarios Autenticados) -->
+
+  @if (isCreateModalOpen()) {
+
+    <div class="modal-backdrop" (click)="closeCreateModal()">
+
+      <div class="modal-dialog-box create-endpoint-dialog" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+
+          <h3 class="modal-title">+ Monitorear Nuevo Endpoint</h3>
+
+          <button type="button" class="btn-modal-close" (click)="closeCreateModal()" aria-label="Cerrar">✕</button>
+
+        </div>
+
+
+
+        <p class="modal-desc">
+
+          Registra la URL de tu microservicio o API. El motor comenzará a auditarlo cada 60 segundos.
+
+        </p>
+
+
+
+        @if (createErrors().length > 0) {
+
+          <div class="auth-error-alert" role="alert">
+
+            @for (err of createErrors(); track $index) {
+
+              <span>• {{ err }}</span>
+
+            }
+
+          </div>
+
+        }
+
+
+
+        <form (submit)="submitCreateEndpoint(); $event.preventDefault()" class="modal-form">
+
+          <div class="form-group">
+
+            <label for="newServiceNameInput" class="form-label">Nombre del servicio</label>
+
+            <input
+
+              id="newServiceNameInput"
+
+              type="text"
+
+              class="form-control"
+
+              placeholder="Ej. API Pagos / Auth Gateway"
+
+              maxlength="100"
+
+              [ngModel]="newServiceName()"
+
+              (ngModelChange)="newServiceName.set($event); clearCreateErrors()"
+
+              name="newServiceName"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label for="newServiceUrlInput" class="form-label">URL del Endpoint (HTTP / HTTPS)</label>
+
+            <input
+
+              id="newServiceUrlInput"
+
+              type="url"
+
+              class="form-control font-mono"
+
+              placeholder="https://api.tuempresa.com/health"
+
+              maxlength="500"
+
+              [ngModel]="newServiceUrl()"
+
+              (ngModelChange)="newServiceUrl.set($event); clearCreateErrors()"
+
+              name="newServiceUrl"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          <div class="form-row-duo">
+
+            <div class="form-group">
+
+              <label for="newServiceMethodSelect" class="form-label">Método HTTP</label>
+
+              <select
+
+                id="newServiceMethodSelect"
+
+                class="form-control c-select"
+
+                [ngModel]="newServiceMethod()"
+
+                (ngModelChange)="newServiceMethod.set($event)"
+
+                name="newServiceMethod"
+
+              >
+
+                <option value="GET">GET</option>
+
+                <option value="POST">POST</option>
+
+                <option value="HEAD">HEAD</option>
+
+                <option value="PUT">PUT</option>
+
+              </select>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+              <label for="newServiceExpectedStatusInput" class="form-label">Código esperado (Opcional)</label>
+
+              <input
+
+                id="newServiceExpectedStatusInput"
+
+                type="number"
+
+                class="form-control font-mono"
+
+                placeholder="200 (por defecto 2xx)"
+
+                [ngModel]="newServiceExpectedStatus()"
+
+                (ngModelChange)="setExpectedStatus($event)"
+
+                name="newServiceExpectedStatus"
+
+              />
+
+            </div>
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label for="newServiceHeadersInput" class="form-label">Headers personalizados (Clave: Valor)</label>
+
+            <input
+
+              id="newServiceHeadersInput"
+
+              type="text"
+
+              class="form-control font-mono"
+
+              placeholder="Authorization: Bearer token"
+
+              [ngModel]="newServiceHeaders()"
+
+              (ngModelChange)="newServiceHeaders.set($event)"
+
+              name="newServiceHeaders"
+
+            />
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label class="switch-checkbox-row">
+
+              <input
+
+                type="checkbox"
+
+                [ngModel]="newServiceIsPublic()"
+
+                (ngModelChange)="newServiceIsPublic.set($event)"
+
+                name="newServiceIsPublic"
+
+              />
+
+              <span>Publicar en mi Status Page Pública</span>
+
+            </label>
+
+          </div>
+
+
+
+          <div class="modal-actions-row">
+
+            <button type="button" class="btn-secondary-action" (click)="closeCreateModal()">
+
+              Cancelar
+
+            </button>
+
+            <button
+
+              type="submit"
+
+              class="btn-primary-action"
+
+              [disabled]="isSubmittingCreate()"
+
+            >
+
+              {{ isSubmittingCreate() ? 'Verificando...' : 'Comenzar a Monitorear' }}
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  }
+
+
+
+  <!-- Inspector Lateral de Telemetría -->
+
+  @if (selectedEndpoint(); as selected) {
+
+    <div class="drawer-backdrop" (click)="closeInspector()">
+
+      <aside class="inspector-drawer" (click)="$event.stopPropagation()">
+
+        <div class="drawer-header">
+
+          <div>
+
+            <div class="drawer-eyebrow">
+
+              <span class="status-indicator-dot" [class]="'dot-' + selected.status.toLowerCase()"></span>
+
+              <span>ID #{{ selected.id }} · Telemetría en Vivo</span>
+
+            </div>
+
+            <h2 class="drawer-title">{{ selected.name }}</h2>
+
+          </div>
+
+          <button type="button" class="btn-drawer-close" (click)="closeInspector()" aria-label="Cerrar">✕</button>
+
+        </div>
+
+
+
+        <div class="drawer-body">
+
+          <div class="drawer-status-box">
+
+            <div class="dsb-top">
+
+              <span [class]="getStatusClass(selected.status)">
+
+                {{ getStatusLabel(selected.status) }}
+
+              </span>
+
+              <span class="dsb-time">{{ formatRelativeTime(selected.lastCheckedAt) }}</span>
+
+            </div>
+
+            <p class="dsb-desc">{{ getStatusDescription(selected) }}</p>
+
+          </div>
+
+
+
+          <div class="drawer-section">
+
+            <div class="ds-head">
+
+              <span class="ds-title">Disponibilidad SLA (30 Días)</span>
+
+              <span class="ds-value tabular-nums">{{ selected.uptimePercentage | number: '1.2-2' }}%</span>
+
+            </div>
+
+            <div class="rhythm-track">
+
+              @for (seg of getUptimeSegments(selected); track $index) {
+
+                <span class="rhythm-bar" [ngClass]="seg" [style.--bar-idx]="$index"></span>
+
+              }
+
+            </div>
+
+          </div>
+
+
+
+          <div class="specs-grid">
+
+            <div class="spec-tile">
+
+              <span class="spec-label">URL Monitoreada</span>
+
+              <a [href]="selected.url" target="_blank" rel="noopener noreferrer" class="spec-url font-mono">{{ selected.url }}</a>
+
+            </div>
+
+
+
+            <div class="spec-tile">
+
+              <span class="spec-label">Última Latencia</span>
+
+              <span class="spec-val font-mono tabular-nums">
+
+                {{ selected.lastResponseTimeMs !== null ? selected.lastResponseTimeMs + ' ms' : 'En espera' }}
+
+              </span>
+
+            </div>
+
+
+
+            <div class="spec-tile">
+
+              <span class="spec-label">Fallos Consecutivos</span>
+
+              <span class="spec-val font-mono tabular-nums">{{ selected.consecutiveFailures }} de 3 (umbral)</span>
+
+            </div>
+
+
+
+            <div class="spec-tile">
+
+              <span class="spec-label">Último Pulso</span>
+
+              <span class="spec-val tabular-nums">{{ formatExactDate(selected.lastCheckedAt) }}</span>
+
+            </div>
+
+
+
+            @if (selected.sslDaysRemaining !== null && selected.sslDaysRemaining !== undefined) {
+
+              <div class="spec-tile">
+
+                <span class="spec-label">Certificado SSL/TLS</span>
+
+                <span
+
+                  class="badge-ssl-pill"
+
+                  [class.ssl-warning]="selected.sslDaysRemaining <= 14"
+
+                  [class.ssl-healthy]="selected.sslDaysRemaining > 14"
+
+                >
+
+                  {{ selected.sslDaysRemaining <= 14 ? '⚠️ Expira en ' + selected.sslDaysRemaining + ' días' : '✓ Válido (' + selected.sslDaysRemaining + ' días restantes)' }}
+
+                </span>
+
+              </div>
+
+            }
+
+          </div>
+
+
+
+          @if (selected.isOwner && authService.isAuthenticated()) {
+
+            <div class="guard-card">
+
+              <div class="gc-head">
+
+                <div class="gc-title-wrap">
+
+                  <span class="gc-dot"></span>
+
+                  <span class="gc-title">Guardia de Alerta por Correo</span>
+
+                </div>
+
+                <span class="badge-active-guard">Activa</span>
+
+              </div>
+
+              <p class="gc-desc">
+
+                Notificación inmediata a <strong>{{ authService.currentUser()?.email }}</strong> ante 3 fallos consecutivos.
+
+              </p>
+
+              <button
+
+                type="button"
+
+                class="btn-secondary-action"
+
+                [disabled]="isTestingAlert()"
+
+                (click)="triggerTestAlert(selected)"
+
+              >
+
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+
+                </svg>
+
+                <span>{{ isTestingAlert() ? 'Enviando...' : 'Enviar Alerta de Prueba' }}</span>
+
+              </button>
+
+            </div>
+
+
+
+            <div class="status-page-switch-card">
+
+              <div class="spsc-head">
+
+                <span class="spsc-title">Visibilidad en Status Page</span>
+
+                <button
+
+                  type="button"
+
+                  class="toggle-switch-btn"
+
+                  [class.active]="selected.isPublicStatus"
+
+                  [disabled]="isTogglingVisibility()"
+
+                  (click)="toggleServiceVisibility(selected)"
+
+                  [title]="selected.isPublicStatus ? 'Desactivar de Status Page' : 'Hacer público en mi Status Page'"
+
+                >
+
+                  <span class="switch-pill"></span>
+
+                </button>
+
+              </div>
+
+              <p class="spsc-desc">
+
+                {{ selected.isPublicStatus
+
+                  ? 'Este servicio es visible en tu Status Page pública.'
+
+                  : 'Servicio privado. Activa el interruptor para incluirlo en tu Status Page pública.' }}
+
+              </p>
+
+              @if (selected.isPublicStatus) {
+
+                <div class="spsc-actions">
+
+                  <a [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']" target="_blank" class="spsc-link">
+
+                    Abrir Status Page ↗
+
+                  </a>
+
+                  <button type="button" class="btn-text-small" (click)="copyStatusPageLink()">
+
+                    Copiar enlace
+
+                  </button>
+
+                </div>
+
+              }
+
+            </div>
+
+          }
+
+
+
+          <div class="drawer-section">
+
+            <div class="ds-head">
+
+              <span class="ds-title">Serie Temporal de Latencia</span>
+
+              <div class="range-selector-tabs">
+
+                <button
+
+                  type="button"
+
+                  class="btn-range"
+
+                  [class.active]="metricsRange() === '6h'"
+
+                  (click)="changeMetricsRange('6h')"
+
+                >6H</button>
+
+                <button
+
+                  type="button"
+
+                  class="btn-range"
+
+                  [class.active]="metricsRange() === '24h'"
+
+                  (click)="changeMetricsRange('24h')"
+
+                >24H</button>
+
+                <button
+
+                  type="button"
+
+                  class="btn-range"
+
+                  [class.active]="metricsRange() === '7d'"
+
+                  (click)="changeMetricsRange('7d')"
+
+                >7D</button>
+
+              </div>
+
+            </div>
+
+
+
+            @if (isLoadingMetrics()) {
+
+              <div class="loading-state-inline">
+
+                <span class="spinner-inline"></span>
+
+                <span>Cargando serie temporal...</span>
+
+              </div>
+
+            } @else if (metricsHistory(); as mh) {
+
+              <div class="latency-stats-row font-mono tabular-nums">
+
+                <div class="ls-cell">
+
+                  <span class="ls-label">Mín</span>
+
+                  <span class="ls-val">{{ mh.minLatencyMs }} ms</span>
+
+                </div>
+
+                <div class="ls-cell">
+
+                  <span class="ls-label">Promedio</span>
+
+                  <span class="ls-val">{{ mh.avgLatencyMs }} ms</span>
+
+                </div>
+
+                <div class="ls-cell">
+
+                  <span class="ls-label">p95</span>
+
+                  <span class="ls-val">{{ mh.p95LatencyMs }} ms</span>
+
+                </div>
+
+                <div class="ls-cell">
+
+                  <span class="ls-label">Máx</span>
+
+                  <span class="ls-val">{{ mh.maxLatencyMs }} ms</span>
+
+                </div>
+
+              </div>
+
+
+
+              @if (chartSvg().points.length > 0) {
+
+                <div class="chart-box">
+
+                  <svg viewBox="0 0 340 90" class="chart-svg" preserveAspectRatio="none">
+
+                    <defs>
+
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+
+                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
+
+                        <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
+
+                      </linearGradient>
+
+                    </defs>
+
+                    <path [attr.d]="chartSvg().areaPath" fill="url(#chartGradient)" />
+
+                    <path [attr.d]="chartSvg().linePath" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+
+                    @for (pt of chartSvg().points; track $index) {
+
+                      <circle
+
+                        [attr.cx]="pt.x"
+
+                        [attr.cy]="pt.y"
+
+                        [attr.r]="activeHoverPoint() === pt ? 4 : 2.5"
+
+                        [attr.fill]="pt.alive ? '#10b981' : '#f43f5e'"
+
+                        (mouseenter)="activeHoverPoint.set(pt)"
+
+                        (mouseleave)="activeHoverPoint.set(null)"
+
+                        class="chart-point"
+
+                      />
+
+                    }
+
+                  </svg>
+
+                  @if (activeHoverPoint(); as hp) {
+
+                    <div class="chart-tooltip tabular-nums">
+
+                      <span class="tt-time">{{ hp.time }}</span>
+
+                      <span class="tt-val" [class.tt-down]="!hp.alive">
+
+                        {{ hp.alive ? hp.latency + ' ms' : 'Fallo' }}
+
+                      </span>
+
+                    </div>
+
+                  }
+
+                </div>
+
+              } @else {
+
+                <div class="chart-empty-state">
+
+                  <span>Sin registros en el rango seleccionado.</span>
+
+                </div>
+
+              }
+
+            }
+
+          </div>
+
+
+
+          <div class="drawer-section">
+
+            <div class="ds-head">
+
+              <span class="ds-title">Historial de Incidentes</span>
+
+              <span class="ds-badge tabular-nums">
+
+                {{ selectedEndpointIncidents().length }} evento{{ selectedEndpointIncidents().length === 1 ? '' : 's' }}
+
+              </span>
+
+            </div>
+
+
+
+            @if (isLoadingIncidents()) {
+
+              <div class="loading-state-inline">
+
+                <span class="spinner-inline"></span>
+
+                <span>Consultando incidentes...</span>
+
+              </div>
+
+            } @else if (selectedEndpointIncidents().length === 0) {
+
+              <div class="incidents-clean-state">
+
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+
+                  <polyline points="22 4 12 14.01 9 11.01" />
+
+                </svg>
+
+                <span>Sin incidentes en los últimos 30 días. Operación 100% nominal.</span>
+
+              </div>
+
+            } @else {
+
+              <div class="incident-timeline">
+
+                @for (inc of selectedEndpointIncidents(); track inc.id) {
+
+                  <div class="incident-card" [class.inc-ongoing]="inc.status === 'ONGOING'">
+
+                    <div class="inc-head">
+
+                      <span class="badge-incident-status" [class.badge-inc-ongoing]="inc.status === 'ONGOING'">
+
+                        {{ inc.status === 'ONGOING' ? 'En Curso' : 'Resuelto' }}
+
+                      </span>
+
+                      <span class="inc-duration tabular-nums font-mono">
+
+                        {{ formatDuration(inc.durationSeconds) }} de corte
+
+                      </span>
+
+                    </div>
+
+                    <div class="inc-dates tabular-nums">
+
+                      <span>Inicio: {{ formatExactDate(inc.startedAt) }}</span>
+
+                      @if (inc.resolvedAt) {
+
+                        <span>· Resolución: {{ formatExactDate(inc.resolvedAt) }}</span>
+
+                      }
+
+                    </div>
+
+                  </div>
+
+                }
+
+              </div>
+
+            }
+
+          </div>
+
+
+
+          <div class="drawer-section">
+
+            <div class="ds-head">
+
+              <span class="ds-title">Reporte Mensual SLA</span>
+
+              <div class="month-nav-group">
+
+                <button type="button" class="btn-month" (click)="changeReportMonth(-1)" title="Mes anterior">‹</button>
+
+                <span class="month-title">{{ selectedReport()?.periodLabel || (reportMonth() + '/' + reportYear()) }}</span>
+
+                <button type="button" class="btn-month" (click)="changeReportMonth(1)" title="Mes siguiente">›</button>
+
+              </div>
+
+            </div>
+
+
+
+            @if (isLoadingReport()) {
+
+              <div class="loading-state-inline">
+
+                <span class="spinner-inline"></span>
+
+                <span>Calculando cumplimiento...</span>
+
+              </div>
+
+            } @else if (selectedReport(); as r) {
+
+              <div class="report-summary-grid">
+
+                <div class="report-metric-tile">
+
+                  <span class="rm-label">SLA Real</span>
+
+                  <span class="rm-val tabular-nums text-healthy">{{ r.uptimePercentage | number: '1.2-2' }}%</span>
+
+                </div>
+
+                <div class="report-metric-tile">
+
+                  <span class="rm-label">Downtime</span>
+
+                  <span class="rm-val tabular-nums font-mono">{{ formatDuration(r.totalDowntimeSeconds) }}</span>
+
+                </div>
+
+                <div class="report-metric-tile">
+
+                  <span class="rm-label">Incidentes</span>
+
+                  <span class="rm-val tabular-nums">{{ r.totalIncidents }}</span>
+
+                </div>
+
+                <div class="report-metric-tile">
+
+                  <span class="rm-label">MTTR Promedio</span>
+
+                  <span class="rm-val tabular-nums font-mono">{{ r.mttrMinutes }}m</span>
+
+                </div>
+
+              </div>
+
+
+
+              <div class="report-buttons-row">
+
+                <button
+
+                  type="button"
+
+                  class="btn-secondary-action"
+
+                  (click)="downloadReportCsv(selected)"
+
+                  [disabled]="isDownloadingReportCsv()"
+
+                >
+
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+
+                    <polyline points="7 10 12 15 17 10"></polyline>
+
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+
+                  </svg>
+
+                  <span>{{ isDownloadingReportCsv() ? 'Descargando...' : 'Descargar CSV' }}</span>
+
+                </button>
+
+
+
+                @if (selected.isOwner && authService.isAuthenticated()) {
+
+                  <button
+
+                    type="button"
+
+                    class="btn-secondary-action"
+
+                    (click)="sendReportByEmail(selected)"
+
+                    [disabled]="isSendingReportEmail()"
+
+                  >
+
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+
+                    </svg>
+
+                    <span>{{ isSendingReportEmail() ? 'Enviando...' : 'Enviar por Correo' }}</span>
+
+                  </button>
+
+                }
+
+              </div>
+
+            }
+
+          </div>
+
+        </div>
+
+
+
+        <div class="drawer-footer">
+
+          <button
+
+            type="button"
+
+            class="btn-primary-action"
+
+            [disabled]="isTriggeringPing()"
+
+            (click)="triggerManualPing(selected)"
+
+          >
+
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+
+            </svg>
+
+            <span>{{ isTriggeringPing() ? 'Probando...' : 'Ejecutar Ping Ahora' }}</span>
+
+          </button>
+
+
+
+          <button
+
+            type="button"
+
+            class="btn-secondary-action"
+
+            (click)="copyText(selected.url, 'URL copiada al portapapeles')"
+
+          >
+
+            Copiar URL
+
+          </button>
+
+
+
+          @if (selected.isOwner || (!selected.isProtected && authService.currentUser()?.role === 'ROLE_ADMIN')) {
+
+            <button
+
+              type="button"
+
+              class="btn-secondary-action"
+
+              (click)="openEditModal(selected)"
+
+            >
+
+              Editar
+
+            </button>
+
+          }
+
+
+
+          @if (!selected.isProtected) {
+
+            <button
+
+              type="button"
+
+              class="btn-danger-action"
+
+              (click)="confirmDelete(selected)"
+
+            >
+
+              Eliminar
+
+            </button>
+
+          }
+
+        </div>
+
+      </aside>
+
+    </div>
+
+  }
+
+
+
+  <!-- Modal de Confirmación de Eliminación -->
+
+  @if (endpointToDelete(); as target) {
+
+    <div class="modal-backdrop" (click)="cancelDelete()">
+
+      <div class="modal-dialog-box" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+
+          <h3 class="modal-title text-danger">Confirmar Baja de Servicio</h3>
+
+          <button type="button" class="btn-modal-close" (click)="cancelDelete()">✕</button>
+
+        </div>
+
+        <p class="modal-desc">
+
+          ¿Seguro que deseas eliminar el servicio <strong>{{ target.name }}</strong> (<code>{{ target.url }}</code>)? Se detendrá el monitoreo y se purgará su historial en PostgreSQL.
+
+        </p>
+
+        <div class="modal-actions-row">
+
+          <button type="button" class="btn-secondary-action" (click)="cancelDelete()">
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="btn-danger-action"
+
+            (click)="executeDelete()"
+
+            [disabled]="isDeleting()"
+
+          >
+
+            {{ isDeleting() ? 'Eliminando...' : 'Confirmar Eliminación' }}
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  }
+
+
+
+  <!-- Toast Flotante -->
+
+  @if (toast(); as t) {
+
+    <div class="floating-toast" [class.toast-error]="t.type === 'error'">
+
+      <span class="toast-dot"></span>
+
+      <span class="toast-msg">{{ t.message }}</span>
+
+    </div>
+
+  }
+
+
+
+  <!-- Modal de Autenticación (Login / Registro) -->
+
+  @if (isAuthModalOpen()) {
+
+    <div class="modal-backdrop" (click)="closeAuthModal()">
+
+      <div class="modal-dialog-box auth-dialog" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+
+          <div class="auth-tabs-group">
+
+            <button
+
+              type="button"
+
+              class="auth-switch-tab"
+
+              [class.active]="authModalTab() === 'LOGIN'"
+
+              (click)="switchAuthTab('LOGIN')"
+
+            >
+
+              Iniciar Sesión
+
+            </button>
+
+            <button
+
+              type="button"
+
+              class="auth-switch-tab"
+
+              [class.active]="authModalTab() === 'REGISTER'"
+
+              (click)="switchAuthTab('REGISTER')"
+
+            >
+
+              Crear Cuenta
+
+            </button>
+
+          </div>
+
+          <button type="button" class="btn-modal-close" (click)="closeAuthModal()" aria-label="Cerrar">✕</button>
+
+        </div>
+
+
+
+        <p class="modal-desc">
+
+          @if (authModalTab() === 'LOGIN') {
+
+            Ingresa a tu cuenta para administrar tus endpoints privados y configurar tu Status Page.
+
+          } @else {
+
+            Crea tu cuenta de desarrollador para monitorear tus propios servicios con aislamiento total.
+
+          }
+
+        </p>
+
+
+
+        <button type="button" class="btn-google-action" (click)="triggerGoogleAuth()">
+
+          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
+
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+
+          </svg>
+
+          <span>Continuar con Google</span>
+
+        </button>
+
+
+
+        <div class="auth-divider-line">
+
+          <span>o con credenciales de acceso</span>
+
+        </div>
+
+
+
+        <form (submit)="submitAuth(); $event.preventDefault()" class="modal-form">
+
+          @if (authModalTab() === 'REGISTER') {
+
+            <div class="form-group">
+
+              <label for="authName" class="form-label">Nombre completo</label>
+
+              <input
+
+                id="authName"
+
+                type="text"
+
+                class="form-control"
+
+                placeholder="Ej. Marcos Daniel"
+
+                [ngModel]="authName()"
+
+                (ngModelChange)="authName.set($event); clearAuthErrors()"
+
+                name="authName"
+
+                required
+
+              />
+
+            </div>
+
+          }
+
+
+
+          <div class="form-group">
+
+            <label for="authEmail" class="form-label">Correo electrónico</label>
+
+            <input
+
+              id="authEmail"
+
+              type="email"
+
+              class="form-control"
+
+              placeholder="tu@correo.com"
+
+              [ngModel]="authEmail()"
+
+              (ngModelChange)="authEmail.set($event); clearAuthErrors()"
+
+              name="authEmail"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label for="authPassword" class="form-label">Contraseña</label>
+
+            <input
+
+              id="authPassword"
+
+              type="password"
+
+              class="form-control"
+
+              placeholder="••••••••"
+
+              [ngModel]="authPassword()"
+
+              (ngModelChange)="authPassword.set($event); clearAuthErrors()"
+
+              name="authPassword"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          @if (authErrors().length > 0) {
+
+            <div class="auth-error-alert" role="alert">
+
+              @for (err of authErrors(); track $index) {
+
+                <span>• {{ err }}</span>
+
+              }
+
+            </div>
+
+          }
+
+
+
+          <div class="modal-form-actions">
+
+            <button
+
+              type="submit"
+
+              class="btn-primary-action w-100"
+
+              [disabled]="isAuthSubmitting()"
+
+            >
+
+              @if (isAuthSubmitting()) {
+
+                <span>Procesando...</span>
+
+              } @else if (authModalTab() === 'LOGIN') {
+
+                <span>Iniciar Sesión</span>
+
+              } @else {
+
+                <span>Crear Cuenta</span>
+
+              }
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  }
+
+
+
+  <!-- Modal de Perfil de Usuario -->
+
+  @if (isProfileModalOpen()) {
+
+    <div class="modal-backdrop" (click)="closeProfileModal()">
+
+      <div class="modal-dialog-box profile-dialog" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+
+          <div class="profile-header-user">
+
+            <div class="pm-avatar-large">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</div>
+
+            <div>
+
+              <h3 class="pm-name">{{ authService.currentUser()?.name }}</h3>
+
+              <span class="pm-email font-mono">{{ authService.currentUser()?.email }}</span>
+
+            </div>
+
+          </div>
+
+          <button type="button" class="btn-modal-close" (click)="closeProfileModal()">✕</button>
+
+        </div>
+
+
+
+        <div class="profile-body">
+
+          <div class="profile-stats-grid">
+
+            <div class="ps-stat-tile">
+
+              <span class="ps-label">Endpoints Propios</span>
+
+              <span class="ps-val tabular-nums">{{ myEndpointsCount() }}</span>
+
+            </div>
+
+            <div class="ps-stat-tile">
+
+              <span class="ps-label">Rol de Cuenta</span>
+
+              <span class="ps-val">{{ authService.currentUser()?.role === 'ROLE_ADMIN' ? 'Administrador' : 'Desarrollador' }}</span>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="slug-config-card">
+
+            <label class="form-label">Ruta de tu Status Page Pública</label>
+
+            <div class="slug-input-row">
+
+              <span class="slug-prefix font-mono">/status/</span>
+
+              <input
+
+                type="text"
+
+                class="form-control font-mono slug-input"
+
+                [ngModel]="profileSlugInput()"
+
+                (ngModelChange)="profileSlugInput.set($event)"
+
+                placeholder="mi-organizacion"
+
+              />
+
+              <button
+
+                type="button"
+
+                class="btn-primary-action"
+
+                (click)="updateProfileSlug()"
+
+                [disabled]="isUpdatingSlug()"
+
+              >
+
+                {{ isUpdatingSlug() ? 'Guardando...' : 'Guardar' }}
+
+              </button>
+
+            </div>
+
+            @if (profileSlugSuccess(); as ok) {
+
+              <span class="slug-feedback-success">{{ ok }}</span>
+
+            }
+
+            @if (profileSlugError(); as err) {
+
+              <span class="slug-feedback-error">{{ err }}</span>
+
+            }
+
+          </div>
+
+
+
+          <div class="profile-actions-strip">
+
+            <a
+
+              [routerLink]="['/status', authService.currentUser()?.publicSlug || 'demo']"
+
+              target="_blank"
+
+              class="btn-secondary-action"
+
+              (click)="closeProfileModal()"
+
+            >
+
+              <span>Ver Status Page Pública ↗</span>
+
+            </a>
+
+            <button type="button" class="btn-secondary-action" (click)="copyStatusPageLink()">
+
+              Copiar Enlace
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="profile-footer">
+
+          <button type="button" class="btn-danger-action w-100" (click)="logout(); closeProfileModal()">
+
+            Cerrar Sesión
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  }
+
+
+
+  <!-- Modal de Edición de Endpoint -->
+
+  @if (isEditModalOpen()) {
+
+    <div class="modal-backdrop" (click)="closeEditModal()">
+
+      <div class="modal-dialog-box edit-dialog" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+
+          <h3 class="modal-title">Editar Endpoint</h3>
+
+          <button type="button" class="btn-modal-close" (click)="closeEditModal()" aria-label="Cerrar">✕</button>
+
+        </div>
+
+
+
+        <p class="modal-desc">
+
+          Modifica los parámetros de sondeo sin perder el historial de incidentes y SLA acumulado.
+
+        </p>
+
+
+
+        @if (editErrors().length > 0) {
+
+          <div class="auth-error-alert" role="alert">
+
+            @for (err of editErrors(); track $index) {
+
+              <span>• {{ err }}</span>
+
+            }
+
+          </div>
+
+        }
+
+
+
+        <form (submit)="submitEditEndpoint(); $event.preventDefault()" class="modal-form">
+
+          <div class="form-group">
+
+            <label for="editName" class="form-label">Nombre del servicio</label>
+
+            <input
+
+              id="editName"
+
+              type="text"
+
+              class="form-control"
+
+              placeholder="Ej. API Pagos"
+
+              [ngModel]="editName()"
+
+              (ngModelChange)="editName.set($event)"
+
+              name="editName"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label for="editUrl" class="form-label">URL del servicio (HTTP / HTTPS)</label>
+
+            <input
+
+              id="editUrl"
+
+              type="url"
+
+              class="form-control font-mono"
+
+              placeholder="https://api.empresa.com/health"
+
+              [ngModel]="editUrl()"
+
+              (ngModelChange)="editUrl.set($event)"
+
+              name="editUrl"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          <div class="form-row-duo">
+
+            <div class="form-group">
+
+              <label for="editMethod" class="form-label">Método HTTP</label>
+
+              <select
+
+                id="editMethod"
+
+                class="form-control c-select"
+
+                [ngModel]="editMethod()"
+
+                (ngModelChange)="editMethod.set($event)"
+
+                name="editMethod"
+
+              >
+
+                <option value="GET">GET</option>
+
+                <option value="POST">POST</option>
+
+                <option value="PUT">PUT</option>
+
+                <option value="PATCH">PATCH</option>
+
+                <option value="DELETE">DELETE</option>
+
+                <option value="HEAD">HEAD</option>
+
+                <option value="OPTIONS">OPTIONS</option>
+
+              </select>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+              <label for="editExpectedStatus" class="form-label">Código esperado (Opcional)</label>
+
+              <input
+
+                id="editExpectedStatus"
+
+                type="number"
+
+                class="form-control font-mono"
+
+                placeholder="200 (por defecto 2xx)"
+
+                [ngModel]="editExpectedStatus()"
+
+                (ngModelChange)="editExpectedStatus.set($event)"
+
+                name="editExpectedStatus"
+
+              />
+
+            </div>
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label for="editHeaders" class="form-label">Headers personalizados (uno por línea)</label>
+
+            <textarea
+
+              id="editHeaders"
+
+              class="form-control font-mono"
+
+              placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
+
+              [ngModel]="editHeaders()"
+
+              (ngModelChange)="editHeaders.set($event)"
+
+              name="editHeaders"
+
+              rows="2"
+
+            ></textarea>
+
+          </div>
+
+
+
+          <div class="form-group">
+
+            <label class="switch-checkbox-row">
+
+              <input
+
+                type="checkbox"
+
+                [checked]="editIsPublic()"
+
+                (change)="editIsPublic.set(!editIsPublic())"
+
+              />
+
+              <span>Visible públicamente en mi Status Page</span>
+
+            </label>
+
+          </div>
+
+
+
+          <div class="modal-actions-row">
+
+            <button type="button" class="btn-secondary-action" (click)="closeEditModal()">
+
+              Cancelar
+
+            </button>
+
+            <button
+
+              type="submit"
+
+              class="btn-primary-action"
+
+              [disabled]="isSubmittingEdit()"
+
+            >
+
+              {{ isSubmittingEdit() ? 'Guardando...' : 'Guardar Cambios' }}
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  }
+
+</div>
+
