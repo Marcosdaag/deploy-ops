@@ -7,7 +7,7 @@
 :root,
 [data-theme='dark'] {
   /* Lienzo y Superficies (Grafito Neutro GitHub / Stripe Dark) */
-  --bg-canvas: #0d1117;
+  --bg-canvas: #0a0e17;
   --bg-topbar: rgba(13, 17, 23, 0.92);
   --bg-surface: #161b22;
   --bg-surface-alt: #21262d;
@@ -60,7 +60,7 @@
 
 [data-theme='light'] {
   /* Lienzo y Superficies (Clean GitHub / Stripe Light) */
-  --bg-canvas: #f6f8fa;
+  --bg-canvas: #f8fafc;
   --bg-topbar: rgba(255, 255, 255, 0.94);
   --bg-surface: #ffffff;
   --bg-surface-alt: #f6f8fa;
@@ -201,4 +201,15 @@ button:disabled {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
+}
+
+
+/* Transición Suave y Duradera de Modo Claro / Oscuro */
+html, body, .landing-canvas, .topbar-fixed, .sre-table, .sre-row, .hms-item,
+.pipeline-node-btn, .pipeline-detail-card, .code-box, .telemetry-3d-wrap,
+.btn-primary-action, .btn-secondary-action, .hud-btn-action, .hud-pill-status {
+  transition: background-color 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
