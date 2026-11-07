@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EnterpriseHubComponent } from './enterprise-hub.component';
 import { EnterpriseService } from '../../../../core/services/enterprise.service';
-import { of, throwError } from 'rxjs';
+import { AuthService } from '../../../../core/services/auth.service';
+import { of } from 'rxjs';
 import {
   ChaosState,
   DistributedOverview,
@@ -13,6 +14,7 @@ describe('EnterpriseHubComponent', () => {
   let component: EnterpriseHubComponent;
   let fixture: ComponentFixture<EnterpriseHubComponent>;
   let mockEnterpriseService: jasmine.SpyObj<EnterpriseService>;
+  let mockAuthService: { isAuthenticated: jasmine.Spy; isDemoSession: jasmine.Spy };
 
   const mockWebhooks: WebhookEndpoint[] = [
     {
@@ -88,6 +90,11 @@ describe('EnterpriseHubComponent', () => {
       'triggerChaosEvent'
     ]);
 
+    mockAuthService = {
+      isAuthenticated: jasmine.createSpy('isAuthenticated').and.returnValue(true),
+      isDemoSession: jasmine.createSpy('isDemoSession').and.returnValue(false)
+    };
+
     mockEnterpriseService.getWebhooks.and.returnValue(of(mockWebhooks));
     mockEnterpriseService.getDlqFailures.and.returnValue(of(mockFailures));
     mockEnterpriseService.getChaosState.and.returnValue(of(mockChaos));
@@ -95,7 +102,10 @@ describe('EnterpriseHubComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [EnterpriseHubComponent],
-      providers: [{ provide: EnterpriseService, useValue: mockEnterpriseService }]
+      providers: [
+        { provide: EnterpriseService, useValue: mockEnterpriseService },
+        { provide: AuthService, useValue: mockAuthService }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(EnterpriseHubComponent);
@@ -162,7 +172,7 @@ describe('EnterpriseHubComponent', () => {
     component.testPing(mockWebhooks[0]);
 
     expect(mockEnterpriseService.pingWebhook).toHaveBeenCalledWith('wh-123');
-    expect(component.pingStatusMap()['wh-123']).toBe('Ping OK');
+    expect(component.pingStatusMap()['wh-123']).toBe('Ping OK ✓');
   });
 
   it('deberia reintentar una falla en DLQ', () => {
