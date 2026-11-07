@@ -47,6 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/endpoints/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/endpoints/*/ping").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/status/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/distributed/**").permitAll()
+                        .requestMatchers("/api/chaos/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()

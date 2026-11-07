@@ -41,10 +41,11 @@ Dado que la plataforma ejecuta comprobaciones HTTP hacia URLs definidas por usua
 - `GlobalExceptionHandler` intercepta cualquier error interno no controlado (`HTTP 500`) devolviendo un mensaje genérico seguro sin exponer trazas de ejecución, nombres de tablas ni metadatos SQL.
 - Política CORS restringida por lista blanca explícita de orígenes (`CORS_ALLOWED_ORIGINS`), sin comodines abiertos combinados con credenciales.
 
-### 2.5. Controles Planificados en Fase 2 de DeployOps v2.0 (Webhooks Salientes)
-- **Cifrado en reposo (`AES-256-GCM`):** Los secretos de firma `whsec_...` se almacenan cifrados en base de datos con IV aleatorio por operación y se enmascaran permanentemente en lecturas `GET`.
-- **Firma Anti-Replay (`HMAC-SHA256`):** Cabecera `X-DeployOps-Signature-256` calculada sobre `timestamp + "." + payload` con ventana máxima recomendada de `300` segundos e identificador de entrega idempotente (`X-DeployOps-Delivery`).
-- **Anti-DNS-Rebinding:** Re-ejecución de `UrlSecurityValidator` inmediatamente antes de cada intento de entrega HTTP y truncado de lectura de respuesta a `4 KB`.
+### 2.5. Controles Implementados en Fase 2 de DeployOps v2.0 (Webhooks Salientes y Criptografía)
+- **Cifrado en reposo (`AES-256-GCM`):** Los secretos de firma `whsec_...` se almacenan cifrados en base de datos mediante `SecretCryptoConverter` con clave derivada de `WEBHOOK_ENCRYPTION_KEY`, IV aleatorio de 12 bytes (96 bits) por operación y etiqueta de autenticación GCM de 128 bits. El secreto plano se expone únicamente una vez al crear o rotar; toda lectura posterior devuelve la pista enmascarada `whsec_••••••••4f9a`.
+- **Firma Anti-Replay (`HMAC-SHA256`):** Cabecera `X-DeployOps-Signature-256` calculada sobre la cadena canónica `timestampEpochSeconds + "." + rawJsonBody` con ventana de tolerancia de `300` segundos (5 minutos) y cabecera de entrega idempotente `X-DeployOps-Delivery-Id`.
+- **Anti-DNS-Rebinding Pre-Vuelo:** Re-ejecución obligatoria de `UrlSecurityValidator.validatePublicUrl()` inmediatamente antes de abrir cada conexión HTTP de webhook, prohibición de saltos 3xx y truncado de lectura de respuesta a `4096 bytes` (4 KB) para mitigar denegación de servicio.
+- **Cuotas Rate Limit Dedicadas:** `RateLimitingFilter` impone cuotas de `15 req/60s` para alta de webhooks, `10 req/60s` para pings de prueba, `10 req/60s` para reintentos de DLQ y `10 req/60s` para el simulador de caos.
 
 ---
 

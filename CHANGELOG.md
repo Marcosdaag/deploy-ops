@@ -4,7 +4,19 @@ Todos los cambios relevantes de **DeployOps** se documentan en este archivo sigu
 
 ---
 
-## [Unreleased] — DeployOps v2.0 Enterprise (Fase 1 Completada)
+## [Unreleased] — DeployOps v2.0 Enterprise (Fases 1 y 2 Completadas)
+
+### Añadido (Fase 2 — Motor Orientado a Eventos, Transactional Outbox, RabbitMQ 3.13, Webhooks AES/HMAC, DLQ y Chaos API)
+- **Patrón Transactional Outbox (`OutboxEventEntity` y `outbox_events`):** Registro atómico inmutable de eventos de incidente (`INCIDENT_OPENED`, `INCIDENT_RESOLVED`) dentro de la misma transacción SQL `@Transactional` de `EndpointManagerService`, eliminando el problema de *Dual-Write*.
+- **Relay asíncrono y rescate de zombies (`OutboxRelayService`):** Proceso periódico protegido por ShedLock (`outboxRelaySweepLock`) que publica lotes pendientes en RabbitMQ (o Virtual Threads si RabbitMQ no está habilitado), con *Zombie Lock Reaper* que rescata eventos en `PROCESSING` abandonados por más de 2 minutos y purga programada a los 7 días.
+- **Topología AMQP (`RabbitMqTopologyConfig`):** Declaración de Topic Exchange `deployops.incidents`, colas `webhooks.dispatch` y `audit.telemetry`, Dead Letter Exchange `deployops.incidents.dlx` y Dead Letter Queue `webhooks.dlq`.
+- **Cifrado en reposo AES-256-GCM (`SecretCryptoConverter`):** Cifrado transparente de secretos `whsec_...` con IV aleatorio de 12 bytes y etiqueta de 128 bits; enmascaramiento permanente en lecturas REST (`whsec_••••••••4f9a`).
+- **Firma criptográfica HMAC-SHA256 Anti-Replay (`HmacSignatureService`):** Generación de secretos seguros y firma de cabecera `X-DeployOps-Signature-256` sobre `timestampEpochSeconds + "." + rawJsonBody` con ventana de tolerancia de 300 segundos.
+- **Entrega de webhooks con Backoff Exponencial y DLQ (`WebhookDeliveryService`):** Validación Anti-SSRF previa a cada intento (Anti-DNS-Rebinding), tope de lectura de 4 KB, 3 intentos con backoff (2s, 8s, 30s) + jitter aleatorio, desvío a DLQ y auditoría en `webhook_delivery_failures`.
+- **Adaptadores de payload multiformato (`WebhookPayloadFormatter`):** Formateo automático para Slack Block Kit, Discord Embeds enriquecidos y JSON canónico.
+- **Sandbox y Simulador de Caos SRE (`ChaosSimulationService` y `ChaosSimulatorController`):** Estado de receptor virtual particionado por usuario (`200`, `503`, `504`, `401`) y disparo de simulaciones para pruebas de contingencia.
+- **Nuevos controladores REST:** `WebhookController` (CRUD, rotación de secreto, test ping, auditoría DLQ y reintento manual) y `DistributedTelemetryController` (`/api/distributed/overview`).
+- **Gobernanza documental de Fase 2:** Registro de `ADR 12` y `ADR 13` en `docs/DECISIONS.md`, expansión del ERD a 7 tablas y reglas 3.8-3.12 en `docs/DOMAIN_AND_RULES.md`, diagrama de secuencia AMQP en `docs/ARCHITECTURE.md`, creación de `docs/WEBHOOKS_AND_SECURITY.md` y `docs/API_REFERENCE.md`.
 
 ### Añadido (Fase 1 — Infraestructura Distribuida, Redis 7, ShedLock y Caché L2)
 - **Topología local multi-servicio (`docker-compose.yml`):** Incorporación de `redis:7.2-alpine` (persistencia AOF en puerto `6379`) y `rabbitmq:3.13-management-alpine` (puertos `5672` y `15672`) junto a `postgres:16-alpine`, todos con `healthcheck` nativo.

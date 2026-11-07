@@ -45,6 +45,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             allowed = rateLimiterService.tryAcquire("ping:" + clientIp, 20, 60_000);
         } else if (path.matches("^/api/endpoints/\\d+/report/csv$") && "GET".equalsIgnoreCase(method)) {
             allowed = rateLimiterService.tryAcquire("report_csv:" + clientIp, 10, 60_000);
+        } else if (path.matches("^/api/webhooks/?$") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("create_webhook:" + clientIp, 15, 60_000);
+        } else if (path.matches("^/api/webhooks/\\d+/test$") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("webhook_test:" + clientIp, 10, 60_000);
+        } else if (path.matches("^/api/webhooks/failures/\\d+/retry$") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("webhook_retry:" + clientIp, 10, 60_000);
+        } else if (path.startsWith("/api/chaos/trigger") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("chaos_trigger:" + clientIp, 10, 60_000);
         }
 
         if (!allowed) {

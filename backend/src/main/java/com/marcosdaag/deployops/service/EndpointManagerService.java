@@ -10,6 +10,7 @@ import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
+import com.marcosdaag.deployops.model.enums.OutboxEventType;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.PingLogRepository;
@@ -44,6 +45,7 @@ public class EndpointManagerService {
     private final SseNotificationService sseNotificationService;
     private final EmailAlertService emailAlertService;
     private final StatusPageCacheService statusPageCacheService;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
@@ -446,6 +448,7 @@ public class EndpointManagerService {
                             incident.setStatus(IncidentStatus.ONGOING);
                             incident.setStartedAt(LocalDateTime.now());
                             IncidentEntity saved = incidentRepository.save(incident);
+                            outboxEventService.recordIncidentEvent(service, saved != null ? saved : incident, OutboxEventType.INCIDENT_OPENED);
 
                             if (service.getUser() != null && service.getUser().getEmail() != null) {
                                 emailAlertService.sendIncidentOpenedAlert(
@@ -465,6 +468,7 @@ public class EndpointManagerService {
                     incident.setStatus(IncidentStatus.RESOLVED);
                     incident.setResolvedAt(LocalDateTime.now());
                     IncidentEntity saved = incidentRepository.save(incident);
+                    outboxEventService.recordIncidentEvent(service, saved != null ? saved : incident, OutboxEventType.INCIDENT_RESOLVED);
 
                     if (service.getUser() != null && service.getUser().getEmail() != null) {
                         long durationSeconds = Duration.between(saved.getStartedAt(), saved.getResolvedAt()).getSeconds();

@@ -160,3 +160,59 @@ sequenceDiagram
         SPS-->>C: HTTP 200 OK (Datos frescos reconstruidos)
     end
 ```
+
+
+---
+
+## 5. Ciclo de Vida del Transactional Outbox y Topologia AMQP hacia Dead Letter Queue
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant EMS as EndpointManagerService
+    participant DB as PostgreSQL (ACID)
+    participant Relay as OutboxRelayService
+    participant RMQ as RabbitMQ (Exchange: deployops.incidents)
+    participant Cons as WebhookDispatchConsumer
+    participant WDS as WebhookDeliveryService
+    participant Ext as Servidor Cliente (Slack / Discord / API)
+    participant DLQ as RabbitMQ (DLQ: webhooks.dlq)
+
+    Note over EMS,DB: 1. Transaccion Atomica ACID Unica
+    EMS->>DB: INSERT incidents (ONGOING) + UPDATE services (DOWN)
+    EMS->>DB: INSERT outbox_events (PENDING, eventId, payloadJson)
+
+    Note over Relay,RMQ: 2. Despacho Desacoplado con Exclusion Mutua
+    loop Cada 5 segundos (@SchedulerLock)
+        Relay->>DB: SELECT PENDING LIMIT 50 -> UPDATE status=PROCESSING, lockedAt=now()
+        alt RabbitMQ habilitado
+            Relay->>RMQ: BasicPublish(exchange="deployops.incidents", key="incident.down")
+            RMQ->>Cons: Encolado en webhooks.dispatch
+            Cons->>WDS: deliver(event, webhookEndpoint)
+        else Fallback en memoria / Render (Virtual Threads)
+            Relay->>WDS: deliver(event, webhookEndpoint)
+        end
+        Relay->>DB: UPDATE outbox_events SET status=PROCESSED, processedAt=now()
+    end
+
+    Note over WDS,Ext: 3. Seguridad Perimetral y Entrega Criptografica
+    loop Maximo 3 Intentos (Exponential Backoff + Jitter)
+        WDS->>WDS: UrlSecurityValidator.validate(targetUrl) [Anti-DNS-Rebinding Pre-Vuelo]
+        WDS->>WDS: Descifra secreto AES-256-GCM y calcula X-DeployOps-Signature-256 (HMAC-SHA256)
+        WDS->>Ext: POST targetUrl (sin redirecciones, tope 4 KB respuesta)
+        alt Respuesta HTTP 2xx
+            Ext-->>WDS: 200 OK
+            WDS->>DB: UPDATE webhook_endpoints SET last_delivery_status='200 OK'
+        else Timeout o HTTP 5xx
+            Ext-->>WDS: 500 / 503 / Timeout
+            Note over WDS: Aguarda Backoff (2s, 8s, 30s) + Jitter (+/-20%)
+        end
+    end
+
+    Note over WDS,DLQ: 4. Agotamiento de 3 Intentos y Auditoria Dead Letter
+    opt Si fallaron los 3 intentos
+        WDS->>DLQ: Desvia mensaje a webhooks.dlq (DLX)
+        WDS->>DB: INSERT webhook_delivery_failures (DEAD_LETTER, attempt_count=3)
+        WDS->>DB: UPDATE webhook_endpoints SET last_delivery_status='Fallo HTTP 503'
+    end
+```

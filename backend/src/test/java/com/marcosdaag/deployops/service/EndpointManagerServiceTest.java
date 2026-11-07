@@ -9,6 +9,7 @@ import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
+import com.marcosdaag.deployops.model.enums.OutboxEventType;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.PingLogRepository;
 import com.marcosdaag.deployops.model.UserEntity;
@@ -65,6 +66,9 @@ class EndpointManagerServiceTest {
 
     @Mock
     private StatusPageCacheService statusPageCacheService;
+
+    @Mock
+    private OutboxEventService outboxEventService;
 
     @Spy
     private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
@@ -183,6 +187,7 @@ class EndpointManagerServiceTest {
         assertEquals(service, savedIncident.getService());
         assertNotNull(savedIncident.getStartedAt());
         assertNull(savedIncident.getResolvedAt());
+        verify(outboxEventService).recordIncidentEvent(eq(service), any(IncidentEntity.class), eq(OutboxEventType.INCIDENT_OPENED));
     }
 
     @Test
@@ -240,6 +245,7 @@ class EndpointManagerServiceTest {
         verify(incidentRepository).save(ongoingIncident);
         assertEquals(IncidentStatus.RESOLVED, ongoingIncident.getStatus());
         assertNotNull(ongoingIncident.getResolvedAt());
+        verify(outboxEventService).recordIncidentEvent(eq(service), eq(ongoingIncident), eq(OutboxEventType.INCIDENT_RESOLVED));
     }
 
     @Test
