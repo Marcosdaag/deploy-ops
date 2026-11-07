@@ -9,6 +9,7 @@ import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
+import com.marcosdaag.deployops.model.enums.OutboxEventType;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.PingLogRepository;
 import com.marcosdaag.deployops.model.UserEntity;
@@ -62,6 +63,12 @@ class EndpointManagerServiceTest {
 
     @Mock
     private EmailAlertService emailAlertService;
+
+    @Mock
+    private StatusPageCacheService statusPageCacheService;
+
+    @Mock
+    private OutboxEventService outboxEventService;
 
     @Spy
     private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
@@ -180,6 +187,7 @@ class EndpointManagerServiceTest {
         assertEquals(service, savedIncident.getService());
         assertNotNull(savedIncident.getStartedAt());
         assertNull(savedIncident.getResolvedAt());
+        verify(outboxEventService).recordIncidentEvent(eq(service), any(IncidentEntity.class), eq(OutboxEventType.INCIDENT_OPENED));
     }
 
     @Test
@@ -237,6 +245,7 @@ class EndpointManagerServiceTest {
         verify(incidentRepository).save(ongoingIncident);
         assertEquals(IncidentStatus.RESOLVED, ongoingIncident.getStatus());
         assertNotNull(ongoingIncident.getResolvedAt());
+        verify(outboxEventService).recordIncidentEvent(eq(service), eq(ongoingIncident), eq(OutboxEventType.INCIDENT_RESOLVED));
     }
 
     @Test
@@ -715,5 +724,18 @@ class EndpointManagerServiceTest {
         org.springframework.http.HttpHeaders lineHeaders = monitor.parseHeaders("Authorization: Bearer xyz\nX-Region: us-east-1");
         assertEquals("Bearer xyz", lineHeaders.getFirst("Authorization"));
         assertEquals("us-east-1", lineHeaders.getFirst("X-Region"));
+    }
+
+    @Test
+    @DisplayName("Invalida reactivamente la cache L2 de Status Page solo cuando cambia el estado del servicio")
+    void whenServiceStatusChangesDuringPing_shouldEvictStatusPageCacheReactively() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+
+        endpointManagerService.processPingResult(service, successPing);
+        verify(statusPageCacheService, never()).evictForService(any());
+
+        endpointManagerService.processPingResult(service, failedPing);
+        assertEquals(ServiceStatus.DEGRADED, service.getStatus());
+        verify(statusPageCacheService, times(1)).evictForService(service);
     }
 }

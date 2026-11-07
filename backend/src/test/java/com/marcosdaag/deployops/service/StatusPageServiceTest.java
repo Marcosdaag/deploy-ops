@@ -42,6 +42,9 @@ class StatusPageServiceTest {
     @Mock
     private MetricsService metricsService;
 
+    @Mock
+    private StatusPageCacheService statusPageCacheService;
+
     @InjectMocks
     private StatusPageService statusPageService;
 
@@ -66,8 +69,9 @@ class StatusPageServiceTest {
     }
 
     @Test
-    @DisplayName("Obtiene status page publica para un slug valido con URL enmascarada e incidentes")
-    void whenGetStatusPageForUserSlug_shouldReturnPublicData() {
+    @DisplayName("Obtiene status page publica para un slug valido con URL enmascarada e incidentes y puebla cache L2")
+    void whenGetStatusPageForUserSlug_shouldReturnPublicDataAndPopulateCache() {
+        when(statusPageCacheService.get("marcos-dev")).thenReturn(Optional.empty());
         when(userRepository.findByPublicSlug("marcos-dev")).thenReturn(Optional.of(user));
         when(serviceRepository.findByUserAndIsPublicStatusTrueOrderByIdDesc(user)).thenReturn(List.of(publicService));
         when(metricsService.calculateUptimesForServices(any())).thenReturn(Map.of(1L, 99.9));
@@ -92,11 +96,33 @@ class StatusPageServiceTest {
         assertEquals("api.gateway.example.com", result.getServices().getFirst().getUrlMasked());
         assertEquals(1, result.getRecentIncidents().size());
         assertEquals(3600L, result.getRecentIncidents().getFirst().getDurationSeconds());
+        verify(statusPageCacheService).put(eq("marcos-dev"), any(StatusPageDTO.class));
+    }
+
+    @Test
+    @DisplayName("Sirve Status Page desde cache L2 sin consultar PostgreSQL cuando ocurre un Cache Hit")
+    void whenCacheHit_shouldReturnCachedStatusPageWithoutDatabaseQueries() {
+        StatusPageDTO cachedDto = StatusPageDTO.builder()
+                .slug("marcos-dev")
+                .ownerName("Marcos Dev")
+                .overallStatus("OPERATIONAL")
+                .overallUptime(100.0)
+                .services(Collections.emptyList())
+                .recentIncidents(Collections.emptyList())
+                .build();
+
+        when(statusPageCacheService.get("marcos-dev")).thenReturn(Optional.of(cachedDto));
+
+        StatusPageDTO result = statusPageService.getStatusPage("marcos-dev");
+
+        assertSame(cachedDto, result);
+        verifyNoInteractions(userRepository, serviceRepository, incidentRepository, metricsService);
     }
 
     @Test
     @DisplayName("Obtiene status page demo cuando el slug es 'demo'")
     void whenGetStatusPageDemo_shouldReturnGlobalShowcase() {
+        when(statusPageCacheService.get("demo")).thenReturn(Optional.empty());
         when(serviceRepository.findByUserIsNullOrderByIdDesc()).thenReturn(List.of(publicService));
         when(metricsService.calculateUptimesForServices(any())).thenReturn(Map.of(1L, 100.0));
 
@@ -105,25 +131,28 @@ class StatusPageServiceTest {
         assertNotNull(result);
         assertEquals("DeployOps Global Demo", result.getOwnerName());
         assertEquals("OPERATIONAL", result.getOverallStatus());
+        verify(statusPageCacheService).put(eq("demo"), any(StatusPageDTO.class));
     }
 
     @Test
     @DisplayName("Lanza ResourceNotFoundException si el slug no existe")
     void whenSlugNotFound_shouldThrowException() {
+        when(statusPageCacheService.get("inexistente")).thenReturn(Optional.empty());
         when(userRepository.findByPublicSlug("inexistente")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> statusPageService.getStatusPage("inexistente"));
     }
 
     @Test
-    @DisplayName("Permite alternar visibilidad de servicio al propietario")
-    void whenToggleServiceVisibilityByOwner_shouldSave() {
+    @DisplayName("Permite alternar visibilidad de servicio al propietario e invalida cache L2")
+    void whenToggleServiceVisibilityByOwner_shouldSaveAndEvictCache() {
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(publicService));
 
         statusPageService.toggleServiceVisibility(1L, false, "marcos@example.com");
 
         assertFalse(publicService.isPublicStatus());
         verify(serviceRepository).save(publicService);
+        verify(statusPageCacheService).evictForService(publicService);
     }
 
     @Test
@@ -133,11 +162,12 @@ class StatusPageServiceTest {
 
         assertThrows(SecurityException.class, () -> statusPageService.toggleServiceVisibility(1L, false, "hacker@example.com"));
         verify(serviceRepository, never()).save(any());
+        verify(statusPageCacheService, never()).evictForService(any());
     }
 
     @Test
-    @DisplayName("Actualiza el slug publico si es valido y esta disponible")
-    void whenUpdateUserSlug_shouldSanitizeAndSave() {
+    @DisplayName("Actualiza el slug publico e invalida tanto el slug anterior como el nuevo en cache L2")
+    void whenUpdateUserSlug_shouldSanitizeSaveAndEvictOldAndNewSlugs() {
         when(userRepository.findByEmail("marcos@example.com")).thenReturn(Optional.of(user));
         when(userRepository.existsByPublicSlug("nuevo-slug")).thenReturn(false);
 
@@ -146,6 +176,8 @@ class StatusPageServiceTest {
         assertEquals("nuevo-slug", result);
         assertEquals("nuevo-slug", user.getPublicSlug());
         verify(userRepository).save(user);
+        verify(statusPageCacheService).evictBySlug("marcos-dev");
+        verify(statusPageCacheService).evictBySlug("nuevo-slug");
     }
 
     @Test

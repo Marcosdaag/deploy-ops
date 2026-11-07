@@ -84,6 +84,7 @@ Este documento formaliza las decisiones tecnicas y arquitectonicas adoptadas dur
 - **Justificacion:**
   - Protege el servidor contra ataques de saturacion sin requerir la instalacion de un cluster externo de Redis.
   - Aplica politicas diferenciadas: limites mas estrictos para autenticacion (10 peticiones/minuto) y margenes razonables para consultas regulares.
+- **Evolucion en v2.0:** Extendido por **ADR 10** para compartir ventanas de cuota en Redis 7 cuando existen multiples instancias del backend, preservando la cubeta en memoria como respaldo *Fail-Open*.
 
 ---
 
@@ -94,3 +95,51 @@ Este documento formaliza las decisiones tecnicas y arquitectonicas adoptadas dur
 - **Justificacion:**
   - Signals permite una deteccion de cambios granular sin incurrir en ciclos globales de `ngDoCheck`.
   - El sistema de diseno asegura contraste WCAG AAA y ergonomia en sesiones operativas prolongadas.
+
+---
+
+## ADR 10: Coordinacion Multi-Nodo con ShedLock y Rate Limiting Distribuido en Redis 7 (Fail-Open)
+
+- **Contexto:** Al escalar horizontalmente el backend a dos o mas contenedores detras de un balanceador de carga para garantizar alta disponibilidad, surgen dos anomalias: (1) todas las instancias ejecutan simultaneamente `@Scheduled` (`MonitoringScheduler` y `MetricsHistoryService.purgeOldLogs`), triplicando los sondeos hacia las APIs monitoreadas y generando condiciones de carrera sobre `consecutive_failures`; y (2) las cubetas de `RateLimiterService` en memoria local permiten a un atacante multiplicar su cuota rotando peticiones entre nodos. Adicionalmente, en despliegues cloud gratuitos (ej. Render sin add-on externo de Redis) la aplicacion no debe colapsar al iniciar ni ante microcortes del cluster de cache.
+- **Decision:** Incorporar `Redis 7.2` junto con `ShedLock` (`RedisLockProvider` bajo namespace `deployops`) envuelto en un decorador `ResilientLockProvider`, y migrar `RateLimiterService` a incrementos atomicos distribuidos (`INCR` + `PEXPIRE`) parametrizados mediante `app.redis.enabled`, conservando un respaldo automatico en memoria local (*Fail-Open*).
+- **Justificacion:**
+  - Garantiza que un unico nodo lider ejecute cada barrido de 60 segundos (`lockAtMostFor = 50s`, `lockAtLeastFor = 15s`); si el contenedor lider cae, otra replica asume el liderazgo en el ciclo siguiente sin intervencion humana.
+  - Unifica el conteo de peticiones por IP en todo el cluster en tiempo $O(1)$.
+  - El patron *Fail-Open* evita que Redis se convierta en un punto unico de fallo (*Single Point of Failure*): ante una caida transitoria de Redis o cuando `REDIS_ENABLED=false`, los schedulers y el control de tasa degradan limpiamente a memoria local sin interrumpir el servicio HTTP ni hacer fallar `/actuator/health`.
+
+---
+
+## ADR 11: Cache Distribuida L2 en Status Page con Invalidacion Reactiva por Eventos de Estado
+
+- **Contexto:** Cuando un servicio monitoreado sufre una caida real, miles de usuarios finales consultan simultaneamente la pagina de estado publica (`GET /api/status/{slug}`), generando un efecto de estampida (*Thundering Herd*) sobre PostgreSQL. Sin embargo, aplicar un cache tradicional con TTL largo mostraria un estado `OPERATIONAL` falso durante varios minutos tras declararse un incidente.
+- **Decision:** Implementar `StatusPageCacheService` sobre Redis (`deployops:status_page:{slug}`, serializado con Jackson 3 `JsonMapper` y `TTL` corto de seguridad de `60s`), combinado con **invalidacion reactiva inmediata** disparada desde `EndpointManagerService` y `StatusPageService`.
+- **Justificacion:**
+  - Absorbe picos masivos de lectura sirviendo el `StatusPageDTO` pre-calculado desde memoria RAM en `~1-2 ms` con cero consultas SQL en los *Cache Hits*.
+  - En el instante exacto en que `processPingResult` detecta un cambio de `ServiceStatus` (ej. `HEALTHY -> DEGRADED` o `DEGRADED -> DOWN`), o cuando el propietario modifica la visibilidad o su `publicSlug`, se elimina la clave correspondiente en Redis, garantizando consistencia inmediata en momentos criticos e instrumentando contadores `hits`, `misses` y `evictions` en Micrometer.
+
+
+---
+
+## ADR 12: Patron Transactional Outbox en PostgreSQL frente a Publicacion Directa (Dual-Write) y Rescate de Zombies
+
+- **Contexto:** Al confirmarse un incidente critico (`DOWN`) o su recuperacion (`HEALTHY`), el sistema debe alertar a los canales externos configurados por los clientes (Slack, Discord, webhooks personalizados). Despachar estas notificaciones HTTP directamente dentro del hilo de monitoreo bloquea el ciclo de sondeo, mientras que publicar de forma inmediata hacia un broker externo como RabbitMQ fuera de la transaccion SQL expone al sistema al clasico problema de *Dual-Write*: si PostgreSQL confirma el incidente pero el broker falla, o viceversa, se pierden alertas criticas o se generan inconsistencias irrecuperables.
+- **Decision:** Implementar el patron *Transactional Outbox* persistiendo un registro inmutable en la tabla `outbox_events` con estado `PENDING` dentro de la **misma transaccion atomica `@Transactional`** de `EndpointManagerService` que actualiza el estado del servicio y crea el incidente. Un relay desacoplado (`OutboxRelayService`) sondea lotes pendientes con exclusión mutua ShedLock (`outboxRelaySweepLock`), cambia su estado a `PROCESSING` marcando `locked_at`, publica hacia el Topic Exchange `deployops.incidents` de RabbitMQ (o delega a Virtual Threads si `app.rabbitmq.enabled=false`), y marca los eventos como `PROCESSED`. Incluye un reaper automatico que rescata eventos `PROCESSING` estancados por mas de 2 minutos ante caidas abruptas de nodos y una purga programada a los 7 dias.
+- **Justificacion:**
+  - Garantiza consistencia transaccional ACID: un incidente jamas existe en la base de datos sin su correspondiente evento Outbox registrado.
+  - El broker de mensajeria puede experimentar microcortes o mantenimientos sin que se pierda ninguna notificacion.
+  - El mecanismo de *Zombie Lock Reaper* protege el cluster contra particiones de red o reinicios de contenedores en pleno despacho.
+
+---
+
+## ADR 13: Cifrado en Reposo AES-256-GCM, Firma HMAC-SHA256 Anti-Replay, Idempotencia y Anti-DNS-Rebinding Pre-Vuelo en Webhooks
+
+- **Contexto:** La apertura de webhooks hacia endpoints arbitrarios definidos por los usuarios introduce serios vectores de vulnerabilidad: (1) exposicion de secretos compartidos ante filtraciones de la base de datos; (2) suplantacion o ataques de repeticion (*Replay Attacks*) de eventos capturados por atacantes en la red; (3) duplicacion de alertas operativas por semantica de entrega *At-Least-Once*; (4) ataques de *DNS Rebinding* y SSRF donde un dominio publico muta su resolucion DNS hacia direcciones privadas de la infraestructura (ej. `127.0.0.1` o metadatos de cloud `169.254.169.254`) despues del registro inicial; y (5) ataques de denegacion de servicio si el servidor receptor devuelve flujos infinitos de datos.
+- **Decision:** Establecer una defensa en profundidad en cinco capas:
+  1. **Cifrado AES-256-GCM:** Los secretos `whsec_...` se cifran de forma transparente con `SecretCryptoConverter` usando un IV aleatorio de 12 bytes y autenticacion GCM de 128 bits. El secreto plano solo se expone una vez al crear o rotar; en lecturas subsiguientes se retorna enmascarado (`whsec_••••••••4f9a`).
+  2. **Firma HMAC-SHA256 Anti-Replay:** La cabecera `X-DeployOps-Signature-256` sella la concatenacion `timestampEpochSeconds + "." + rawJsonBody`. Los receptores verifican que el timestamp no se desvie mas de 300 segundos y comparan el digesto en tiempo constante (`MessageDigest.isEqual`).
+  3. **Idempotencia Determinista:** Cada entrega transporta `X-DeployOps-Delivery-Id` y la tabla `webhook_delivery_failures` impone restriccion unica sobre `(event_id, webhook_id)`.
+  4. **Anti-DNS-Rebinding Pre-Vuelo y Tope de 4 KB:** `WebhookDeliveryService` ejecuta `UrlSecurityValidator.validatePublicUrl()` inmediatamente antes de cada conexion HTTP, prohibe redirecciones 3xx y limita la lectura de la respuesta remota a un maximo estricto de 4096 bytes.
+  5. **Resiliencia con Backoff + Jitter y DLQ:** Aplica 3 intentos con retroceso exponencial (2s, 8s, 30s) mas jitter aleatorio (+/- 20%). Tras el tercer fallo, el mensaje se deriva a la Dead Letter Queue (`webhooks.dlq`) y se audita para inspeccion y reintento manual.
+- **Justificacion:**
+  - Cumple estandares criptograficos empresariales (RFC 2104, NIST SP 800-38D).
+  - Impide que DeployOps sea utilizado como pivote para escanear redes internas o saturar servidores de terceros.

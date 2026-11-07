@@ -1,37 +1,41 @@
-# DeployOps - Backend Core
+# DeployOps — Backend Core
 
-Motor de observabilidad y monitoreo concurrente desarrollado con **Java 21**, **Spring Boot 4.1.1** y **Virtual Threads (Project Loom)**.
+Motor distribuido de observabilidad activa y gestión de incidentes SRE desarrollado con **Java 21 LTS**, **Spring Boot 4.1.1**, **Virtual Threads (Project Loom)**, **PostgreSQL 16** y **Redis 7.2**.
 
-## Características Técnicas
+## Capacidades Técnicas
 
-- **Concurrencia:** Hilos virtuales de Java 21 (`Executors.newVirtualThreadPerTaskExecutor()`) para sondeos HTTP sin bloqueo de sockets del sistema operativo.
-- **Seguridad Perimetral:** `UrlSecurityValidator` defensivo contra Server-Side Request Forgery (SSRF) con resolución DNS, filtrado de subredes privadas RFC 1918, direcciones loopback, metadatos cloud y puertos sensibles.
-- **Control de Flapping:** Máquina de estados finitos (3 confirmaciones consecutivas de fallo para declarar `DOWN`, 2 de recuperación para volver a `HEALTHY`).
-- **Disponibilidad SLA:** Cálculo de disponibilidad en ventana móvil de 30 días sin problema N+1 mediante consulta JPQL en lote.
-- **Canal Reactivo:** Transmisión de métricas en tiempo real a clientes web a través de Server-Sent Events (SSE).
-- **Persistencia:** PostgreSQL 16 con Spring Data JPA y soporte para base de datos en memoria H2 en perfiles de test.
+- **Concurrencia con Hilos Virtuales:** Orquestación paralela mediante `Executors.newVirtualThreadPerTaskExecutor()` sin bloqueo de hilos del sistema operativo, medición monotónica con `System.nanoTime()` e inspección directa de certificados TLS (`X509Certificate`).
+- **Coordinación Multi-Nodo (ShedLock + Redis 7):** Exclusión mutua distribuida (`@SchedulerLock`) sobre `MonitoringScheduler` y `MetricsHistoryService` con respaldo *Fail-Open* en memoria local (`ResilientLockProvider`) ante caídas de red o despliegues de nodo único.
+- **Caché L2 con Invalidación Reactiva:** `StatusPageCacheService` acelera las consultas públicas a `/api/status/{slug}` con `TTL` de 60 segundos en Redis, métricas Micrometer (`hits`, `misses`, `evictions`) e invalidación instantánea ante transiciones de estado, cambios de visibilidad o actualización de `publicSlug`.
+- **Rate Limiting Global:** `RateLimitingFilter` y `RateLimiterService` evalúan ventanas de peticiones de forma atómica en Redis (`INCR` + `PEXPIRE`) con conmutación automática a cubetas en memoria si Redis no está habilitado.
+- **Escudo Defensivo Anti-SSRF:** `UrlSecurityValidator` bloquea redirecciones abiertas, subredes privadas RFC 1918, loopback, Carrier-Grade NAT, metadatos Cloud (`169.254.169.254`) y puertos internos críticos.
+- **Máquina de Estados y SLA sin N+1:** Confirmación 3/3 para apertura de incidentes `ONGOING` y 2/2 para cierre `RESOLVED`, con cálculo de disponibilidad mensual en una sola consulta JPQL por lote.
 
-## Requisitos
+## Requisitos Previos
 
 - Java Development Kit (JDK) 21 LTS
-- Docker y Docker Compose (para base de datos PostgreSQL)
-- Maven 3.9+ (o `./mvnw` incluido)
+- Docker y Docker Compose
+- Maven 3.9+ (o wrapper `./mvnw` incluido)
 
 ## Comandos de Desarrollo
 
-### 1. Iniciar Base de Datos Local
+### 1. Levantar Infraestructura Local (PostgreSQL 16 + Redis 7.2 + RabbitMQ 3.13)
 ```bash
 docker compose -f ../docker-compose.yml up -d
 ```
 
-### 2. Ejecutar Pruebas Automatizadas
-Ejecución de las 116 pruebas unitarias y de integración con JUnit 5:
+### 2. Ejecutar Suite de Pruebas Automatizadas
+Ejecución de las **134 pruebas unitarias y de contexto** en JUnit 5 y Mockito:
 ```bash
 ./mvnw test
 ```
 
-### 3. Iniciar la Aplicación
+### 3. Iniciar la Aplicación con Coordinación Redis Activa
 ```bash
-./mvnw spring-boot:run
+REDIS_ENABLED=true ./mvnw spring-boot:run
 ```
-La API estará disponible en `http://localhost:8080`.
+En PowerShell (Windows):
+```powershell
+$env:REDIS_ENABLED="true"; .\mvnw.cmd spring-boot:run
+```
+La API quedará disponible en `http://localhost:8080`.

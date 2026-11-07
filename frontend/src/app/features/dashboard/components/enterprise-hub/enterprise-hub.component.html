@@ -1,0 +1,636 @@
+<div class="enterprise-hub-container">
+  <!-- Cabecera de la Suite Enterprise -->
+  <div class="hub-header">
+    <div class="hub-title-block">
+      <div class="hub-badge">DeployOps v2.0 Enterprise</div>
+      <h2 class="hub-title">Centro de Eventos, Resiliencia y Control Distribuido</h2>
+      <p class="hub-subtitle">
+        Gestión de entrega de webhooks con firma HMAC-SHA256, inspección y reintento en Dead Letter Queue, inyección controlada de caos y telemetría de mensajería AMQP / Redis.
+      </p>
+    </div>
+
+    <!-- Navegacion por pestañas -->
+    <div class="hub-tabs" role="tablist">
+      <button
+        type="button"
+        class="hub-tab-btn"
+        [class.active]="activeTab() === 'WEBHOOKS'"
+        (click)="setTab('WEBHOOKS')"
+      >
+        <span>Webhooks &amp; Notificaciones</span>
+        @if (webhooks().length > 0) {
+          <span class="tab-counter">{{ webhooks().length }}</span>
+        }
+      </button>
+
+      <button
+        type="button"
+        class="hub-tab-btn"
+        [class.active]="activeTab() === 'DLQ'"
+        (click)="setTab('DLQ')"
+      >
+        <span>Dead Letter Queue (DLQ)</span>
+        @if (dlqFailures().length > 0) {
+          <span class="tab-counter dlq-alert">{{ dlqFailures().length }}</span>
+        }
+      </button>
+
+      <button
+        type="button"
+        class="hub-tab-btn"
+        [class.active]="activeTab() === 'CHAOS'"
+        (click)="setTab('CHAOS')"
+      >
+        <span>Inyección de Caos</span>
+        @if (chaosState().enabled) {
+          <span class="tab-status-pulse"></span>
+        }
+      </button>
+
+      <button
+        type="button"
+        class="hub-tab-btn"
+        [class.active]="activeTab() === 'TELEMETRY'"
+        (click)="setTab('TELEMETRY')"
+      >
+        <span>Telemetría Distribuida</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas globales de operacion -->
+  @if (errorMessage()) {
+    <div class="alert-box alert-error" role="alert">
+      <span class="alert-icon">✕</span>
+      <span class="alert-text">{{ errorMessage() }}</span>
+      <button type="button" class="alert-close" (click)="errorMessage.set(null)">✕</button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="alert-box alert-success" role="status">
+      <span class="alert-icon">✓</span>
+      <span class="alert-text">{{ successMessage() }}</span>
+      <button type="button" class="alert-close" (click)="successMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Contenido de las pestañas -->
+  <div class="hub-tab-content">
+
+    <!-- 1. PESTAÑA: WEBHOOKS -->
+    @if (activeTab() === 'WEBHOOKS') {
+      <div class="tab-pane">
+        <div class="pane-action-bar">
+          <div class="pane-info">
+            <h3 class="pane-heading">Endpoints de Webhook Registrados</h3>
+            <p class="pane-desc">Notificaciones transaccionales disparadas por eventos en la base de datos vía RabbitMQ.</p>
+          </div>
+          <button type="button" class="btn-primary" (click)="openCreateModal()">
+            <span>+ Registrar Webhook</span>
+          </button>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <span class="spinner"></span>
+            <span>Cargando endpoints de webhook...</span>
+          </div>
+        } @else if (webhooks().length === 0) {
+          <div class="empty-state">
+            <div class="empty-title">No hay webhooks registrados</div>
+            <p class="empty-desc">Configure un endpoint para recibir alertas en Slack, Discord o su infraestructura propia con firmas criptográficas verificables.</p>
+            <button type="button" class="btn-secondary" (click)="openCreateModal()">Crear el primer webhook</button>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="hub-table">
+              <thead>
+                <tr>
+                  <th>Nombre y Proveedor</th>
+                  <th>URL de Destino</th>
+                  <th>Firma Criptográfica</th>
+                  <th>Eventos Suscritos</th>
+                  <th>Métricas</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (wh of webhooks(); track wh.id) {
+                  <tr>
+                    <td>
+                      <div class="name-cell">
+                        <span class="provider-tag" [attr.data-provider]="wh.providerType">{{ wh.providerType }}</span>
+                        <span class="wh-name">{{ wh.name }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="wh-url" [title]="wh.targetUrl">{{ wh.targetUrl }}</span>
+                    </td>
+                    <td>
+                      <code class="crypto-hash" [title]="'Secreto cifrado con AES-256-GCM en base de datos'">{{ wh.maskedSecret }}</code>
+                    </td>
+                    <td>
+                      <div class="events-badges">
+                        @for (ev of wh.eventTypes; track ev) {
+                          <span class="badge-event">{{ ev }}</span>
+                        }
+                      </div>
+                    </td>
+                    <td>
+                      <div class="delivery-stats">
+                        <span class="stat-ok" title="Entregas completadas">{{ wh.totalDeliveries }} ok</span>
+                        @if (wh.failedDeliveries > 0) {
+                          <span class="stat-fail" title="Entregas fallidas en DLQ">{{ wh.failedDeliveries }} err</span>
+                        }
+                      </div>
+                    </td>
+                    <td class="text-right">
+                      <div class="action-btn-group">
+                        <button
+                          type="button"
+                          class="btn-action"
+                          [disabled]="pingStatusMap()[wh.id] !== undefined"
+                          (click)="testPing(wh)"
+                          title="Enviar ping de prueba con payload firmado"
+                        >
+                          {{ pingStatusMap()[wh.id] || 'Test Ping' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action"
+                          (click)="rotateSecret(wh)"
+                          title="Rotar clave criptográfica HMAC-SHA256"
+                        >
+                          Rotar Clave
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action btn-danger"
+                          (click)="deleteWebhook(wh)"
+                          title="Eliminar este endpoint"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- 2. PESTAÑA: DEAD LETTER QUEUE (DLQ) -->
+    @if (activeTab() === 'DLQ') {
+      <div class="tab-pane">
+        <div class="pane-action-bar">
+          <div class="pane-info">
+            <h3 class="pane-heading">Auditoría de Entregas Fallidas en Dead Letter Queue</h3>
+            <p class="pane-desc">Envíos agotados tras 3 reintentos exponenciales con jitter o rechazados por fallos de red/servidor.</p>
+          </div>
+          <button type="button" class="btn-secondary" (click)="loadDlqFailures()">
+            <span>Actualizar DLQ</span>
+          </button>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <span class="spinner"></span>
+            <span>Consultando eventos en Dead Letter Queue...</span>
+          </div>
+        } @else if (dlqFailures().length === 0) {
+          <div class="empty-state">
+            <div class="empty-title">Dead Letter Queue limpia</div>
+            <p class="empty-desc">No existen entregas fallidas pendientes. Todos los webhooks despachados fueron aceptados por los servidores de destino.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="hub-table">
+              <thead>
+                <tr>
+                  <th>Estado</th>
+                  <th>Webhook de Destino</th>
+                  <th>Tipo de Evento</th>
+                  <th>Intentos</th>
+                  <th>Diagnóstico de Falla</th>
+                  <th>Fecha de Registro</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (fail of dlqFailures(); track fail.id) {
+                  <tr>
+                    <td>
+                      <span
+                        class="status-pill"
+                        [class.pill-dead]="fail.status === 'DEAD_LETTER'"
+                        [class.pill-retried]="fail.status === 'RETRIED_OK'"
+                      >
+                        {{ fail.status === 'DEAD_LETTER' ? 'DEAD LETTER' : 'REINTENTADO OK' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="fail-target">
+                        <span class="target-name">{{ fail.webhookName }}</span>
+                        <span class="target-url">{{ fail.targetUrl }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge-event">{{ fail.eventType }}</span>
+                    </td>
+                    <td>
+                      <span class="attempts-count">{{ fail.attemptsCount }} / 3</span>
+                    </td>
+                    <td>
+                      <div class="fail-error">
+                        @if (fail.lastStatusCode) {
+                          <span class="status-code-badge">HTTP {{ fail.lastStatusCode }}</span>
+                        }
+                        <span class="error-msg" [title]="fail.lastErrorMessage">{{ fail.lastErrorMessage || 'Sin respuesta' }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="date-text">{{ fail.failedAt | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+                    </td>
+                    <td class="text-right">
+                      <div class="action-btn-group">
+                        <button
+                          type="button"
+                          class="btn-action"
+                          (click)="viewPayload(fail)"
+                          title="Inspeccionar payload JSON enviado"
+                        >
+                          Ver Payload
+                        </button>
+                        @if (fail.status === 'DEAD_LETTER') {
+                          <button
+                            type="button"
+                            class="btn-action btn-retry"
+                            [disabled]="retryingMap()[fail.id]"
+                            (click)="retryFailure(fail)"
+                            title="Reenviar este evento ahora"
+                          >
+                            {{ retryingMap()[fail.id] ? 'Reintentando...' : 'Reintentar' }}
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- 3. PESTAÑA: INYECCIÓN DE CAOS -->
+    @if (activeTab() === 'CHAOS') {
+      <div class="tab-pane">
+        <div class="pane-action-bar">
+          <div class="pane-info">
+            <h3 class="pane-heading">Panel de Simulación de Caos (Chaos Engineering)</h3>
+            <p class="pane-desc">Inyecte fallas controladas para poner a prueba la tolerancia a caídas, los reintentos automáticos y el aislamiento transaccional del sistema.</p>
+          </div>
+          <button
+            type="button"
+            class="btn-danger"
+            [disabled]="isTriggeringChaos()"
+            (click)="triggerSimulatedEvent()"
+          >
+            <span>{{ isTriggeringChaos() ? 'Disparando...' : 'Disparar Incidente Simulado' }}</span>
+          </button>
+        </div>
+
+        <div class="chaos-grid">
+          <!-- Tarjeta 1: Interruptor Maestro -->
+          <div class="chaos-card">
+            <div class="card-head">
+              <h4>Modo Caos</h4>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  [checked]="chaosState().enabled"
+                  (change)="chaosState().enabled = !chaosState().enabled"
+                />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <p class="card-desc">
+              Al activarse, las solicitudes y las comprobaciones de estado aplicarán los retardos y fallas configuradas a nivel tenant.
+            </p>
+          </div>
+
+          <!-- Tarjeta 2: Código HTTP Forzado -->
+          <div class="chaos-card">
+            <h4>Código HTTP Simulado</h4>
+            <div class="status-options">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="forcedStatus"
+                  [checked]="chaosState().forcedHttpStatus === null"
+                  (change)="chaosState().forcedHttpStatus = null"
+                />
+                <span>Normal (Sin forzar)</span>
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="forcedStatus"
+                  [checked]="chaosState().forcedHttpStatus === 503"
+                  (change)="chaosState().forcedHttpStatus = 503"
+                />
+                <span>503 Service Unavailable</span>
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="forcedStatus"
+                  [checked]="chaosState().forcedHttpStatus === 504"
+                  (change)="chaosState().forcedHttpStatus = 504"
+                />
+                <span>504 Gateway Timeout</span>
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="forcedStatus"
+                  [checked]="chaosState().forcedHttpStatus === 401"
+                  (change)="chaosState().forcedHttpStatus = 401"
+                />
+                <span>401 Unauthorized</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Tarjeta 3: Inyección de Latencia -->
+          <div class="chaos-card">
+            <div class="card-head">
+              <h4>Latencia Inyectada</h4>
+              <span class="value-display">{{ chaosState().injectedLatencyMs }} ms</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="5000"
+              step="100"
+              class="range-slider"
+              [(ngModel)]="chaosState().injectedLatencyMs"
+            />
+            <p class="card-desc">Retardo artificial aplicado para verificar la resiliencia ante degradaciones de red.</p>
+          </div>
+
+          <!-- Tarjeta 4: Tasa de Falla -->
+          <div class="chaos-card">
+            <div class="card-head">
+              <h4>Tasa de Fallos Probabilística</h4>
+              <span class="value-display">{{ chaosState().failureRatePercentage }}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              class="range-slider"
+              [(ngModel)]="chaosState().failureRatePercentage"
+            />
+            <p class="card-desc">Porcentaje de comprobaciones que experimentarán fallas intermitentes aleatorias.</p>
+          </div>
+        </div>
+
+        <div class="chaos-footer">
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="isSavingChaos()"
+            (click)="saveChaosState()"
+          >
+            <span>{{ isSavingChaos() ? 'Guardando...' : 'Aplicar Parámetros de Caos' }}</span>
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- 4. PESTAÑA: TELEMETRÍA DISTRIBUIDA -->
+    @if (activeTab() === 'TELEMETRY') {
+      <div class="tab-pane">
+        <div class="pane-action-bar">
+          <div class="pane-info">
+            <h3 class="pane-heading">Estado Distribuido del Nodo y Mensajería</h3>
+            <p class="pane-desc">Supervisión en vivo de los componentes de infraestructura: Redis L2, RabbitMQ y buffer Outbox.</p>
+          </div>
+          <button type="button" class="btn-secondary" (click)="loadTelemetry()">
+            <span>Actualizar Métricas</span>
+          </button>
+        </div>
+
+        @if (isLoading() && !telemetry()) {
+          <div class="loading-state">
+            <span class="spinner"></span>
+            <span>Recopilando telemetría del cluster...</span>
+          </div>
+        } @else if (telemetry(); as tel) {
+          <div class="telemetry-grid">
+            <!-- Nodo Activo -->
+            <div class="tel-card">
+              <span class="tel-label">Identificador de Nodo</span>
+              <div class="tel-val-primary">{{ tel.nodeId }}</div>
+              <span class="tel-sub">Timestamp: {{ tel.timestamp | date:'HH:mm:ss' }}</span>
+            </div>
+
+            <!-- Redis L2 Cache -->
+            <div class="tel-card">
+              <span class="tel-label">Caché L2 Redis (Status Page)</span>
+              <div class="tel-status-row">
+                <span class="dot-indicator" [class.dot-green]="tel.redisConnected" [class.dot-gray]="!tel.redisConnected"></span>
+                <span class="status-name">{{ tel.redisConnected ? 'Conectado (Fail-Open activo)' : 'Modo Autónomo (En Memoria)' }}</span>
+              </div>
+              <div class="cache-metrics-row">
+                <span>Hits: <strong>{{ tel.l2CacheHits }}</strong></span>
+                <span>Misses: <strong>{{ tel.l2CacheMisses }}</strong></span>
+              </div>
+            </div>
+
+            <!-- RabbitMQ Broker -->
+            <div class="tel-card">
+              <span class="tel-label">Broker RabbitMQ</span>
+              <div class="tel-status-row">
+                <span class="dot-indicator" [class.dot-green]="tel.rabbitMqConnected" [class.dot-gray]="!tel.rabbitMqConnected"></span>
+                <span class="status-name">{{ tel.rabbitMqConnected ? 'Broker Activo' : 'Fallback Virtual Threads' }}</span>
+              </div>
+              <div class="queue-depths">
+                <div class="queue-item">
+                  <span class="q-name">webhooks.dispatch</span>
+                  <span class="q-val">{{ tel.queueDepthWebhooksDispatch }} msgs</span>
+                </div>
+                <div class="queue-item">
+                  <span class="q-name">webhooks.dlq</span>
+                  <span class="q-val" [class.q-alert]="tel.queueDepthWebhooksDlq > 0">{{ tel.queueDepthWebhooksDlq }} msgs</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Buffer Outbox Transaccional -->
+            <div class="tel-card">
+              <span class="tel-label">Eventos en Outbox Transaccional</span>
+              <div class="outbox-stats-row">
+                <div class="stat-box">
+                  <span class="box-num">{{ tel.totalOutboxEventsPending }}</span>
+                  <span class="box-desc">Pendientes</span>
+                </div>
+                <div class="stat-box">
+                  <span class="box-num text-success">{{ tel.totalOutboxEventsProcessed }}</span>
+                  <span class="box-desc">Procesados</span>
+                </div>
+                <div class="stat-box">
+                  <span class="box-num text-danger">{{ tel.totalOutboxEventsFailed }}</span>
+                  <span class="box-desc">Fallidos</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+</div>
+
+<!-- Modal: Registro de Nuevo Webhook -->
+@if (isCreateModalOpen()) {
+  <div class="modal-overlay" (click)="closeCreateModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Registrar Nuevo Endpoint de Webhook</h3>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre Identificador</label>
+          <input
+            type="text"
+            class="form-control"
+            placeholder="ej. Alertas SRE Slack Producción"
+            [(ngModel)]="newWebhookName"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>URL de Destino</label>
+          <input
+            type="url"
+            class="form-control"
+            placeholder="https://hooks.slack.com/services/..."
+            [(ngModel)]="newWebhookUrl"
+          />
+          <span class="form-help">Debe ser una URL HTTPS accesible públicamente (protección anti-DNS-rebinding activa).</span>
+        </div>
+
+        <div class="form-group">
+          <label>Proveedor</label>
+          <select class="form-control" [(ngModel)]="newWebhookProvider">
+            <option value="CUSTOM">Custom / Propio (JSON Canónico)</option>
+            <option value="SLACK">Slack (Block Kit Payload)</option>
+            <option value="DISCORD">Discord (Rich Embeds Payload)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Eventos a Suscribir</label>
+          <div class="checkbox-list">
+            <label class="check-item">
+              <input type="checkbox" [(ngModel)]="selectedEventTypes.INCIDENT_OPENED" />
+              <span>INCIDENT_OPENED (Apertura de incidente por falla)</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" [(ngModel)]="selectedEventTypes.INCIDENT_RESOLVED" />
+              <span>INCIDENT_RESOLVED (Resolución y recuperación de servicio)</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" [(ngModel)]="selectedEventTypes.WEBHOOK_TEST_PING" />
+              <span>WEBHOOK_TEST_PING (Pings de prueba bajo demanda)</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" [(ngModel)]="selectedEventTypes.CHAOS_SIMULATION" />
+              <span>CHAOS_SIMULATION (Eventos sintéticos de simulación)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="isSubmittingWebhook()"
+          (click)="submitCreateWebhook()"
+        >
+          <span>{{ isSubmittingWebhook() ? 'Registrando...' : 'Confirmar Registro' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Revelación Única de Secreto Criptográfico -->
+@if (revealedSecret()) {
+  <div class="modal-overlay">
+    <div class="modal-dialog modal-secret">
+      <div class="modal-header">
+        <h3>Secreto Criptográfico del Webhook</h3>
+      </div>
+
+      <div class="modal-body">
+        <div class="secret-warning-box">
+          <span class="warn-badge">IMPORTANTE</span>
+          <p>
+            Guarde esta clave en un lugar seguro ahora. Por motivos de seguridad y cifrado irreversible en la interfaz, <strong>no se volverá a mostrar completa</strong> en pantalla.
+          </p>
+        </div>
+
+        <div class="secret-display-box">
+          <code>{{ revealedSecret() }}</code>
+          <button type="button" class="btn-copy" (click)="copySecret()">
+            {{ secretCopied() ? 'Copiado ✓' : 'Copiar' }}
+          </button>
+        </div>
+
+        <p class="secret-info-footer">
+          Utilice este secreto para verificar el encabezado <code>X-DeployOps-Signature</code> (HMAC-SHA256) en su servidor receptor.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" (click)="closeSecretModal()">
+          He guardado el secreto de forma segura
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Visor de Payload JSON de Falla en DLQ -->
+@if (selectedPayload()) {
+  <div class="modal-overlay" (click)="closePayloadModal()">
+    <div class="modal-dialog modal-payload" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Payload JSON de Entrega Fallida</h3>
+        <button type="button" class="btn-close" (click)="closePayloadModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <pre class="json-code-viewer"><code>{{ selectedPayload() }}</code></pre>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closePayloadModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

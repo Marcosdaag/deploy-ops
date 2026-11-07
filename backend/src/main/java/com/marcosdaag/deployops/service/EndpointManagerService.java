@@ -10,6 +10,7 @@ import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.model.enums.IncidentStatus;
+import com.marcosdaag.deployops.model.enums.OutboxEventType;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
 import com.marcosdaag.deployops.repository.IncidentRepository;
 import com.marcosdaag.deployops.repository.PingLogRepository;
@@ -43,6 +44,8 @@ public class EndpointManagerService {
     private final HttpMonitorService httpMonitorService;
     private final SseNotificationService sseNotificationService;
     private final EmailAlertService emailAlertService;
+    private final StatusPageCacheService statusPageCacheService;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
@@ -80,6 +83,7 @@ public class EndpointManagerService {
         newEndpoint.setUser(currentUser);
 
         ServiceEntity saved = serviceRepository.save(newEndpoint);
+        evictStatusCache(saved);
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
         return saved;
     }
@@ -107,6 +111,7 @@ public class EndpointManagerService {
         pingLogRepository.deleteByServiceId(id);
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
+        evictStatusCache(service);
 
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
@@ -157,6 +162,7 @@ public class EndpointManagerService {
         service.setPublicStatus(dto.isPublicStatus());
 
         ServiceEntity saved = serviceRepository.save(service);
+        evictStatusCache(saved);
         double uptime = metricsService.calculateUptimePercentage(saved);
 
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
@@ -176,6 +182,7 @@ public class EndpointManagerService {
 
         service.setPublicStatus(isPublic);
         serviceRepository.save(service);
+        evictStatusCache(service);
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
 
@@ -339,6 +346,7 @@ public class EndpointManagerService {
         }
 
         metricsHistoryService.recordPing(service, pingResult);
+        ServiceStatus previousStatus = service.getStatus();
 
         if (pingResult.isAlive()) {
             handleSuccessfulPing(service);
@@ -347,6 +355,9 @@ public class EndpointManagerService {
         }
 
         serviceRepository.save(service);
+        if (service.getStatus() != previousStatus) {
+            evictStatusCache(service);
+        }
     }
 
     private void handleSuccessfulPing(ServiceEntity service) {
@@ -437,6 +448,7 @@ public class EndpointManagerService {
                             incident.setStatus(IncidentStatus.ONGOING);
                             incident.setStartedAt(LocalDateTime.now());
                             IncidentEntity saved = incidentRepository.save(incident);
+                            outboxEventService.recordIncidentEvent(service, saved != null ? saved : incident, OutboxEventType.INCIDENT_OPENED);
 
                             if (service.getUser() != null && service.getUser().getEmail() != null) {
                                 emailAlertService.sendIncidentOpenedAlert(
@@ -456,6 +468,7 @@ public class EndpointManagerService {
                     incident.setStatus(IncidentStatus.RESOLVED);
                     incident.setResolvedAt(LocalDateTime.now());
                     IncidentEntity saved = incidentRepository.save(incident);
+                    outboxEventService.recordIncidentEvent(service, saved != null ? saved : incident, OutboxEventType.INCIDENT_RESOLVED);
 
                     if (service.getUser() != null && service.getUser().getEmail() != null) {
                         long durationSeconds = Duration.between(saved.getStartedAt(), saved.getResolvedAt()).getSeconds();
@@ -468,6 +481,12 @@ public class EndpointManagerService {
                         );
                     }
                 });
+    }
+
+    private void evictStatusCache(ServiceEntity service) {
+        if (statusPageCacheService != null && service != null) {
+            statusPageCacheService.evictForService(service);
+        }
     }
 
     private boolean esUrlProtegida(String url) {
