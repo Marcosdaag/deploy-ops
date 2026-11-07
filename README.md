@@ -11,7 +11,7 @@ Enlace a la aplicación en producción: [https://deployopsapp.vercel.app/](https
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions)](./.github/workflows/backend-ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-152_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
+[![Tests](https://img.shields.io/badge/Tests-161_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
 
 ---
 
@@ -198,13 +198,13 @@ flowchart TD
 
 ## Cobertura de Pruebas y Calidad de Código
 
-El repositorio cuenta con una suite integral de **152 pruebas automatizadas** ejecutadas en entornos de integración continua:
+El repositorio cuenta con una suite integral de **161 pruebas automatizadas** ejecutadas en entornos de integración continua:
 
 | Módulo | Pruebas | Framework / Herramientas | Enfoque |
 | :--- | :--- | :--- | :--- |
-| **Backend Core** | 117 | JUnit 5, Mockito, MockMvc, H2 Database | Validación anti-SSRF (44 tests), transiciones de máquina de estados, cálculo de Uptime sin N+1, purga de logs, auditoría SSL y autenticación JWT (incluye modo demo) |
-| **Frontend SPA** | 35 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, filtrado de estados, ordenamiento de telemetría, canvas WebGL 3D, drawers de inspección, servicios HTTP, interceptores y modo demo |
-| **Total** | **152** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
+| **Backend Core** | 123 | JUnit 5, Mockito, MockMvc, H2 Database | Validación anti-SSRF (44 tests), transiciones de máquina de estados, cálculo de Uptime sin N+1, purga de logs, auditoría SSL, límites de tasa y autenticación JWT (OAuth2 Google verificado y modo demo) |
+| **Frontend SPA** | 38 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, filtrado de estados, ordenamiento de telemetría, canvas WebGL 3D, drawers de inspección (6h/24h/7d/30d), snippets cURL, servicios HTTP, interceptores y modo demo |
+| **Total** | **161** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
 
 ---
 
@@ -215,6 +215,8 @@ El repositorio cuenta con una suite integral de **152 pruebas automatizadas** ej
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Público | Registro de nuevo usuario con contraseña cifrada en BCrypt. |
 | `POST` | `/api/auth/login` | Público | Autenticación de credenciales y emisión de token JWT. |
+| `POST` | `/api/auth/google` | Público | Autenticación mediante token ID de Google verificado criptográficamente. |
+| `POST` | `/api/auth/demo` | Público | Inicio de sesión instantáneo con cuenta de demostración SRE y endpoints precargados. |
 | `GET` | `/api/auth/me` | Autenticado | Retorna el perfil y slug público del usuario actual. |
 
 ### Gestión de Endpoints y Monitoreo
@@ -225,7 +227,7 @@ El repositorio cuenta con una suite integral de **152 pruebas automatizadas** ej
 | `PUT` | `/api/endpoints/{id}` | Autenticado | Actualización de parámetros, URL y umbrales de respuesta. |
 | `DELETE` | `/api/endpoints/{id}` | Autenticado | Eliminación segura en cascada del servicio y sus incidentes asociados. |
 | `POST` | `/api/endpoints/{id}/ping` | Autenticado | Disparo inmediato de comprobación HTTP bajo demanda. |
-| `GET` | `/api/endpoints/{id}/metrics` | Autenticado | Historial de latencias y estado según rango (`24h`, `7d`, `30d`). |
+| `GET` | `/api/endpoints/{id}/metrics` | Autenticado | Historial de latencias y estado según rango (`6h`, `24h`, `7d`, `30d`). |
 | `GET` | `/api/endpoints/{id}/incidents` | Autenticado | Bitácora de incidentes activos y resueltos con duración en segundos. |
 | `GET` | `/api/endpoints/{id}/report/csv` | Autenticado | Exportación descargable de reporte mensual de disponibilidad SLA en formato CSV. |
 | `GET` | `/api/endpoints/stream` | Público | Flujo unidireccional de Server-Sent Events con métricas en tiempo real. |
@@ -305,7 +307,8 @@ erDiagram
 | `DB_PASSWORD` | Contraseña de base de datos | `adminpassword` |
 | `JWT_SECRET` | Clave secreta para firma y verificación de tokens | Cadena interna de desarrollo |
 | `JWT_EXPIRATION_MS` | Tiempo de vida del token en milisegundos | `86400000` (24 horas) |
-| `CORS_ALLOWED_ORIGINS` | Orígenes web autorizados separados por coma | `https://deployopsapp.vercel.app,http://localhost:4200` |
+| `CORS_ALLOWED_ORIGINS` | Orígenes web autorizados separados por coma | `https://deployopsapp.vercel.app,https://deploy-ops-rho.vercel.app,http://localhost:4200` |
+| `GOOGLE_CLIENT_ID` | Identificador OAuth2 de cliente Google para validación de `aud` | Cadena vacía (opcional) |
 | `MAIL_ENABLED` | Habilitación del despachador de alertas por correo | `false` |
 | `MAIL_HOST` | Servidor SMTP para envío de alertas | `smtp.gmail.com` |
 | `MAIL_PORT` | Puerto SMTP | `587` |
@@ -316,8 +319,8 @@ erDiagram
 ### Frontend (Angular)
 | Variable / Archivo | Descripción |
 | :--- | :--- |
-| `src/environments/environment.ts` | Configuración para desarrollo local apuntando a `http://localhost:8080` |
-| `src/environments/environment.prod.ts` | Configuración de producción apuntando a la API en Render |
+| `src/environments/environment.development.ts` | Configuración para desarrollo local apuntando a `http://localhost:8080/api/endpoints` |
+| `src/environments/environment.ts` | Configuración de producción apuntando a la API en Render |
 
 ---
 
@@ -337,7 +340,7 @@ docker compose up -d
 ```bash
 cd backend
 
-# Ejecutar las 117 pruebas unitarias y de integracion
+# Ejecutar las 123 pruebas unitarias y de integracion
 ./mvnw test
 
 # Iniciar la aplicacion
@@ -352,7 +355,7 @@ cd frontend
 # Instalar dependencias
 npm install
 
-# Ejecutar las 35 pruebas unitarias
+# Ejecutar las 38 pruebas unitarias
 npm test -- --watch=false --browsers=ChromeHeadless
 
 # Iniciar servidor de desarrollo

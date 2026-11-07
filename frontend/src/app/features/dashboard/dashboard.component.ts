@@ -61,6 +61,7 @@ import { EndpointService } from '../../core/services/endpoint.service';
 import { AuthService } from '../../core/services/auth.service';
 
 import { TelemetryCanvas3dComponent } from './components/telemetry-canvas-3d/telemetry-canvas-3d.component';
+import { environment } from '../../../environments/environment';
 
 
 
@@ -200,7 +201,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
 
 
-  readonly metricsRange = signal<'6h' | '24h' | '7d'>('24h');
+  readonly metricsRange = signal<'6h' | '24h' | '7d' | '30d'>('24h');
 
   readonly metricsHistory = signal<ServiceMetricsHistory | null>(null);
 
@@ -300,11 +301,11 @@ if (isPrivateOrLoopback(address) || SENSITIVE_PORTS.contains(port)) {
 
       name: 'Maquina de Estados & Anti-Flapping',
 
-      runtime: 'Finite State Machine (4 Estados)',
+      runtime: 'Finite State Machine (5 Estados)',
 
       summary: 'Amortiguacion de micro-cortes transitorios. Requiere 3 fallos consecutivos para abrir incidentes y 2 exitos seguidos para confirmar recuperacion.',
 
-      metrics: 'Estados: HEALTHY -> DEGRADED -> DOWN -> RECOVERING',
+      metrics: 'Estados: PENDING -> HEALTHY -> DEGRADED -> DOWN -> RECOVERING',
 
       codeSnippet: `if (failures >= 3 && currentState == DEGRADED) {
 
@@ -344,7 +345,7 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
       name: 'Transmision Reactiva SSE',
 
-      runtime: 'Spring WebFlux -> Angular 20 Signals',
+      runtime: 'Spring MVC SseEmitter -> Angular 20 Signals',
 
       summary: 'Canal Server-Sent Events permanente que emite la telemetria en tiempo real actualizando los Signals del frontend sin sobrecargar la red.',
 
@@ -1064,7 +1065,7 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
         if (this.authService.isDemoSession() && (!data || data.length === 0)) {
 
-          finalData = INITIAL_SHOWCASE_ENDPOINTS;
+          finalData = this.buildDemoFallbackEndpoints();
 
         }
 
@@ -1098,7 +1099,7 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
         if (this.authService.isDemoSession()) {
 
-          this.endpoints.set(INITIAL_SHOWCASE_ENDPOINTS);
+          this.endpoints.set(this.buildDemoFallbackEndpoints());
 
           this.lastSyncedAt.set(new Date());
 
@@ -1111,6 +1112,18 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
   }
 
 
+
+  private buildDemoFallbackEndpoints(): EndpointResponse[] {
+    if (this.activeScope() === 'mine') {
+      return INITIAL_SHOWCASE_ENDPOINTS.map((ep) => ({
+        ...ep,
+        isOwner: true,
+        isProtected: false,
+        isPublicStatus: true
+      }));
+    }
+    return INITIAL_SHOWCASE_ENDPOINTS;
+  }
 
   private seedDefaultShowcaseEndpoints(): void {
 
@@ -1323,6 +1336,8 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
             createdAt: new Date().toISOString(),
 
             uptimePercentage: 100.0,
+            isOwner: true,
+            isPublicStatus: this.newServiceIsPublic(),
 
             isProtected: false,
 
@@ -1896,7 +1911,7 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
 
 
-  loadMetricsHistory(serviceId: number, range: '6h' | '24h' | '7d' = '24h'): void {
+  loadMetricsHistory(serviceId: number, range: '6h' | '24h' | '7d' | '30d' = '24h'): void {
 
     this.isLoadingMetrics.set(true);
 
@@ -1924,7 +1939,7 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
 
 
-  changeMetricsRange(range: '6h' | '24h' | '7d'): void {
+  changeMetricsRange(range: '6h' | '24h' | '7d' | '30d'): void {
 
     this.metricsRange.set(range);
 
@@ -2268,19 +2283,23 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
     if (method === 'GET') {
 
-      return `curl -X GET "${url}" \
+      return [`curl -X GET "${url}" \\`, '  -H "Accept: application/json"'].join('\n');
 
-  -H "Accept: application/json"`;
+
 
     }
 
     if (method === 'POST') {
 
-      return `curl -X POST "${url}" \
+      return [
+        `curl -X POST "${url}" \\`,
+        '  -H "Content-Type: application/json" \\',
+        `  -d '{"name": "Google Search", "url": "https://www.google.com"}'`
+      ].join('\n');
 
-  -H "Content-Type: application/json" \
 
-  -d '{"name": "Google Search", "url": "https://www.google.com"}'`;
+
+
 
     }
 
@@ -2681,74 +2700,28 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
 
 
   triggerGoogleAuth(): void {
-
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-
+    const googleClientId = environment.googleClientId?.trim();
+    if (googleClientId && typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
       try {
-
         (window as any).google.accounts.id.initialize({
-
-          client_id: '1088424263544-demo.apps.googleusercontent.com',
-
+          client_id: googleClientId,
           callback: (res: any) => {
-
             if (res?.credential) {
-
               this.handleGoogleCredential(res.credential);
-
             }
-
           }
-
         });
-
         (window as any).google.accounts.id.prompt();
-
         return;
-
       } catch {
-
-        // Fallback
-
+        // Continua al mensaje de configuracion
       }
-
     }
 
-
-
-    const demoEmail = this.authEmail().trim() || 'demo.developer@gmail.com';
-
-    const demoName = this.authName().trim() || demoEmail.split('@')[0];
-
-    const payload = JSON.stringify({
-
-      iss: 'https://accounts.google.com',
-
-      email: demoEmail,
-
-      name: demoName,
-
-      sub: 'google-sub-' + Date.now()
-
-    });
-
-    const encodedPayload = btoa(unescape(encodeURIComponent(payload)))
-
-      .replace(/\+/g, '-')
-
-      .replace(/\//g, '_')
-
-      .replace(/=+$/, '');
-
-    const dummyJwt = `eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.${encodedPayload}.signature`;
-
-
-
-    this.handleGoogleCredential(dummyJwt);
-
+    this.authErrors.set([
+      'El inicio de sesion con Google requiere configurar GOOGLE_CLIENT_ID. Inicia sesion con tu correo o utiliza el Modo Demo instantaneo.'
+    ]);
   }
-
-
 
   handleGoogleCredential(credential: string): void {
 

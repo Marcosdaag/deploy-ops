@@ -1,6 +1,5 @@
 package com.marcosdaag.deployops.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marcosdaag.deployops.dto.ErrorResponseDTO;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 
@@ -19,7 +19,7 @@ import java.io.IOException;
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimiterService rateLimiterService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -35,6 +35,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             allowed = rateLimiterService.tryAcquire("login:" + clientIp, 10, 60_000);
         } else if (path.startsWith("/api/auth/register") && "POST".equalsIgnoreCase(method)) {
             allowed = rateLimiterService.tryAcquire("register:" + clientIp, 5, 60_000);
+        } else if (path.startsWith("/api/auth/google") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("google_auth:" + clientIp, 10, 60_000);
+        } else if (path.startsWith("/api/auth/demo") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("demo_auth:" + clientIp, 15, 60_000);
+        } else if (path.matches("^/api/endpoints/?$") && "POST".equalsIgnoreCase(method)) {
+            allowed = rateLimiterService.tryAcquire("create_endpoint:" + clientIp, 15, 60_000);
         } else if (path.matches("^/api/endpoints/\\d+/ping$") && "POST".equalsIgnoreCase(method)) {
             allowed = rateLimiterService.tryAcquire("ping:" + clientIp, 20, 60_000);
         } else if (path.matches("^/api/endpoints/\\d+/report/csv$") && "GET".equalsIgnoreCase(method)) {
@@ -52,7 +58,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                     "Demasiadas solicitudes",
                     "Has superado el limite de peticiones permitidas para este recurso. Por favor, espera un minuto."
             );
-            response.getWriter().write(objectMapper.writeValueAsString(error));
+            response.getWriter().write(jsonMapper.writeValueAsString(error));
             return;
         }
 

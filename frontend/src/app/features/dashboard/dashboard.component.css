@@ -16408,6 +16408,51 @@ textarea.form-control {
   animation: demoPulseDot 2s infinite ease-in-out;
 }
 
+/* Alineacion Hero CTA y Boton Demo */
+.btn-secondary-action {
+  text-decoration: none;
+}
+
+@media (min-width: 1025px) {
+  .landing-cta-row {
+    justify-content: flex-start;
+  }
+}
+
+.btn-hero-scroll-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-hero-scroll-link:hover {
+  color: var(--accent-primary);
+}
+
+.btn-hero-scroll-link .hero-scroll-arrow {
+  display: inline-block;
+  transition: transform 0.18s ease;
+}
+
+.btn-hero-scroll-link:hover .hero-scroll-arrow {
+  transform: translateY(2px);
+}
+
+@media (max-width: 768px) {
+  .landing-cta-row .btn-hero-demo,
+  .landing-cta-row .btn-hero-scroll-link {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Boton Demo en Hero CTA */
 .btn-hero-demo {
   display: inline-flex;
@@ -16417,8 +16462,8 @@ textarea.form-control {
   font-size: 14.5px;
   font-weight: 600;
   color: var(--text-primary, #ffffff);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-prominent, rgba(255, 255, 255, 0.16));
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);

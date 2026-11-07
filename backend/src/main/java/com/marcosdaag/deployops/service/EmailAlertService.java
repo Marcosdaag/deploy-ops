@@ -35,7 +35,7 @@ public class EmailAlertService {
     @Async("mailTaskExecutor")
     public void sendIncidentOpenedAlert(String toEmail, String serviceName, String serviceUrl, LocalDateTime startedAt) {
         String formattedDate = startedAt != null ? startedAt.format(DATE_FORMATTER) : LocalDateTime.now().format(DATE_FORMATTER);
-        String subject = String.format("🚨 [DeployOps Alerta] Tu servicio \"%s\" está caído", serviceName);
+        String subject = String.format("[DeployOps Alerta] Tu servicio \"%s\" está caído", serviceName);
 
         String htmlContent = buildEmailTemplate(
                 "CRÍTICO · SERVICIO CAÍDO",
@@ -54,7 +54,7 @@ public class EmailAlertService {
     public void sendIncidentResolvedAlert(String toEmail, String serviceName, String serviceUrl, long durationSeconds, LocalDateTime resolvedAt) {
         String formattedDate = resolvedAt != null ? resolvedAt.format(DATE_FORMATTER) : LocalDateTime.now().format(DATE_FORMATTER);
         String formattedDuration = formatDuration(durationSeconds);
-        String subject = String.format("✅ [DeployOps Resuelto] Tu servicio \"%s\" se ha recuperado", serviceName);
+        String subject = String.format("[DeployOps Resuelto] Tu servicio \"%s\" se ha recuperado", serviceName);
 
         String htmlContent = buildEmailTemplate(
                 "RESUELTO · RECUPERACIÓN CONFIRMADA",
@@ -72,7 +72,7 @@ public class EmailAlertService {
     @Async("mailTaskExecutor")
     public void sendTestAlert(String toEmail, String serviceName, String serviceUrl) {
         String formattedDate = LocalDateTime.now().format(DATE_FORMATTER);
-        String subject = String.format("🔔 [DeployOps Prueba] Guardia activa para \"%s\"", serviceName);
+        String subject = String.format("[DeployOps Prueba] Guardia activa para \"%s\"", serviceName);
 
         String htmlContent = buildEmailTemplate(
                 "TEST DE GUARDIA ACTIVA",
@@ -90,7 +90,7 @@ public class EmailAlertService {
     @Async("mailTaskExecutor")
     public void sendSslExpiringAlert(String toEmail, String serviceName, String serviceUrl, int daysRemaining, LocalDateTime expiryDate) {
         String formattedDate = expiryDate != null ? expiryDate.format(DATE_FORMATTER) : "Próximamente";
-        String subject = String.format("⚠️ [DeployOps Alerta] Certificado SSL de \"%s\" expira en %d días", serviceName, daysRemaining);
+        String subject = String.format("[DeployOps Alerta] Certificado SSL de \"%s\" expira en %d días", serviceName, daysRemaining);
 
         String htmlContent = buildEmailTemplate(
                 "ADVERTENCIA · EXPIRACIÓN SSL",
@@ -107,7 +107,7 @@ public class EmailAlertService {
 
     @Async("mailTaskExecutor")
     public void sendMonthlyReport(String toEmail, String serviceName, String serviceUrl, String periodLabel, double uptimePercentage, long downtimeSeconds, int totalIncidents, double mttrMinutes) {
-        String subject = String.format("📊 [DeployOps Reporte] Resumen de SLA de \"%s\" - %s", serviceName, periodLabel);
+        String subject = String.format("[DeployOps Reporte] Resumen de SLA de \"%s\" - %s", serviceName, periodLabel);
 
         String durationText = formatDuration(downtimeSeconds);
         String description = String.format("Disponibilidad de %s: %.2f%% de SLA. Se registraron %d incidentes con un MTTR promedio de %.1f minutos.",

@@ -80,7 +80,7 @@ public class EndpointManagerService {
         newEndpoint.setUser(currentUser);
 
         ServiceEntity saved = serviceRepository.save(newEndpoint);
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
         return saved;
     }
 
@@ -94,7 +94,7 @@ public class EndpointManagerService {
         ServiceEntity service = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
 
-        if (service.isProtected() || esUrlProtegida(service.getUrl())) {
+        if (service.isProtected() || (service.getUser() == null && esUrlProtegida(service.getUrl()))) {
             throw new IllegalArgumentException("Este endpoint de demostracion esta protegido contra eliminacion.");
         }
 
@@ -108,7 +108,7 @@ public class EndpointManagerService {
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
 
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
 
     @Transactional
@@ -121,7 +121,7 @@ public class EndpointManagerService {
         ServiceEntity service = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el servicio con ID: " + id));
 
-        if (service.isProtected() || esUrlProtegida(service.getUrl())) {
+        if (service.isProtected() || (service.getUser() == null && esUrlProtegida(service.getUrl()))) {
             throw new IllegalArgumentException("Este endpoint de demostracion esta protegido contra modificaciones.");
         }
 
@@ -159,7 +159,7 @@ public class EndpointManagerService {
         ServiceEntity saved = serviceRepository.save(service);
         double uptime = metricsService.calculateUptimePercentage(saved);
 
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
         return new EndpointResponseDTO(saved, uptime, currentUserEmail);
     }
 
@@ -176,7 +176,7 @@ public class EndpointManagerService {
 
         service.setPublicStatus(isPublic);
         serviceRepository.save(service);
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
 
     @Transactional(readOnly = true)
@@ -300,7 +300,7 @@ public class EndpointManagerService {
         double uptime = metricsService.calculateUptimePercentage(service);
         EndpointResponseDTO response = new EndpointResponseDTO(service, uptime, currentUserEmail);
 
-        sseNotificationService.broadcastDashboardUpdate(getDashboardData(currentUserEmail));
+        sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
         return response;
     }
 
