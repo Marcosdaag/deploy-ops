@@ -18,7 +18,7 @@ class SecretCryptoConverterTest {
     @Test
     @DisplayName("Cifra y descifra correctamente un secreto en texto plano (AES-256-GCM)")
     void shouldEncryptAndDecryptPlainTextCorrectly() {
-        String plainSecret = "whsec_9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d";
+        String plainSecret = "dops_sec_9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d";
 
         String encrypted = converter.convertToDatabaseColumn(plainSecret);
         assertNotNull(encrypted);
@@ -31,7 +31,7 @@ class SecretCryptoConverterTest {
     @Test
     @DisplayName("Dos cifrados sucesivos del mismo secreto producen textos cifrados distintos (IV aleatorio)")
     void twoEncryptionsOfSameSecretProduceDifferentCiphertexts() {
-        String plainSecret = "whsec_super_secret_webhook_key_12345";
+        String plainSecret = "dops_sec_super_secret_webhook_key_12345";
 
         String enc1 = converter.encrypt(plainSecret);
         String enc2 = converter.encrypt(plainSecret);

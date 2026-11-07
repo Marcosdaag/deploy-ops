@@ -35,7 +35,7 @@ describe('EnterpriseService', () => {
         providerType: 'SLACK',
         eventTypes: ['INCIDENT_OPENED'],
         enabled: true,
-        maskedSecret: 'whsec_••••••••1234',
+        maskedSecret: 'dops_sec_••••••••1234',
         totalDeliveries: 10,
         failedDeliveries: 0,
         createdAt: '2026-11-07T12:00:00Z',
@@ -65,8 +65,8 @@ describe('EnterpriseService', () => {
     const mockCreated: WebhookEndpoint = {
       id: 'wh-2',
       ...payload,
-      maskedSecret: 'whsec_••••••••abcd',
-      rawSecretOnce: 'whsec_secret_full_token',
+      maskedSecret: 'dops_sec_••••••••abcd',
+      rawSecretOnce: 'dops_sec_secret_full_token',
       totalDeliveries: 0,
       failedDeliveries: 0,
       createdAt: '2026-11-07T12:10:00Z',
@@ -75,7 +75,7 @@ describe('EnterpriseService', () => {
 
     service.createWebhook(payload).subscribe((res) => {
       expect(res.id).toBe('wh-2');
-      expect(res.rawSecretOnce).toBe('whsec_secret_full_token');
+      expect(res.rawSecretOnce).toBe('dops_sec_secret_full_token');
     });
 
     const req = httpMock.expectOne(`${service.baseApiUrl}/webhooks`);
@@ -92,8 +92,8 @@ describe('EnterpriseService', () => {
       providerType: 'SLACK',
       eventTypes: ['INCIDENT_OPENED'],
       enabled: true,
-      maskedSecret: 'whsec_••••••••9999',
-      rawSecretOnce: 'whsec_new_rotated_secret',
+      maskedSecret: 'dops_sec_••••••••9999',
+      rawSecretOnce: 'dops_sec_new_rotated_secret',
       totalDeliveries: 10,
       failedDeliveries: 0,
       createdAt: '2026-11-07T12:00:00Z',
@@ -101,7 +101,7 @@ describe('EnterpriseService', () => {
     };
 
     service.rotateSecret('wh-1').subscribe((res) => {
-      expect(res.rawSecretOnce).toBe('whsec_new_rotated_secret');
+      expect(res.rawSecretOnce).toBe('dops_sec_new_rotated_secret');
     });
 
     const req = httpMock.expectOne(`${service.baseApiUrl}/webhooks/wh-1/rotate-secret`);

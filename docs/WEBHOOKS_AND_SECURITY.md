@@ -25,7 +25,7 @@ La firma previene ataques de suplantacion (*Man-in-the-Middle*) y ataques de rep
 
 $$\text{CanonicalString} = \text{Timestamp} + "." + \text{RawBody}$$
 
-A continuacion, se calcula el codigo de autenticacion de mensaje mediante **HMAC-SHA256** utilizando el secreto compartido `whsec_...` como clave criptografica:
+A continuacion, se calcula el codigo de autenticacion de mensaje mediante **HMAC-SHA256** utilizando el secreto compartido `dops_sec_...` como clave criptografica:
 
 $$\text{Signature} = \text{"sha256="} + \text{HexEncode}(\text{HMAC-SHA256}(\text{Secret}, \text{CanonicalString}))$$
 
@@ -95,7 +95,7 @@ function verifyDeployOpsWebhook(req: Request, secret: string): boolean {
 }
 
 app.post('/webhook-handler', (req: Request, res: Response) => {
-  const secret = process.env.DEPLOYOPS_WEBHOOK_SECRET || 'whsec_...';
+  const secret = process.env.DEPLOYOPS_WEBHOOK_SECRET || 'dops_sec_...';
 
   if (!verifyDeployOpsWebhook(req, secret)) {
     return res.status(401).send('Firma criptografica invalida o expirada.');
@@ -126,7 +126,7 @@ import java.util.HexFormat;
 @RestController
 public class DeployOpsWebhookController {
 
-    private final String webhookSecret = System.getenv().getOrDefault("DEPLOYOPS_WEBHOOK_SECRET", "whsec_...");
+    private final String webhookSecret = System.getenv().getOrDefault("DEPLOYOPS_WEBHOOK_SECRET", "dops_sec_...");
 
     @PostMapping("/webhook-handler")
     public ResponseEntity<String> handleWebhook(
@@ -166,7 +166,7 @@ import time
 from fastapi import FastAPI, Header, HTTPException, Request
 
 app = FastAPI()
-WEBHOOK_SECRET = "whsec_tu_clave_secreta"
+WEBHOOK_SECRET = "dops_sec_tu_clave_secreta"
 
 @app.post("/webhook-handler")
 async def receive_webhook(
@@ -210,7 +210,7 @@ import (
 	"time"
 )
 
-const webhookSecret = "whsec_tu_clave_secreta"
+const webhookSecret = "dops_sec_tu_clave_secreta"
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	tsStr := r.Header.Get("X-DeployOps-Timestamp")

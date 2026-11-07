@@ -50,7 +50,7 @@ Catálogo exhaustivo de los 33 endpoints disponibles en DeployOps v2.0 (21 conso
 
 | Método | Ruta | Autenticación | Cuota Rate Limit | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/webhooks` | Bearer JWT | Sin cuota | Lista canales de alerta del usuario con secreto enmascarado (`whsec_••••••••4f9a`). |
+| `GET` | `/api/webhooks` | Bearer JWT | Sin cuota | Lista canales de alerta del usuario con secreto enmascarado (`dops_sec_••••••••4f9a`). |
 | `POST` | `/api/webhooks` | Bearer JWT | 15 req / 60s | Alta de canal (Slack/Discord/Custom). Retorna `rawSecretOnce` una única vez. |
 | `PATCH` | `/api/webhooks/{id}` | Bearer JWT (Owner) | 20 req / 60s | Modificación de nombre, URL destino, proveedor o activación/pausa. |
 | `DELETE` | `/api/webhooks/{id}` | Bearer JWT (Owner) | 20 req / 60s | Eliminación del webhook y desvinculación de auditorías. |

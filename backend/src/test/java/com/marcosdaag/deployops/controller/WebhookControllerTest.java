@@ -84,9 +84,9 @@ class WebhookControllerTest {
         when(userRepository.findByEmail("sre@empresa.com")).thenReturn(Optional.of(user));
         when(webhookRepository.existsByTargetUrlAndUser(dto.getTargetUrl(), user)).thenReturn(false);
 
-        String generatedSecret = "whsec_abcdef1234567890abcdef1234567890";
+        String generatedSecret = "dops_sec_abcdef1234567890abcdef1234567890";
         when(hmacSignatureService.generateSecret()).thenReturn(generatedSecret);
-        when(hmacSignatureService.maskSecret(generatedSecret)).thenReturn("whsec_••••••••7890");
+        when(hmacSignatureService.maskSecret(generatedSecret)).thenReturn("dops_sec_••••••••7890");
 
         when(webhookRepository.save(any(WebhookEndpointEntity.class))).thenAnswer(inv -> {
             WebhookEndpointEntity e = inv.getArgument(0);
@@ -100,7 +100,7 @@ class WebhookControllerTest {
         assertNotNull(response.getBody());
         assertEquals("Discord Alertas", response.getBody().getName());
         assertEquals(generatedSecret, response.getBody().getRawSecretOnce(), "Debe retornar el secreto plano solo en la creacion");
-        assertEquals("whsec_••••••••7890", response.getBody().getSecretHint());
+        assertEquals("dops_sec_••••••••7890", response.getBody().getSecretHint());
 
         verify(urlSecurityValidator).validatePublicUrl(dto.getTargetUrl());
     }
@@ -112,7 +112,7 @@ class WebhookControllerTest {
         w.setId(10L);
         w.setName("Slack Alertas");
         w.setTargetUrl("https://hooks.slack.com/services/123");
-        w.setSecretHint("whsec_••••••••1234");
+        w.setSecretHint("dops_sec_••••••••1234");
         w.setEnabled(true);
 
         when(authentication.isAuthenticated()).thenReturn(true);
@@ -140,9 +140,9 @@ class WebhookControllerTest {
         when(userRepository.findByEmail("sre@empresa.com")).thenReturn(Optional.of(user));
         when(webhookRepository.findById(10L)).thenReturn(Optional.of(w));
 
-        String newSecret = "whsec_new_rotated_secret_9999";
+        String newSecret = "dops_sec_new_rotated_secret_9999";
         when(hmacSignatureService.generateSecret()).thenReturn(newSecret);
-        when(hmacSignatureService.maskSecret(newSecret)).thenReturn("whsec_••••••••9999");
+        when(hmacSignatureService.maskSecret(newSecret)).thenReturn("dops_sec_••••••••9999");
         when(webhookRepository.save(any(WebhookEndpointEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ResponseEntity<WebhookResponseDTO> response = webhookController.rotateSecret(10L, authentication);

@@ -180,8 +180,8 @@ stateDiagram-v2
 - **Comportamiento:** Toda apertura o cierre de incidente se escribe en `outbox_events` con estado `PENDING` dentro de la misma transaccion `@Transactional`. El relay (`OutboxRelayService`) adquiere lotes marcando estado `PROCESSING` y estampa `locked_at`. Si un nodo colapsa en pleno despacho, el *Zombie Lock Reaper* detecta bloqueos de mas de 2 minutos y los retorna a `PENDING` para su recuperacion inmediata por otro nodo. Los eventos completados se depuran automaticamente a los 7 dias.
 
 ### 3.9. Cifrado y Rotacion de Secretos de Webhook (AES-256-GCM)
-- **Regla:** Los secretos compartidos de firma (`whsec_...`) jamas se almacenan en texto plano en la base de datos ni se exponen de forma recurrente por la API REST.
-- **Comportamiento:** Cada secreto se cifra mediante `SecretCryptoConverter` con `AES-256-GCM` y un IV aleatorio de 12 bytes. Al crearse o rotarse, la respuesta HTTP 201/200 expone el secreto plano `rawSecretOnce` una unica vez; toda peticion de lectura subsiguiente unicamente recibe la pista enmascarada `secretHint` (`whsec_••••••••4f9a`).
+- **Regla:** Los secretos compartidos de firma (`dops_sec_...`) jamas se almacenan en texto plano en la base de datos ni se exponen de forma recurrente por la API REST.
+- **Comportamiento:** Cada secreto se cifra mediante `SecretCryptoConverter` con `AES-256-GCM` y un IV aleatorio de 12 bytes. Al crearse o rotarse, la respuesta HTTP 201/200 expone el secreto plano `rawSecretOnce` una unica vez; toda peticion de lectura subsiguiente unicamente recibe la pista enmascarada `secretHint` (`dops_sec_••••••••4f9a`).
 
 ### 3.10. Verificacion Criptografica y Ventana Anti-Replay (HMAC-SHA256)
 - **Regla:** Los receptores de webhooks deben poder autenticar la legitimidad del remitente y repeler ataques de repeticion de eventos capturados en red.

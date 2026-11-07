@@ -18,7 +18,7 @@ public class HmacSignatureService {
     private static final Logger logger = LoggerFactory.getLogger(HmacSignatureService.class);
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final String SECRET_PREFIX = "whsec_";
+    private static final String SECRET_PREFIX = "dops_sec_";
 
     public String generateSecret() {
         byte[] randomBytes = new byte[24];
@@ -71,13 +71,13 @@ public class HmacSignatureService {
 
     public String maskSecret(String secret) {
         if (secret == null || secret.isBlank()) {
-            return "whsec_••••";
+            return "dops_sec_••••";
         }
         String clean = secret.trim();
         if (clean.length() <= 10) {
-            return "whsec_••••";
+            return "dops_sec_••••";
         }
         String suffix = clean.substring(clean.length() - 4);
-        return "whsec_••••••••" + suffix;
+        return "dops_sec_••••••••" + suffix;
     }
 }

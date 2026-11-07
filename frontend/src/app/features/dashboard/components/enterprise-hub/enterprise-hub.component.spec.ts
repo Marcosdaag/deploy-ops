@@ -22,7 +22,7 @@ describe('EnterpriseHubComponent', () => {
       providerType: 'SLACK',
       eventTypes: ['INCIDENT_OPENED'],
       enabled: true,
-      maskedSecret: 'whsec_••••••••abcd',
+      maskedSecret: 'dops_sec_••••••••abcd',
       totalDeliveries: 5,
       failedDeliveries: 0,
       createdAt: '2026-11-07T12:00:00Z',
@@ -133,8 +133,8 @@ describe('EnterpriseHubComponent', () => {
       providerType: 'DISCORD',
       eventTypes: ['INCIDENT_OPENED'],
       enabled: true,
-      maskedSecret: 'whsec_••••••••9999',
-      rawSecretOnce: 'whsec_raw_single_use_token_123',
+      maskedSecret: 'dops_sec_••••••••9999',
+      rawSecretOnce: 'dops_sec_raw_single_use_token_123',
       totalDeliveries: 0,
       failedDeliveries: 0,
       createdAt: '2026-11-07T12:20:00Z',
@@ -150,7 +150,7 @@ describe('EnterpriseHubComponent', () => {
     component.submitCreateWebhook();
 
     expect(mockEnterpriseService.createWebhook).toHaveBeenCalled();
-    expect(component.revealedSecret()).toBe('whsec_raw_single_use_token_123');
+    expect(component.revealedSecret()).toBe('dops_sec_raw_single_use_token_123');
     expect(component.isCreateModalOpen()).toBeFalse();
   });
 
