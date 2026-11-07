@@ -4,7 +4,21 @@ Todos los cambios relevantes de **DeployOps** se documentan en este archivo sigu
 
 ---
 
-## [Unreleased] — DeployOps v2.0 Enterprise (Fases 1 y 2 Completadas)
+## [2.0.0] — 2026-11-07
+
+### Añadido (Fase 4 — Testcontainers E2E, Auditoría de Calidad y Cierre de Release)
+- **Infraestructura de pruebas E2E con Testcontainers 1.20.4 (`RabbitMqOutboxIntegrationTest`):** Pruebas de integración para RabbitMQ y mensajería distribuida con modo condicional (`disabledWithoutDocker = true`) que asegura portabilidad en entornos de compilación continua locales o basados en contenedores.
+- **Suite global consolidada:** 214 pruebas automatizadas sin errores (163 Backend JUnit 5 + 51 Frontend Jasmine/Karma).
+- **Compilación de producción verificada:** Empaquetado de Spring Boot fat JAR (`deploy-ops-0.0.1-SNAPSHOT.jar`) y bundle Angular minificado (`dist/frontend`).
+- **Auditoría de cumplimiento:** Cero emojis en la totalidad de archivos de código fuente, plantillas, estilos y documentación.
+
+### Añadido (Fase 3 — Frontend Angular 20.3 Enterprise UI)
+- **Centro de Control Enterprise (`EnterpriseHubComponent` / `app-enterprise-hub`):** Módulo visual integrado en el dashboard con cuatro pestañas de control (`Webhooks & Notificaciones`, `Dead Letter Queue`, `Inyección de Caos`, `Telemetría Distribuida`).
+- **Servicio y modelos de dominio (`EnterpriseService` y `enterprise.model.ts`):** Abstracción tipada para la suite enterprise en Angular 20.3 con pruebas unitarias dedicadas.
+- **Gestión integral de Webhooks:** Listado con badge de proveedor (`Slack`, `Discord`, `Custom`), enmascaramiento de secreto (`whsec_••••••••4f9a`), botón de test ping en vivo con feedback inline, rotación de claves criptográficas y modal de revelación única de secreto con copiado seguro al portapapeles.
+- **Centro de inspección Dead Letter Queue (DLQ):** Auditoría visual de fallas tras reintentos agotados, visor de payload JSON formateado e invocación directa de reintentos manuales.
+- **Panel de Inyección de Caos (Chaos Engineering):** Interruptor maestro de simulación, forzado de códigos HTTP (`200`, `503`, `504`, `401`), control deslizante de latencia sintética (0-5000 ms), tasa de error probabilística y disparador de eventos simulados en tiempo real.
+- **Widget de Telemetría Distribuida:** Monitoreo en vivo del identificador de nodo, estado y métricas de acierto/fallo de la caché L2 en Redis, broker RabbitMQ, profundidad de colas y estado del buffer Outbox.
 
 ### Añadido (Fase 2 — Motor Orientado a Eventos, Transactional Outbox, RabbitMQ 3.13, Webhooks AES/HMAC, DLQ y Chaos API)
 - **Patrón Transactional Outbox (`OutboxEventEntity` y `outbox_events`):** Registro atómico inmutable de eventos de incidente (`INCIDENT_OPENED`, `INCIDENT_RESOLVED`) dentro de la misma transacción SQL `@Transactional` de `EndpointManagerService`, eliminando el problema de *Dual-Write*.

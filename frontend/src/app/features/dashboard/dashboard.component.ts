@@ -61,6 +61,7 @@ import { EndpointService } from '../../core/services/endpoint.service';
 import { AuthService } from '../../core/services/auth.service';
 
 import { TelemetryCanvas3dComponent } from './components/telemetry-canvas-3d/telemetry-canvas-3d.component';
+import { EnterpriseHubComponent } from './components/enterprise-hub/enterprise-hub.component';
 import { environment } from '../../../environments/environment';
 
 
@@ -79,7 +80,7 @@ type ApiMethodTab = 'GET' | 'POST' | 'DELETE';
 
   standalone: true,
 
-  imports: [CommonModule, FormsModule, RouterLink, TelemetryCanvas3dComponent],
+  imports: [CommonModule, FormsModule, RouterLink, TelemetryCanvas3dComponent, EnterpriseHubComponent],
 
   templateUrl: './dashboard.component.html',
 
