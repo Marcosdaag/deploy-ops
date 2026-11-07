@@ -9,6 +9,7 @@ import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.repository.PingLogRepository;
 import com.marcosdaag.deployops.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -108,6 +109,7 @@ public class MetricsHistoryService {
     }
 
     @Scheduled(cron = "0 30 3 * * *")
+    @SchedulerLock(name = "purgeOldPingLogsLock", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void purgeOldLogs() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(30);

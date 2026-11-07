@@ -2,6 +2,7 @@ package com.marcosdaag.deployops.service;
 
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.model.ServiceEntity;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,6 +35,7 @@ public class MonitoringScheduler {
     }
 
     @Scheduled(fixedDelay = 60000)
+    @SchedulerLock(name = "monitoringSweepLock", lockAtMostFor = "50s", lockAtLeastFor = "15s")
     public void checkAllEndpoints() {
         List<ServiceEntity> endpoints = endpointManager.getAllEndpoints();
         if (endpoints.isEmpty()) {

@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,12 +30,21 @@ public class StatusPageService {
     private final ServiceRepository serviceRepository;
     private final IncidentRepository incidentRepository;
     private final MetricsService metricsService;
+    private final StatusPageCacheService statusPageCacheService;
 
     @Transactional(readOnly = true)
     public StatusPageDTO getStatusPage(String slug) {
         String cleanSlug = slug != null ? slug.trim().toLowerCase() : "";
+        String cacheSlug = cleanSlug.isEmpty() ? "demo" : cleanSlug;
 
-        UserEntity user = null;
+        if (statusPageCacheService != null) {
+            Optional<StatusPageDTO> cached = statusPageCacheService.get(cacheSlug);
+            if (cached != null && cached.isPresent()) {
+                return cached.get();
+            }
+        }
+
+        UserEntity user;
         List<ServiceEntity> publicServices;
         String ownerName;
 
@@ -84,7 +94,7 @@ public class StatusPageService {
                 ? 100.0
                 : serviceDTOs.stream().mapToDouble(PublicServiceDTO::getUptimePercentage).average().orElse(100.0);
 
-        return StatusPageDTO.builder()
+        StatusPageDTO result = StatusPageDTO.builder()
                 .slug(cleanSlug)
                 .ownerName(ownerName)
                 .overallStatus(overallStatus)
@@ -92,6 +102,12 @@ public class StatusPageService {
                 .services(serviceDTOs)
                 .recentIncidents(incidents)
                 .build();
+
+        if (statusPageCacheService != null) {
+            statusPageCacheService.put(cacheSlug, result);
+        }
+
+        return result;
     }
 
     @Transactional
@@ -107,6 +123,10 @@ public class StatusPageService {
 
         service.setPublicStatus(isPublic);
         serviceRepository.save(service);
+
+        if (statusPageCacheService != null) {
+            statusPageCacheService.evictForService(service);
+        }
     }
 
     @Transactional
@@ -131,8 +151,17 @@ public class StatusPageService {
             throw new IllegalArgumentException("El slug publico ya se encuentra en uso. Por favor elige otro.");
         }
 
+        String previousSlug = user.getPublicSlug();
         user.setPublicSlug(sanitized);
         userRepository.save(user);
+
+        if (statusPageCacheService != null) {
+            if (previousSlug != null && !previousSlug.isBlank()) {
+                statusPageCacheService.evictBySlug(previousSlug);
+            }
+            statusPageCacheService.evictBySlug(sanitized);
+        }
+
         return sanitized;
     }
 

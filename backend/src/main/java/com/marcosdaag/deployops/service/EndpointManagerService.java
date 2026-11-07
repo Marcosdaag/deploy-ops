@@ -43,6 +43,7 @@ public class EndpointManagerService {
     private final HttpMonitorService httpMonitorService;
     private final SseNotificationService sseNotificationService;
     private final EmailAlertService emailAlertService;
+    private final StatusPageCacheService statusPageCacheService;
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
@@ -80,6 +81,7 @@ public class EndpointManagerService {
         newEndpoint.setUser(currentUser);
 
         ServiceEntity saved = serviceRepository.save(newEndpoint);
+        evictStatusCache(saved);
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
         return saved;
     }
@@ -107,6 +109,7 @@ public class EndpointManagerService {
         pingLogRepository.deleteByServiceId(id);
         incidentRepository.deleteByServiceId(id);
         serviceRepository.deleteById(id);
+        evictStatusCache(service);
 
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
@@ -157,6 +160,7 @@ public class EndpointManagerService {
         service.setPublicStatus(dto.isPublicStatus());
 
         ServiceEntity saved = serviceRepository.save(service);
+        evictStatusCache(saved);
         double uptime = metricsService.calculateUptimePercentage(saved);
 
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
@@ -176,6 +180,7 @@ public class EndpointManagerService {
 
         service.setPublicStatus(isPublic);
         serviceRepository.save(service);
+        evictStatusCache(service);
         sseNotificationService.broadcastDashboardUpdate(getDashboardData(null));
     }
 
@@ -339,6 +344,7 @@ public class EndpointManagerService {
         }
 
         metricsHistoryService.recordPing(service, pingResult);
+        ServiceStatus previousStatus = service.getStatus();
 
         if (pingResult.isAlive()) {
             handleSuccessfulPing(service);
@@ -347,6 +353,9 @@ public class EndpointManagerService {
         }
 
         serviceRepository.save(service);
+        if (service.getStatus() != previousStatus) {
+            evictStatusCache(service);
+        }
     }
 
     private void handleSuccessfulPing(ServiceEntity service) {
@@ -468,6 +477,12 @@ public class EndpointManagerService {
                         );
                     }
                 });
+    }
+
+    private void evictStatusCache(ServiceEntity service) {
+        if (statusPageCacheService != null && service != null) {
+            statusPageCacheService.evictForService(service);
+        }
     }
 
     private boolean esUrlProtegida(String url) {

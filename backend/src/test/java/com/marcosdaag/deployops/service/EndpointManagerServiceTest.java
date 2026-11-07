@@ -63,6 +63,9 @@ class EndpointManagerServiceTest {
     @Mock
     private EmailAlertService emailAlertService;
 
+    @Mock
+    private StatusPageCacheService statusPageCacheService;
+
     @Spy
     private UrlSecurityValidator urlSecurityValidator = new UrlSecurityValidator();
 
@@ -715,5 +718,18 @@ class EndpointManagerServiceTest {
         org.springframework.http.HttpHeaders lineHeaders = monitor.parseHeaders("Authorization: Bearer xyz\nX-Region: us-east-1");
         assertEquals("Bearer xyz", lineHeaders.getFirst("Authorization"));
         assertEquals("us-east-1", lineHeaders.getFirst("X-Region"));
+    }
+
+    @Test
+    @DisplayName("Invalida reactivamente la cache L2 de Status Page solo cuando cambia el estado del servicio")
+    void whenServiceStatusChangesDuringPing_shouldEvictStatusPageCacheReactively() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+
+        endpointManagerService.processPingResult(service, successPing);
+        verify(statusPageCacheService, never()).evictForService(any());
+
+        endpointManagerService.processPingResult(service, failedPing);
+        assertEquals(ServiceStatus.DEGRADED, service.getStatus());
+        verify(statusPageCacheService, times(1)).evictForService(service);
     }
 }

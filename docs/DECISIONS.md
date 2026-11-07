@@ -84,6 +84,7 @@ Este documento formaliza las decisiones tecnicas y arquitectonicas adoptadas dur
 - **Justificacion:**
   - Protege el servidor contra ataques de saturacion sin requerir la instalacion de un cluster externo de Redis.
   - Aplica politicas diferenciadas: limites mas estrictos para autenticacion (10 peticiones/minuto) y margenes razonables para consultas regulares.
+- **Evolucion en v2.0:** Extendido por **ADR 10** para compartir ventanas de cuota en Redis 7 cuando existen multiples instancias del backend, preservando la cubeta en memoria como respaldo *Fail-Open*.
 
 ---
 
@@ -94,3 +95,24 @@ Este documento formaliza las decisiones tecnicas y arquitectonicas adoptadas dur
 - **Justificacion:**
   - Signals permite una deteccion de cambios granular sin incurrir en ciclos globales de `ngDoCheck`.
   - El sistema de diseno asegura contraste WCAG AAA y ergonomia en sesiones operativas prolongadas.
+
+---
+
+## ADR 10: Coordinacion Multi-Nodo con ShedLock y Rate Limiting Distribuido en Redis 7 (Fail-Open)
+
+- **Contexto:** Al escalar horizontalmente el backend a dos o mas contenedores detras de un balanceador de carga para garantizar alta disponibilidad, surgen dos anomalias: (1) todas las instancias ejecutan simultaneamente `@Scheduled` (`MonitoringScheduler` y `MetricsHistoryService.purgeOldLogs`), triplicando los sondeos hacia las APIs monitoreadas y generando condiciones de carrera sobre `consecutive_failures`; y (2) las cubetas de `RateLimiterService` en memoria local permiten a un atacante multiplicar su cuota rotando peticiones entre nodos. Adicionalmente, en despliegues cloud gratuitos (ej. Render sin add-on externo de Redis) la aplicacion no debe colapsar al iniciar ni ante microcortes del cluster de cache.
+- **Decision:** Incorporar `Redis 7.2` junto con `ShedLock` (`RedisLockProvider` bajo namespace `deployops`) envuelto en un decorador `ResilientLockProvider`, y migrar `RateLimiterService` a incrementos atomicos distribuidos (`INCR` + `PEXPIRE`) parametrizados mediante `app.redis.enabled`, conservando un respaldo automatico en memoria local (*Fail-Open*).
+- **Justificacion:**
+  - Garantiza que un unico nodo lider ejecute cada barrido de 60 segundos (`lockAtMostFor = 50s`, `lockAtLeastFor = 15s`); si el contenedor lider cae, otra replica asume el liderazgo en el ciclo siguiente sin intervencion humana.
+  - Unifica el conteo de peticiones por IP en todo el cluster en tiempo $O(1)$.
+  - El patron *Fail-Open* evita que Redis se convierta en un punto unico de fallo (*Single Point of Failure*): ante una caida transitoria de Redis o cuando `REDIS_ENABLED=false`, los schedulers y el control de tasa degradan limpiamente a memoria local sin interrumpir el servicio HTTP ni hacer fallar `/actuator/health`.
+
+---
+
+## ADR 11: Cache Distribuida L2 en Status Page con Invalidacion Reactiva por Eventos de Estado
+
+- **Contexto:** Cuando un servicio monitoreado sufre una caida real, miles de usuarios finales consultan simultaneamente la pagina de estado publica (`GET /api/status/{slug}`), generando un efecto de estampida (*Thundering Herd*) sobre PostgreSQL. Sin embargo, aplicar un cache tradicional con TTL largo mostraria un estado `OPERATIONAL` falso durante varios minutos tras declararse un incidente.
+- **Decision:** Implementar `StatusPageCacheService` sobre Redis (`deployops:status_page:{slug}`, serializado con Jackson 3 `JsonMapper` y `TTL` corto de seguridad de `60s`), combinado con **invalidacion reactiva inmediata** disparada desde `EndpointManagerService` y `StatusPageService`.
+- **Justificacion:**
+  - Absorbe picos masivos de lectura sirviendo el `StatusPageDTO` pre-calculado desde memoria RAM en `~1-2 ms` con cero consultas SQL en los *Cache Hits*.
+  - En el instante exacto en que `processPingResult` detecta un cambio de `ServiceStatus` (ej. `HEALTHY -> DEGRADED` o `DEGRADED -> DOWN`), o cuando el propietario modifica la visibilidad o su `publicSlug`, se elimina la clave correspondiente en Redis, garantizando consistencia inmediata en momentos criticos e instrumentando contadores `hits`, `misses` y `evictions` en Micrometer.
