@@ -366,4 +366,41 @@ describe('DashboardComponent', () => {
 
     document.body.removeChild(dummyElement);
   });
+
+  it('deberia generar snippets cURL multilinea con saltos de linea reales', () => {
+    const getSnippet = component.getCurlSnippet('GET');
+    const postSnippet = component.getCurlSnippet('POST');
+
+    expect(getSnippet).toContain('\\\n  -H "Accept: application/json"');
+    expect(postSnippet.split('\n').length).toBe(3);
+  });
+
+  it('deberia soportar el rango de 30 dias (30d) en el inspector de metricas', () => {
+    component.selectedEndpoint.set(mockEndpoints[0]);
+    component.changeMetricsRange('30d');
+
+    expect(component.metricsRange()).toBe('30d');
+    const req = httpMock.expectOne(`${component.endpointService.publicApiUrl}/1/metrics?range=30d`);
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      serviceId: 1,
+      serviceName: 'Google Search',
+      range: '30d',
+      minLatencyMs: 35,
+      maxLatencyMs: 95,
+      avgLatencyMs: 60,
+      p95LatencyMs: 88,
+      uptimePercentage: 99.95,
+      totalPings: 100,
+      points: []
+    });
+  });
+
+  it('deberia informar configuracion requerida en triggerGoogleAuth sin fabricar tokens falsos', () => {
+    component.triggerGoogleAuth();
+
+    expect(component.isAuthSubmitting()).toBeFalse();
+    expect(component.authErrors().length).toBe(1);
+    expect(component.authErrors()[0]).toContain('GOOGLE_CLIENT_ID');
+  });
 });

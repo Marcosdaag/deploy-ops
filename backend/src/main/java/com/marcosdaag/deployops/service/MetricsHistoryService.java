@@ -59,6 +59,7 @@ public class MetricsHistoryService {
         LocalDateTime threshold = switch (range != null ? range.toLowerCase() : "24h") {
             case "6h" -> now.minusHours(6);
             case "7d" -> now.minusDays(7);
+            case "30d" -> now.minusDays(30);
             default -> now.minusHours(24);
         };
 

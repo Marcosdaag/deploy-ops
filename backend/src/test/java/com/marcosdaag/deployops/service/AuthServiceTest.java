@@ -1,14 +1,17 @@
 package com.marcosdaag.deployops.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marcosdaag.deployops.dto.AuthLoginRequest;
 import com.marcosdaag.deployops.dto.AuthRegisterRequest;
 import com.marcosdaag.deployops.dto.AuthResponse;
 import com.marcosdaag.deployops.dto.GoogleLoginRequest;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
+import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.UserEntity;
 import com.marcosdaag.deployops.model.enums.AuthProvider;
 import com.marcosdaag.deployops.model.enums.UserRole;
+import com.marcosdaag.deployops.repository.ServiceRepository;
 import com.marcosdaag.deployops.repository.UserRepository;
 import com.marcosdaag.deployops.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,13 +25,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,16 +39,19 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private ServiceRepository serviceRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
     private JwtService jwtService;
 
     @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
-
     @InjectMocks
     private AuthService authService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private UserEntity sampleUser;
 
@@ -164,14 +168,15 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Autentica o registra usuario de Google a partir del token JWT de Google")
-    void whenLoginWithGoogle_shouldParsePayloadAndAuthenticate() {
-        String payloadJson = "{\"email\":\"googleuser@gmail.com\",\"name\":\"Google User\",\"sub\":\"1234567890\"}";
-        String encodedPayload = Base64.getUrlEncoder().withoutPadding().encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
-        String dummyGoogleToken = "header." + encodedPayload + ".signature";
+    @DisplayName("Autentica o registra usuario de Google tras verificar criptograficamente su token ID")
+    void whenLoginWithGoogle_shouldVerifyTokenAndAuthenticate() throws Exception {
+        String verifiedToken = "header.payload.valid_signature";
+        JsonNode verifiedClaims = objectMapper.readTree(
+                "{\"email\":\"googleuser@gmail.com\",\"email_verified\":\"true\",\"name\":\"Google User\",\"iss\":\"https://accounts.google.com\"}"
+        );
 
         GoogleLoginRequest request = new GoogleLoginRequest();
-        request.setCredential(dummyGoogleToken);
+        request.setCredential(verifiedToken);
 
         UserEntity googleUser = new UserEntity();
         googleUser.setId(2L);
@@ -180,6 +185,7 @@ class AuthServiceTest {
         googleUser.setProvider(AuthProvider.GOOGLE);
         googleUser.setRole(UserRole.ROLE_USER);
 
+        doReturn(verifiedClaims).when(authService).verifyGoogleIdToken(verifiedToken);
         when(userRepository.findByEmail("googleuser@gmail.com")).thenReturn(Optional.empty());
         when(userRepository.save(any(UserEntity.class))).thenReturn(googleUser);
         when(jwtService.generateToken(googleUser)).thenReturn("app.jwt.for.google");
@@ -190,6 +196,17 @@ class AuthServiceTest {
         assertEquals("app.jwt.for.google", response.getToken());
         assertEquals("googleuser@gmail.com", response.getEmail());
         assertEquals("GOOGLE", response.getProvider());
+    }
+
+    @Test
+    @DisplayName("Rechaza tokens de Google falsificados o sin firma criptografica valida")
+    void whenLoginWithForgedGoogleToken_shouldThrowBadCredentials() {
+        GoogleLoginRequest unsignedRequest = new GoogleLoginRequest();
+        unsignedRequest.setCredential("eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIn0.");
+
+        assertThrows(BadCredentialsException.class, () -> authService.loginWithGoogle(unsignedRequest));
+        verify(userRepository, never()).save(any());
+        verify(jwtService, never()).generateToken(any());
     }
 
     @Test
@@ -205,14 +222,16 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Inicia sesion en modo demo creando el usuario si no existe")
+    @DisplayName("Inicia sesion en modo demo creando usuario con slug seguro y sembrando endpoints iniciales")
     void whenLoginAsDemo_shouldCreateOrReturnDemoUser() {
         when(userRepository.findByEmail("demo@deployops.io")).thenReturn(Optional.empty());
+        when(userRepository.existsByPublicSlug("demo-user")).thenReturn(false);
         when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
             UserEntity u = invocation.getArgument(0);
             u.setId(999L);
             return u;
         });
+        when(serviceRepository.findByUserOrderByIdDesc(any(UserEntity.class))).thenReturn(List.of());
         when(jwtService.generateToken(any(UserEntity.class))).thenReturn("demo.jwt.token");
 
         AuthResponse response = authService.loginAsDemo();
@@ -221,6 +240,8 @@ class AuthServiceTest {
         assertEquals("demo.jwt.token", response.getToken());
         assertEquals("demo@deployops.io", response.getEmail());
         assertEquals("Usuario Demo (SRE)", response.getName());
+        assertEquals("demo-user", response.getPublicSlug());
+        verify(serviceRepository, times(3)).save(any(ServiceEntity.class));
     }
 
     @Test

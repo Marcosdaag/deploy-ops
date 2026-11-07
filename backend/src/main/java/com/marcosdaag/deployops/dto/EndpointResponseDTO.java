@@ -3,6 +3,7 @@ package com.marcosdaag.deployops.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.marcosdaag.deployops.model.ServiceEntity;
 import com.marcosdaag.deployops.model.enums.ServiceStatus;
+import lombok.AccessLevel;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -19,16 +20,17 @@ public class EndpointResponseDTO {
     private final LocalDateTime createdAt;
     private final double uptimePercentage;
 
-    @JsonProperty("isProtected")
+    @Getter(AccessLevel.NONE)
     private final boolean isProtected;
 
-    @JsonProperty("isOwner")
+    @Getter(AccessLevel.NONE)
     private final boolean isOwner;
 
     private final String ownerEmail;
 
-    @JsonProperty("isPublicStatus")
+    @Getter(AccessLevel.NONE)
     private final boolean isPublicStatus;
+
     private final String httpMethod;
     private final Integer expectedStatusCode;
     private final String customHeaders;
@@ -62,5 +64,20 @@ public class EndpointResponseDTO {
         this.isOwner = entity.getUser() != null
                 && currentUserEmail != null
                 && entity.getUser().getEmail().equalsIgnoreCase(currentUserEmail);
+    }
+
+    @JsonProperty("isProtected")
+    public boolean isProtected() {
+        return isProtected;
+    }
+
+    @JsonProperty("isOwner")
+    public boolean isOwner() {
+        return isOwner;
+    }
+
+    @JsonProperty("isPublicStatus")
+    public boolean isPublicStatus() {
+        return isPublicStatus;
     }
 }

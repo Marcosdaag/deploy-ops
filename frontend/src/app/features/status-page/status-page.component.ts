@@ -21,6 +21,11 @@ export class StatusPageComponent implements OnInit {
   readonly slug = signal<string>('');
 
   ngOnInit(): void {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const savedTheme = localStorage.getItem('deployops_landing_theme');
+      document.documentElement.setAttribute('data-theme', savedTheme === 'light' ? 'light' : 'dark');
+    }
+
     this.route.paramMap.subscribe((params) => {
       const slugParam = params.get('slug') || 'demo';
       this.slug.set(slugParam);

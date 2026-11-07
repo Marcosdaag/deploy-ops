@@ -1,5 +1,7 @@
 package com.marcosdaag.deployops.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marcosdaag.deployops.dto.PingResult;
 import com.marcosdaag.deployops.dto.SslCertificateInfo;
 import com.marcosdaag.deployops.model.ServiceEntity;
@@ -25,10 +27,13 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class HttpMonitorService {
+
+    private static final ObjectMapper HEADER_MAPPER = new ObjectMapper();
 
     private final RestTemplate restTemplate;
     private final UrlSecurityValidator urlSecurityValidator;
@@ -154,10 +159,31 @@ public class HttpMonitorService {
         }
     }
 
-    private HttpHeaders parseHeaders(String customHeaders) {
+    HttpHeaders parseHeaders(String customHeaders) {
         HttpHeaders headers = new HttpHeaders();
         if (customHeaders == null || customHeaders.isBlank()) {
             return headers;
+        }
+
+        String trimmed = customHeaders.trim();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                JsonNode root = HEADER_MAPPER.readTree(trimmed);
+                if (root != null && root.isObject()) {
+                    for (Map.Entry<String, JsonNode> entry : root.properties()) {
+                        String key = entry.getKey() != null ? entry.getKey().trim() : "";
+                        String value = entry.getValue() != null && !entry.getValue().isNull()
+                                ? entry.getValue().asText().trim()
+                                : "";
+                        if (!key.isEmpty() && !value.isEmpty()) {
+                            headers.add(key, value);
+                        }
+                    }
+                    return headers;
+                }
+            } catch (Exception ignored) {
+                // Si el bloque no es JSON valido, continua con el parseo linea por linea
+            }
         }
 
         String[] lines = customHeaders.split("[\\r\\n]+");

@@ -1,11 +1,18 @@
 package com.marcosdaag.deployops.security;
 
+import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 class RateLimiterServiceTest {
 
@@ -54,5 +61,32 @@ class RateLimiterServiceTest {
         rateLimiterService.reset();
 
         assertTrue(rateLimiterService.tryAcquire("reset-ip", 1, 60_000));
+    }
+
+    @Test
+    @DisplayName("RateLimitingFilter bloquea con HTTP 429 y cuerpo JSON valido al exceder cuota en endpoints protegidos")
+    void whenRateLimitExceededInFilter_shouldReturn429JsonResponse() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(rateLimiterService);
+        FilterChain chain = mock(FilterChain.class);
+
+        for (int i = 0; i < 15; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/demo");
+            req.setRemoteAddr("203.0.113.10");
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, chain);
+            assertEquals(200, res.getStatus());
+        }
+
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("POST", "/api/auth/demo");
+        blockedReq.setRemoteAddr("203.0.113.10");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        FilterChain blockedChain = mock(FilterChain.class);
+
+        filter.doFilter(blockedReq, blockedRes, blockedChain);
+
+        assertEquals(429, blockedRes.getStatus());
+        assertEquals("60", blockedRes.getHeader("Retry-After"));
+        assertTrue(blockedRes.getContentAsString().contains("Demasiadas solicitudes"));
+        verify(blockedChain, never()).doFilter(blockedReq, blockedRes);
     }
 }

@@ -651,4 +651,69 @@ class EndpointManagerServiceTest {
         assertThrows(SecurityException.class, () -> endpointManagerService.updateEndpoint(1L, updateDto, "intruder@test.com"));
         verify(serviceRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Permite a un usuario eliminar su propio endpoint creado desde un preset, pero bloquea el showcase global")
+    void whenOwnerDeletesOwnPresetEndpoint_shouldSucceedWhileBlockingGlobalShowcase() {
+        UserEntity owner = new UserEntity();
+        owner.setId(15L);
+        owner.setEmail("demo@deployops.io");
+
+        ServiceEntity userPreset = new ServiceEntity();
+        userPreset.setId(55L);
+        userPreset.setName("Cloudflare Edge DNS");
+        userPreset.setUrl("https://1.1.1.1");
+        userPreset.setProtected(false);
+        userPreset.setUser(owner);
+
+        when(serviceRepository.findById(55L)).thenReturn(Optional.of(userPreset));
+        assertDoesNotThrow(() -> endpointManagerService.deleteEndpoint(55L, "demo@deployops.io"));
+        verify(serviceRepository).deleteById(55L);
+
+        ServiceEntity globalShowcase = new ServiceEntity();
+        globalShowcase.setId(56L);
+        globalShowcase.setName("Cloudflare Showcase");
+        globalShowcase.setUrl("https://1.1.1.1");
+        globalShowcase.setProtected(false);
+        globalShowcase.setUser(null);
+
+        when(serviceRepository.findById(56L)).thenReturn(Optional.of(globalShowcase));
+        assertThrows(IllegalArgumentException.class, () -> endpointManagerService.deleteEndpoint(56L, "demo@deployops.io"));
+    }
+
+    @Test
+    @DisplayName("EndpointResponseDTO serializa banderas booleanas sin campos duplicados")
+    void whenSerializingEndpointResponseDTO_shouldNotEmitDuplicateBooleanKeys() throws Exception {
+        UserEntity owner = new UserEntity();
+        owner.setId(10L);
+        owner.setEmail("owner@test.com");
+        service.setUser(owner);
+        service.setPublicStatus(true);
+        service.setProtected(false);
+
+        EndpointResponseDTO dto = new EndpointResponseDTO(service, 99.95, "owner@test.com");
+        tools.jackson.databind.json.JsonMapper mapper = tools.jackson.databind.json.JsonMapper.builder().build();
+        tools.jackson.databind.JsonNode json = mapper.readTree(mapper.writeValueAsString(dto));
+
+        assertTrue(json.has("isOwner"));
+        assertTrue(json.has("isProtected"));
+        assertTrue(json.has("isPublicStatus"));
+        assertFalse(json.has("owner"));
+        assertFalse(json.has("protected"));
+        assertFalse(json.has("publicStatus"));
+    }
+
+    @Test
+    @DisplayName("HttpMonitorService soporta cabeceras personalizadas tanto en JSON como en formato clave-valor")
+    void whenParsingCustomHeaders_shouldSupportJsonAndLineFormats() {
+        HttpMonitorService monitor = new HttpMonitorService();
+
+        org.springframework.http.HttpHeaders jsonHeaders = monitor.parseHeaders("{\"Authorization\": \"Bearer abc\", \"X-Env\": \"prod\"}");
+        assertEquals("Bearer abc", jsonHeaders.getFirst("Authorization"));
+        assertEquals("prod", jsonHeaders.getFirst("X-Env"));
+
+        org.springframework.http.HttpHeaders lineHeaders = monitor.parseHeaders("Authorization: Bearer xyz\nX-Region: us-east-1");
+        assertEquals("Bearer xyz", lineHeaders.getFirst("Authorization"));
+        assertEquals("us-east-1", lineHeaders.getFirst("X-Region"));
+    }
 }

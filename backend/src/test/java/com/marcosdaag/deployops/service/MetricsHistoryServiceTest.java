@@ -139,4 +139,22 @@ class MetricsHistoryServiceTest {
 
         verify(pingLogRepository).deleteByTimestampBefore(any(LocalDateTime.class));
     }
+
+    @Test
+    @DisplayName("Soporta el rango de consulta de 30 dias (30d)")
+    void whenGetMetricsHistory30d_shouldQueryThirtyDaysWindow() {
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(pingLogRepository.findByServiceAndTimestampAfterOrderByTimestampAsc(eq(service), any(LocalDateTime.class)))
+                .thenReturn(List.of());
+
+        ServiceMetricsHistoryDTO metrics = metricsHistoryService.getMetricsHistory(1L, "30d", null);
+
+        ArgumentCaptor<LocalDateTime> thresholdCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(pingLogRepository).findByServiceAndTimestampAfterOrderByTimestampAsc(eq(service), thresholdCaptor.capture());
+
+        LocalDateTime expectedApprox = LocalDateTime.now().minusDays(30);
+        assertTrue(thresholdCaptor.getValue().isBefore(LocalDateTime.now().minusDays(29)));
+        assertTrue(thresholdCaptor.getValue().isAfter(expectedApprox.minusMinutes(5)));
+        assertEquals("30d", metrics.getRange());
+    }
 }

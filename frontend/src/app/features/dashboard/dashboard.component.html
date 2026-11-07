@@ -392,7 +392,7 @@
 
                   </div>
 
-                  <div class="hms-sub">{{ metrics().healthy }} servicios activos</div>
+                  <div class="hms-sub">{{ metrics().healthy }} {{ metrics().healthy === 1 ? 'servicio activo' : 'servicios activos' }}</div>
 
                 </div>
 
@@ -448,9 +448,11 @@
 
                 </button>
 
-                <a href="#demostracion" class="btn-secondary-action btn-lg" (click)="scrollToSection($event, 'demostracion')">
+                <a href="#demostracion" class="btn-hero-scroll-link" (click)="scrollToSection($event, 'demostracion')">
+                  <span>Ver demostración en vivo</span>
+                  <span class="hero-scroll-arrow">↓</span>
 
-                  <span>Ver Demostración en Vivo</span>
+
 
                 </a>
 
@@ -2439,7 +2441,7 @@
 
                 >
 
-                  {{ selected.sslDaysRemaining <= 14 ? '⚠️ Expira en ' + selected.sslDaysRemaining + ' días' : '✓ Válido (' + selected.sslDaysRemaining + ' días restantes)' }}
+                  {{ selected.sslDaysRemaining <= 14 ? 'Expira en ' + selected.sslDaysRemaining + ' días' : 'Válido (' + selected.sslDaysRemaining + ' días restantes)' }}
 
                 </span>
 
@@ -2610,6 +2612,13 @@
                   (click)="changeMetricsRange('7d')"
 
                 >7D</button>
+
+                <button
+                  type="button"
+                  class="btn-range"
+                  [class.active]="metricsRange() === '30d'"
+                  (click)="changeMetricsRange('30d')"
+                >30D</button>
 
               </div>
 
