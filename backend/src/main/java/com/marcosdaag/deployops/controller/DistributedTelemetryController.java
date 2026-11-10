@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Controlador REST para observabilidad y telemetria del cluster distribuido.
+ * Expone indicadores clave de rendimiento (KPIs) sobre el estado del buffer Outbox,
+ * metricas de la cache L2 en Redis, profundidad de la Dead Letter Queue (DLQ)
+ * y estado de conectividad con brokers de mensajeria.
+ */
 @RestController
 @RequestMapping("/api/distributed")
 @RequiredArgsConstructor
@@ -25,6 +31,13 @@ public class DistributedTelemetryController {
     @Value("${app.rabbitmq.enabled:false}")
     private boolean rabbitmqEnabled;
 
+    /**
+     * Retorna una vista agregada del estado distribuido del sistema.
+     * Consolida conteos en tiempo real de eventos Outbox, fallos derivados a DLQ,
+     * aciertos/fallos de cache L2 y disponibilidad de brokers externos.
+     *
+     * @return DTO con la telemetria consolidada del cluster.
+     */
     @GetMapping("/overview")
     public ResponseEntity<DistributedOverviewDTO> getOverview() {
         long pending = outboxEventRepository.countByStatus(OutboxStatus.PENDING);

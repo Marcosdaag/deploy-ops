@@ -9,6 +9,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Controlador REST para la visualizacion y configuracion de Status Pages publicas.
+ * Permite la consulta publica de la disponibilidad y estado de servicios marcados como visibles,
+ * respaldada por la capa de cache distribuida L2 en Redis, asi como la personalizacion del slug de acceso.
+ */
 @RestController
 @RequestMapping("/api/status")
 @RequiredArgsConstructor

@@ -9,9 +9,11 @@ Enlace a la aplicación en producción: [https://deployopsapp.vercel.app/](https
 [![Angular](https://img.shields.io/badge/Angular-20.3-red?style=flat-square&logo=angular)](https://angular.dev/)
 [![Three.js](https://img.shields.io/badge/Three.js-r187-black?style=flat-square&logo=threedotjs)](https://threejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis)](https://redis.io/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.13-FF6600?style=flat-square&logo=rabbitmq)](https://www.rabbitmq.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions)](./.github/workflows/backend-ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-161_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
+[![Tests](https://img.shields.io/badge/Tests-214_passing-success?style=flat-square)](https://github.com/Marcosdaag/deploy-ops)
 
 ---
 
@@ -134,7 +136,7 @@ flowchart LR
 
 ---
 
-## Arquitectura de Componentes
+## Arquitectura de Componentes (v2.0 Enterprise)
 
 ```mermaid
 flowchart TD
@@ -142,75 +144,89 @@ flowchart TD
         Dashboard["Dashboard Component<br/>(Signals + Control Flow)"]
         Globe3D["TelemetryCanvas3dComponent<br/>(Three.js WebGL Engine)"]
         StatusPage["Status Page Component<br/>(Public Slug View)"]
+        EnterpriseHub["EnterpriseHubComponent<br/>(Webhooks, DLQ, Caos, Telemetria)"]
         SSEClient["SSE Reactive Client"]
     end
 
     subgraph Perimetro ["Perimetro de Seguridad y Red"]
-        RLF["RateLimitingFilter<br/>(Token Bucket por IP)"]
-        JWTF["JwtAuthenticationFilter<br/>(Validacion de Tokens)"]
-        SSRF["UrlSecurityValidator<br/>(Anti-SSRF + Bloqueo de Puertos)"]
+        RLF["RateLimitingFilter + RateLimiterService<br/>(Token Bucket + Redis INCR Global)"]
+        JWTF["JwtAuthenticationFilter<br/>(Validacion de Tokens JWT)"]
+        SSRF["UrlSecurityValidator<br/>(Anti-SSRF + Anti-DNS-Rebinding Pre-Vuelo)"]
     end
 
-    subgraph Core ["Capa de Negocio (Spring Boot 4.1.1)"]
-        EMS["EndpointManagerService<br/>(Maquina de Estados + CRUD)"]
+    subgraph Core ["Capa de Negocio y Resiliencia (Spring Boot 4.1.1)"]
+        EMS["EndpointManagerService<br/>(FSM 5 Estados + Transaccion ACID Outbox)"]
         MS["MetricsService<br/>(Calculo Uptime SLA 30d sin N+1)"]
-        HS["MetricsHistoryService<br/>(Series Temporales 24h/7d/30d)"]
-        RS["ReportService<br/>(Generacion de Reportes CSV)"]
-        SPS["StatusPageService<br/>(Agregacion Publica)"]
-        SSEN["SseNotificationService<br/>(Transmision de Eventos)"]
+        MHS["MetricsHistoryService<br/>(Series 6h-30d + Purga ShedLock)"]
+        RS["ReportService<br/>(Exportacion CSV y Alertas Email)"]
+        SPS["StatusPageService<br/>(Agregacion Publica por Slug)"]
+        SPCS["StatusPageCacheService<br/>(Cache L2 Redis TTL 60s + Eviccion Reactiva)"]
+        SSEN["SseNotificationService<br/>(Transmision SSE en Tiempo Real)"]
+        OES["OutboxEventService<br/>(Persistencia Inmutable de Eventos)"]
+        ORS["OutboxRelayService<br/>(Relay ShedLock + Zombie Lock Reaper)"]
+        WDS["WebhookDeliveryService<br/>(AES-256-GCM + HMAC-SHA256 + Backoff/Jitter)"]
+        CS["ChaosSimulationService<br/>(Inyeccion de Caos SRE y Degradacion)"]
+    end
+
+    subgraph Messaging ["Broker de Mensajeria (RabbitMQ 3.13)"]
+        RMQ["Topic Exchange: deployops.incidents<br/>Colas: webhooks.dispatch, audit.telemetry"]
+        DLQ["Dead Letter Exchange: deployops.incidents.dlx<br/>Cola: webhooks.dlq"]
     end
 
     subgraph Background ["Motor Asincrono Concurrente"]
-        SCH["MonitoringScheduler<br/>(@Scheduled fixedDelay=60s)"]
+        SCH["MonitoringScheduler<br/>(@Scheduled 60s + @SchedulerLock)"]
         VT["Virtual Thread Executor<br/>(Java 21 Loom)"]
-        HM["HttpMonitorService<br/>(HTTP Check + SSL Inspector)"]
+        HM["HttpMonitorService<br/>(HTTP Check Monotonico + Auditoria TLS X.509)"]
     end
 
-    subgraph Persistencia ["Capa de Datos (PostgreSQL 16)"]
-        SR["ServiceRepository"]
-        IR["IncidentRepository"]
-        PLR["PingLogRepository"]
-        UR["UserRepository"]
+    subgraph Persistencia ["Persistencia y Memoria Distribuida"]
+        RED[("Redis 7.2<br/>ShedLock + Cache L2 + Rate Limit")]
+        PG[("PostgreSQL 16<br/>7 Tablas Relacionales")]
     end
 
-    Dashboard --> Globe3D
+    Dashboard --> Globe3D & EnterpriseHub
     Dashboard --> RLF
     StatusPage --> RLF
+    RLF --> RED
     RLF --> JWTF
-    JWTF --> EMS
-    JWTF --> SPS
+    JWTF --> EMS & SPS & CS
     EMS --> SSRF
+    EMS --> OES
+    OES --> PG
     SCH --> VT
     VT --> HM
     HM --> EMS
+    EMS --> SPCS
+    SPCS --> RED
     EMS --> SSEN
     SSEN -.->|Server-Sent Events| SSEClient
-    EMS --> SR
-    EMS --> IR
-    EMS --> PLR
-    EMS --> MS
-    SPS --> SR
-    SPS --> IR
-    EMS --> UR
+    EMS --> PG
+    ORS --> PG
+    ORS --> RMQ
+    RMQ --> WDS
+    WDS --> DLQ
+    WDS --> PG
 ```
 
 ---
 
 ## Cobertura de Pruebas y Calidad de Código
 
-El repositorio cuenta con una suite integral de **161 pruebas automatizadas** ejecutadas en entornos de integración continua:
+El repositorio cuenta con una suite integral de **214 pruebas automatizadas** ejecutadas en entornos de integración continua:
 
 | Módulo | Pruebas | Framework / Herramientas | Enfoque |
 | :--- | :--- | :--- | :--- |
-| **Backend Core** | 123 | JUnit 5, Mockito, MockMvc, H2 Database | Validación anti-SSRF (44 tests), transiciones de máquina de estados, cálculo de Uptime sin N+1, purga de logs, auditoría SSL, límites de tasa y autenticación JWT (OAuth2 Google verificado y modo demo) |
-| **Frontend SPA** | 38 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, filtrado de estados, ordenamiento de telemetría, canvas WebGL 3D, drawers de inspección (6h/24h/7d/30d), snippets cURL, servicios HTTP, interceptores y modo demo |
-| **Total** | **161** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
+| **Backend Core** | 163 | JUnit 5, Mockito, MockMvc, H2, Testcontainers RabbitMQ 1.20.4 | Validación anti-SSRF (44 tests), transiciones FSM, cálculo Uptime sin N+1, purga de logs, auditoría SSL, control de tasa (Redis/memoria), JWT/OAuth2, Outbox Relay, cifrado AES-256-GCM, firmas HMAC, DLQ y simulador de caos |
+| **Frontend SPA** | 51 | Jasmine, Karma, ChromeHeadless | Reactividad de Signals, Enterprise Hub (4 pestañas), gestión de webhooks, visor DLQ, canvas WebGL 3D, drawers de inspección (6h/24h/7d/30d), snippets cURL, servicios HTTP e interceptores |
+| **Total** | **214** | **100% pruebas pasando exitosamente** | **0 fallos, 0 errores en CI** |
 
 ---
 
 ## Especificación de la API REST
 
-### Autenticación y Cuentas
+DeployOps v2.0 Enterprise expone **33 endpoints organizados en 5 controladores temáticos**:
+
+### 1. Autenticación y Cuentas (5 Endpoints)
 | Método | Endpoint | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Público | Registro de nuevo usuario con contraseña cifrada en BCrypt. |
@@ -219,33 +235,66 @@ El repositorio cuenta con una suite integral de **161 pruebas automatizadas** ej
 | `POST` | `/api/auth/demo` | Público | Inicio de sesión instantáneo con cuenta de demostración SRE y endpoints precargados. |
 | `GET` | `/api/auth/me` | Autenticado | Retorna el perfil y slug público del usuario actual. |
 
-### Gestión de Endpoints y Monitoreo
+### 2. Gestión de Endpoints y Telemetría SRE (14 Endpoints)
 | Método | Endpoint | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/endpoints` | Autenticado / Público | Lista de servicios según alcance (`scope=mine` o `scope=showcase`). |
 | `POST` | `/api/endpoints` | Autenticado | Registro de un nuevo endpoint con validación anti-SSRF. |
-| `PUT` | `/api/endpoints/{id}` | Autenticado | Actualización de parámetros, URL y umbrales de respuesta. |
-| `DELETE` | `/api/endpoints/{id}` | Autenticado | Eliminación segura en cascada del servicio y sus incidentes asociados. |
-| `POST` | `/api/endpoints/{id}/ping` | Autenticado | Disparo inmediato de comprobación HTTP bajo demanda. |
-| `GET` | `/api/endpoints/{id}/metrics` | Autenticado | Historial de latencias y estado según rango (`6h`, `24h`, `7d`, `30d`). |
-| `GET` | `/api/endpoints/{id}/incidents` | Autenticado | Bitácora de incidentes activos y resueltos con duración en segundos. |
-| `GET` | `/api/endpoints/{id}/report/csv` | Autenticado | Exportación descargable de reporte mensual de disponibilidad SLA en formato CSV. |
+| `POST` | `/api/endpoints/samples` | Autenticado | Siembra automática de endpoints de prueba para cuentas recién creadas. |
+| `PUT` | `/api/endpoints/{id}` | Autenticado (Owner) | Actualización de parámetros, URL y umbrales de respuesta. |
+| `DELETE` | `/api/endpoints/{id}` | Autenticado (Owner) | Eliminación segura en cascada del servicio y sus incidentes asociados. |
+| `PATCH` | `/api/endpoints/{id}/visibility` | Autenticado (Owner) | Conmuta visibilidad pública para inclusión en Status Page (`isPublicStatus`). |
+| `POST` | `/api/endpoints/{id}/ping` | Autenticado / Público | Disparo inmediato de comprobación HTTP bajo demanda ejecutado en Loom. |
+| `POST` | `/api/endpoints/{id}/test-alert` | Autenticado (Owner) | Disparo de alerta SMTP de prueba a la casilla de correo del operador. |
+| `GET` | `/api/endpoints/{id}/metrics` | Autenticado / Owner | Historial de latencias y estado según rango (`6h`, `24h`, `7d`, `30d`). |
+| `GET` | `/api/endpoints/{id}/incidents` | Autenticado / Owner | Bitácora de incidentes activos y resueltos con duración en segundos. |
+| `GET` | `/api/endpoints/{id}/report` | Autenticado (Owner) | Reporte mensual agregado de disponibilidad SLA y conteo de incidentes en JSON. |
+| `GET` | `/api/endpoints/{id}/report/csv` | Autenticado (Owner) | Exportación descargable de reporte mensual de disponibilidad SLA en formato CSV. |
+| `POST` | `/api/endpoints/{id}/report/email` | Autenticado (Owner) | Envío del reporte mensual de disponibilidad SLA adjunto por correo electrónico. |
 | `GET` | `/api/endpoints/stream` | Público | Flujo unidireccional de Server-Sent Events con métricas en tiempo real. |
 
-### Status Page Pública
+### 3. Páginas de Estado Públicas (Status Pages) (2 Endpoints)
 | Método | Endpoint | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/status/{slug}` | Público | Estado consolidado de los servicios públicos marcados por el usuario. |
+| `GET` | `/api/status/{slug}` | Público | Estado consolidado de los servicios públicos con respaldo de Caché L2 en Redis. |
+| `PATCH` | `/api/status/slug` | Autenticado | Actualiza el slug personalizado del operador (ej. `/status/acme-corp`). Invalida caché L2. |
+
+### 4. Webhooks y Mensajería Criptográfica (8 Endpoints)
+| Método | Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/webhooks` | Autenticado | Lista receptores configurados con secreto enmascarado (`dops_sec_••••••••4f9a`). |
+| `POST` | `/api/webhooks` | Autenticado | Alta de webhook (Slack, Discord, Custom) con generación de secreto HMAC. |
+| `PATCH` | `/api/webhooks/{id}` | Autenticado (Owner) | Modificación de nombre, URL destino, proveedor o activación/pausa. |
+| `DELETE` | `/api/webhooks/{id}` | Autenticado (Owner) | Eliminación del webhook y auditorías asociadas. |
+| `POST` | `/api/webhooks/{id}/rotate-secret` | Autenticado (Owner) | Rotación criptográfica inmediata del secreto HMAC-SHA256. |
+| `POST` | `/api/webhooks/{id}/test` | Autenticado (Owner) | Envío de evento de prueba `WEBHOOK_TEST_PING` firmado con HMAC. |
+| `GET` | `/api/webhooks/failures` | Autenticado | Auditoría de entregas fallidas derivadas a Dead Letter Queue (`webhooks.dlq`). |
+| `POST` | `/api/webhooks/failures/{id}/retry` | Autenticado (Owner) | Reintento manual firmado de un mensaje fallido derivado a DLQ. |
+
+### 5. Telemetría Distribuida y Caos SRE (4 Endpoints)
+| Método | Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/distributed/overview` | Público | Indicadores de clúster (buffer Outbox, hits/misses de caché L2, estado Redis/AMQP). |
+| `GET` | `/api/chaos/state` | Público / Token | Consulta el código HTTP simulado actual del sandbox (`200`, `503`, `504`, `401`). |
+| `POST` | `/api/chaos/state` | Público / Token | Conmuta el código HTTP simulado del sandbox para pruebas de contingencia. |
+| `POST` | `/api/chaos/trigger` | Público / Token | Dispara un evento `CHAOS_SIMULATION` para validar el flujo completo hacia DLQ. |
+
+> [!NOTE]
+> Para la documentación técnica exhaustiva de parámetros, códigos de estado y cuotas de Rate Limiting de cada endpoint, consulta la [Referencia Completa de la API REST](./docs/API_REFERENCE.md).
 
 ---
 
-## Modelo de Datos
+## Modelo de Datos (7 Tablas Relacionales)
 
 ```mermaid
 erDiagram
     USERS ||--o{ SERVICES : owns
-    SERVICES ||--o{ INCIDENTS : registers
+    SERVICES ||--o{ INCIDENTS : experiences
     SERVICES ||--o{ PING_LOGS : records
+    USERS ||--o{ OUTBOX_EVENTS : triggers
+    USERS ||--o{ WEBHOOK_ENDPOINTS : configures
+    WEBHOOK_ENDPOINTS ||--o{ WEBHOOK_DELIVERY_FAILURES : generates
+    USERS ||--o{ WEBHOOK_DELIVERY_FAILURES : audits
 
     USERS {
         bigint id PK
@@ -259,18 +308,19 @@ erDiagram
     SERVICES {
         bigint id PK
         bigint user_id FK "Nullable para servicios demo"
-        string name
-        string url
-        string http_method
+        string name "VARCHAR(100)"
+        string url "VARCHAR(500)"
+        string http_method "VARCHAR(10)"
         int expected_status_code
-        string custom_headers
+        string custom_headers "TEXT"
         string status "PENDING, HEALTHY, DEGRADED, DOWN, RECOVERING"
         int consecutive_failures
         int consecutive_successes
         bigint last_response_time_ms
         int ssl_days_remaining
         timestamp ssl_expiry_date
-        boolean is_public
+        string ssl_issuer
+        boolean is_public_status
         boolean is_protected
         timestamp created_at
         timestamp last_checked_at
@@ -289,8 +339,50 @@ erDiagram
         bigint service_id FK
         int status_code
         bigint response_time_ms
-        boolean is_success
-        timestamp checked_at
+        boolean is_alive
+        timestamp timestamp
+    }
+
+    OUTBOX_EVENTS {
+        string id PK "UUID"
+        string aggregate_type "VARCHAR(50)"
+        bigint aggregate_id
+        bigint user_id FK
+        string event_type "INCIDENT_OPENED, INCIDENT_RESOLVED, etc."
+        string payload_json "TEXT"
+        string status "PENDING, PROCESSING, PROCESSED, FAILED"
+        int attempt_count
+        timestamp created_at
+        timestamp processed_at
+        timestamp locked_at
+    }
+
+    WEBHOOK_ENDPOINTS {
+        bigint id PK
+        bigint user_id FK
+        string name "VARCHAR(100)"
+        string target_url "VARCHAR(500)"
+        string provider_type "CUSTOM, SLACK, DISCORD"
+        string signing_secret "TEXT (AES-256-GCM)"
+        string secret_hint "VARCHAR(30)"
+        boolean enabled
+        string last_delivery_status
+        timestamp created_at
+    }
+
+    WEBHOOK_DELIVERY_FAILURES {
+        bigint id PK
+        string event_id "VARCHAR(64)"
+        bigint webhook_id FK
+        bigint user_id FK
+        string target_url "VARCHAR(500)"
+        string event_type "VARCHAR(50)"
+        string payload_json "TEXT"
+        int attempt_count
+        string last_error "TEXT"
+        string status "DEAD_LETTER, RETRIED_OK, DISCARDED"
+        timestamp failed_at
+        timestamp last_retry_at
     }
 ```
 
@@ -298,7 +390,7 @@ erDiagram
 
 ## Variables de Entorno
 
-### Backend (Spring Boot)
+### Backend (Spring Boot 4.1.1)
 | Variable | Descripción | Valor por Defecto |
 | :--- | :--- | :--- |
 | `PORT` | Puerto de escucha del servidor HTTP | `8080` |
@@ -315,8 +407,15 @@ erDiagram
 | `MAIL_USERNAME` | Cuenta de correo emisora | Cadena vacía |
 | `MAIL_PASSWORD` | Contraseña de aplicación SMTP | Cadena vacía |
 | `MAIL_FROM` | Remitente visible en los correos | `alerts@deployops.io` |
+| `REDIS_ENABLED` | Habilitación de Redis para ShedLock, Caché L2 y Rate Limiter | `false` (Fallback automático en memoria) |
+| `REDIS_URL` | URL de conexión a Redis 7.2 | `redis://localhost:6379` |
+| `REDIS_TIMEOUT` | Timeout de conexión con Redis | `2s` |
+| `STATUS_CACHE_TTL_SECONDS` | Tiempo de vida del caché L2 de Status Page | `60` segundos |
+| `RABBITMQ_ENABLED` | Habilitación del broker RabbitMQ para el pipeline de eventos | `false` (Fallback a Virtual Threads) |
+| `RABBITMQ_URL` | Dirección de conexión AMQP a RabbitMQ | `amqp://localhost:5672` |
+| `WEBHOOK_ENCRYPTION_KEY` | Clave simétrica de 32 bytes para cifrado AES-256-GCM | Cadena interna de 32 bytes |
 
-### Frontend (Angular)
+### Frontend (Angular 20.3)
 | Variable / Archivo | Descripción |
 | :--- | :--- |
 | `src/environments/environment.development.ts` | Configuración para desarrollo local apuntando a `http://localhost:8080/api/endpoints` |
@@ -331,7 +430,7 @@ erDiagram
 - Node.js versión 20.x o 22.x LTS
 - Docker y Docker Compose
 
-### 1. Iniciar la Base de Datos Local
+### 1. Iniciar la Infraestructura Local (PostgreSQL 16, Redis 7.2, RabbitMQ 3.13)
 ```bash
 docker compose up -d
 ```
@@ -340,7 +439,7 @@ docker compose up -d
 ```bash
 cd backend
 
-# Ejecutar las 123 pruebas unitarias y de integracion
+# Ejecutar las 163 pruebas unitarias y de integracion
 ./mvnw test
 
 # Iniciar la aplicacion
@@ -355,7 +454,7 @@ cd frontend
 # Instalar dependencias
 npm install
 
-# Ejecutar las 38 pruebas unitarias
+# Ejecutar las 51 pruebas unitarias
 npm test -- --watch=false --browsers=ChromeHeadless
 
 # Iniciar servidor de desarrollo

@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Controlador REST para el simulador de Caos e inyeccion de fallos SRE.
+ * Permite simular respuestas HTTP degradadas (500, 503, 504, 401) y disparar eventos
+ * controlados para verificar en tiempo real la resiliencia del pipeline de entrega,
+ * las politicas de reintento con backoff exponencial y el enrutamiento a Dead Letter Queue.
+ */
 @RestController
 @RequestMapping("/api/chaos")
 @RequiredArgsConstructor
@@ -20,6 +26,12 @@ public class ChaosSimulatorController {
     private final ChaosSimulationService chaosSimulationService;
     private final UserRepository userRepository;
 
+    /**
+     * Consulta el estado de simulacion actual para el operador autenticado o sesion demo.
+     *
+     * @param authentication contexto de seguridad activo.
+     * @return DTO con el codigo HTTP simulado, indicador de actividad y descripcion.
+     */
     @GetMapping("/state")
     public ResponseEntity<ChaosStateDTO> getChaosState(Authentication authentication) {
         Long userId = getUserId(authentication);
@@ -30,6 +42,13 @@ public class ChaosSimulatorController {
         return ResponseEntity.ok(new ChaosStateDTO(simulatedCode, active, desc));
     }
 
+    /**
+     * Actualiza el codigo de respuesta HTTP simulado en memoria para las pruebas de contingencia.
+     *
+     * @param request mapa con el nuevo codigo HTTP ('statusCode').
+     * @param authentication contexto de seguridad activo.
+     * @return DTO con el estado de simulacion actualizado.
+     */
     @PostMapping("/state")
     public ResponseEntity<ChaosStateDTO> updateChaosState(
             @RequestBody Map<String, Integer> request,
@@ -44,6 +63,13 @@ public class ChaosSimulatorController {
         return ResponseEntity.ok(new ChaosStateDTO(code, active, desc));
     }
 
+    /**
+     * Dispara manualmente un evento de caos para probar el flujo de entrega y desvio a DLQ.
+     *
+     * @param request mapa opcional con descripcion personalizada del ensayo.
+     * @param authentication contexto de seguridad activo.
+     * @return mapa con metadatos del evento generado y codigo HTTP simulado asociado.
+     */
     @PostMapping("/trigger")
     public ResponseEntity<Map<String, Object>> triggerChaos(
             @RequestBody(required = false) Map<String, String> request,

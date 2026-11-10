@@ -29,6 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Controlador REST para la administracion de receptores de Webhooks y gestion de la Dead Letter Queue (DLQ).
+ * Provee operaciones para el alta y mantenimiento de canales externos (Slack, Discord, Custom),
+ * generacion y rotacion de secretos HMAC-SHA256 protegidos con cifrado en reposo AES-256-GCM,
+ * ejecucion de pings de prueba y reintento manual de entregas fallidas.
+ */
 @RestController
 @RequestMapping("/api/webhooks")
 @RequiredArgsConstructor

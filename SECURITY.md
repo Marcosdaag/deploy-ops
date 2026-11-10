@@ -8,8 +8,8 @@ Este documento detalla las versiones soportadas, el modelo de amenazas mitigado 
 
 | Versión | Rama / Tag | Estado | Alcance de Seguridad |
 | :--- | :--- | :--- | :--- |
-| **2.0.x (En desarrollo)** | `feat/v2-enterprise` | Activa | Multi-nodo distribuido, cuotas globales en Redis 7, caché L2 aislada y pipeline criptográfico de webhooks. |
-| **1.0.x** | `v1.0.0` (`main`) | Estable en Producción | Perímetro Anti-SSRF, JWT/OAuth2 verificado, aislamiento multi-tenant SSE y sanitización de errores. |
+| **2.0.x** | `v2.0.0` (`main`) | Estable en Producción | Multi-nodo distribuido, cuotas globales en Redis 7, caché L2 reactiva, motor Outbox, RabbitMQ y pipeline criptográfico de webhooks. |
+| **1.0.x** | `v1.0.0` | Precedente / Archivado | Perímetro Anti-SSRF, JWT/OAuth2 verificado, aislamiento multi-tenant SSE y sanitización de errores. |
 
 ---
 

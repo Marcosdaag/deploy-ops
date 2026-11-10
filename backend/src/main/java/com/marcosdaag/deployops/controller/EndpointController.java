@@ -25,6 +25,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Controlador REST principal para la gestion de endpoints monitoreados, telemetria SRE y reportes SLA.
+ * Centraliza las operaciones CRUD de servicios web, disparos de sondeo bajo demanda,
+ * transmision reactiva de metricas via Server-Sent Events (SSE), consulta de series temporales
+ * y exportacion de auditorias mensuales de disponibilidad en formato CSV o correo electronico.
+ */
 @RestController
 @RequestMapping("/api/endpoints")
 @RequiredArgsConstructor
