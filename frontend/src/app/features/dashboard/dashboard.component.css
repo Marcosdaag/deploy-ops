@@ -4064,7 +4064,7 @@ textarea.form-control {
 /* Grid del Pipeline Estrictamente Confinado (Cero Overflow) */
 .pipeline-track {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   width: 100%;
 }
@@ -4879,5 +4879,164 @@ textarea.form-control {
 
   .btn-demo-banner-exit {
     align-self: flex-end;
+  }
+}
+
+/* ==========================================================================
+   Contencion Responsiva Global (Cero Overflow Horizontal en 375px / 768px)
+   ========================================================================== */
+.landing-canvas,
+.dashboard-main-content,
+.content-container,
+.hero-two-column-layout,
+.hero-text-column,
+.hero-3d-column,
+.demo-showcase-section,
+.section-card,
+.api-console-section,
+.api-console-split,
+.console-left,
+.console-right,
+.pipeline-explorer,
+.pipeline-detail-card,
+.pd-info-col,
+.pd-code-col,
+.sre-table-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.landing-canvas,
+.dashboard-main-content {
+  overflow-x: clip;
+}
+
+.topbar-fixed {
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
+}
+
+.code-content,
+.json-content,
+.pipeline-code {
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.console-method-tabs {
+  flex-wrap: wrap;
+}
+
+.api-url-chip {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.api-url-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 100vw;
+  padding: 12px;
+}
+
+.modal-card,
+.modal-container {
+  width: 100%;
+  max-width: min(460px, calc(100vw - 24px));
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 1024px) {
+  .pipeline-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .api-console-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar-inner {
+    padding: 0 0.85rem;
+    gap: 0.5rem;
+  }
+
+  .topbar-actions {
+    gap: 0.45rem;
+  }
+
+  .user-display-name {
+    display: none;
+  }
+
+  .demo-showcase-section .sre-table {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .demo-showcase-section .th-sla,
+  .demo-showcase-section .td-sla,
+  .demo-showcase-section .th-pulse,
+  .demo-showcase-section .td-pulse {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .pipeline-track {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .status-live-text {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-inner {
+    padding: 0 0.65rem;
+    gap: 0.35rem;
+  }
+
+  .brand-wordmark {
+    font-size: 0.92rem;
+  }
+
+  .api-status-badge {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: 0.3rem;
+  }
+
+  .btn-topbar-ghost {
+    padding: 0.32rem 0.5rem;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .topbar-actions .btn-primary-action.btn-sm {
+    padding: 0.32rem 0.55rem;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .hero-badge-strip {
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }

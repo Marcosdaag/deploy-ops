@@ -219,7 +219,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
       alpha: true,
       powerPreference: 'high-performance'
     });
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(width, height, false);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     // Contenedor del globo
@@ -505,7 +505,7 @@ export class TelemetryCanvas3dComponent implements OnInit, OnDestroy, OnChanges 
         if (width > 0 && height > 0 && this.camera && this.renderer) {
           this.camera.aspect = width / height;
           this.camera.updateProjectionMatrix();
-          this.renderer.setSize(width, height);
+          this.renderer.setSize(width, height, false);
         }
       }
     });

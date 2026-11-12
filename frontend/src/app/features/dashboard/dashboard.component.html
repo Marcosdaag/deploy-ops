@@ -194,10 +194,7 @@
             <div class="hero-text-column">
               <div class="hero-badge-strip">
                 <span class="badge-dot-live"></span>
-                <span class="badge-engine-text"
-                  >DeployOps Engine v1.0 · Clúster Activo en Render</span
-                >
-                <span class="badge-tag-mesh font-mono">3D MESH LIVE</span>
+                <span class="badge-engine-text">Monitor de Disponibilidad y Telemetría</span>
               </div>
 
               <h1 class="landing-main-title">
@@ -205,9 +202,8 @@
               </h1>
 
               <p class="landing-lead-text">
-                Supervisa la disponibilidad de tus APIs y sitios web cada 60 segundos con Virtual
-                Threads de Java 21, mitigación de flapping sin falsas alarmas y Status Page pública
-                en tiempo real.
+                Supervisa la salud de tus APIs y sitios web cada 60 segundos con alertas sin falsos
+                positivos y página de estado pública en tiempo real.
               </p>
 
               <!-- Resumen de disponibilidad y latencia global -->
@@ -324,7 +320,7 @@
                   class="btn-primary-action btn-lg"
                   (click)="openAuthModal('REGISTER')"
                 >
-                  <span>Comenzar Monitoreo Gratis</span>
+                  <span>Comenzar Gratis</span>
                   <span class="arrow-shift">→</span>
                 </button>
                 <button
@@ -334,16 +330,8 @@
                   title="Explorar el dashboard interactivo de inmediato"
                 >
                   <span class="demo-bullet">◈</span>
-                  <span>Probar como Usuario Demo</span>
+                  <span>Probar Demo</span>
                 </button>
-                <a
-                  href="#demostracion"
-                  class="btn-hero-scroll-link"
-                  (click)="scrollToSection($event, 'demostracion')"
-                >
-                  <span>Ver demostración en vivo</span>
-                  <span class="hero-scroll-arrow">↓</span>
-                </a>
               </div>
             </div>
 
@@ -1229,7 +1217,6 @@
                   <span class="node-tag-pill">{{ st.tag }}</span>
                 </div>
                 <div class="node-title">{{ st.name }}</div>
-                <div class="node-runtime font-mono">{{ st.runtime }}</div>
               </button>
             }
           </div>
@@ -1401,7 +1388,7 @@
               </button>
             </div>
             <pre
-              class="json-content font-mono">{{ liveJsonOutput() || 'Conectando con Render...' }}<span class="terminal-cursor"></span></pre>
+              class="json-content font-mono">{{ liveJsonOutput() || 'Esperando respuesta del servidor...' }}<span class="terminal-cursor"></span></pre>
           </div>
         </div>
       </section>

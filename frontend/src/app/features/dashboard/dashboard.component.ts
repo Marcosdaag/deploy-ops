@@ -603,8 +603,14 @@ FROM ping_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY service_i
       error: () => {
         this.isSyncing.set(false);
         if (this.authService.isDemoSession()) {
-          this.endpoints.set(this.buildDemoFallbackEndpoints());
+          const demoData = this.buildDemoFallbackEndpoints();
+          this.endpoints.set(demoData);
           this.lastSyncedAt.set(new Date());
+          if (!this.liveJsonOutput()) {
+            this.liveJsonOutput.set(JSON.stringify(demoData, null, 2));
+          }
+        } else if (!this.liveJsonOutput() && this.endpoints().length > 0) {
+          this.liveJsonOutput.set(JSON.stringify(this.endpoints(), null, 2));
         }
       },
     });
