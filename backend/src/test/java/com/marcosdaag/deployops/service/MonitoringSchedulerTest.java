@@ -10,7 +10,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -67,5 +70,72 @@ class MonitoringSchedulerTest {
 
         verify(httpMonitor, never()).ping(any(ServiceEntity.class));
         verify(sseNotificationService, never()).broadcastDashboardUpdate(any());
+    }
+
+    @Test
+    @DisplayName("Apagado ordenado invoca shutdown y espera la terminacion de hilos")
+    void whenShutdownMonitoringExecutor_shouldShutdownAndAwaitTermination() throws InterruptedException {
+        ExecutorService mockExecutor = mock(ExecutorService.class);
+        when(mockExecutor.awaitTermination(10, TimeUnit.SECONDS)).thenReturn(true);
+
+        MonitoringScheduler customScheduler = new MonitoringScheduler(
+                endpointManager,
+                httpMonitor,
+                sseNotificationService,
+                mockExecutor
+        );
+
+        customScheduler.shutdownMonitoringExecutor();
+
+        verify(mockExecutor).shutdown();
+        verify(mockExecutor).awaitTermination(10, TimeUnit.SECONDS);
+        verify(mockExecutor, never()).shutdownNow();
+    }
+
+    @Test
+    @DisplayName("Si el apagado excede el tiempo de espera, fuerza el cierre con shutdownNow")
+    void whenAwaitTerminationTimesOut_shouldShutdownNow() throws InterruptedException {
+        ExecutorService mockExecutor = mock(ExecutorService.class);
+        when(mockExecutor.awaitTermination(10, TimeUnit.SECONDS)).thenReturn(false);
+
+        MonitoringScheduler customScheduler = new MonitoringScheduler(
+                endpointManager,
+                httpMonitor,
+                sseNotificationService,
+                mockExecutor
+        );
+
+        customScheduler.shutdownMonitoringExecutor();
+
+        verify(mockExecutor).shutdown();
+        verify(mockExecutor).awaitTermination(10, TimeUnit.SECONDS);
+        verify(mockExecutor).shutdownNow();
+    }
+
+    @Test
+    @DisplayName("Si el hilo es interrumpido durante el apagado, fuerza shutdownNow y restablece interrupt flag")
+    void whenShutdownInterrupted_shouldShutdownNowAndRestoreInterruptFlag() throws InterruptedException {
+        ExecutorService mockExecutor = mock(ExecutorService.class);
+        when(mockExecutor.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("Interrupted"));
+
+        MonitoringScheduler customScheduler = new MonitoringScheduler(
+                endpointManager,
+                httpMonitor,
+                sseNotificationService,
+                mockExecutor
+        );
+
+        customScheduler.shutdownMonitoringExecutor();
+
+        verify(mockExecutor).shutdown();
+        verify(mockExecutor).shutdownNow();
+        assertTrue(Thread.interrupted());
+    }
+
+    @Test
+    @DisplayName("Apagado en scheduler por defecto apaga exitosamente el ExecutorService real")
+    void whenShutdownDefaultScheduler_shouldTerminateExecutor() {
+        scheduler.shutdownMonitoringExecutor();
+        assertTrue(scheduler.getMonitoringExecutor().isShutdown());
     }
 }

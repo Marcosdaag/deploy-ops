@@ -18,6 +18,13 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
     @EntityGraph(attributePaths = {"user"})
     Optional<ServiceEntity> findById(Long id);
 
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    List<ServiceEntity> findAll();
+
+    @Query("SELECT s FROM ServiceEntity s LEFT JOIN FETCH s.user ORDER BY s.id DESC")
+    List<ServiceEntity> findAllWithUser();
+
     Optional<ServiceEntity> findByName(String name);
 
     boolean existsByUrl(String url);

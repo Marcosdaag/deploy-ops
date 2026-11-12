@@ -4,6 +4,7 @@ import com.marcosdaag.deployops.dto.EndpointCreateDTO;
 import com.marcosdaag.deployops.dto.EndpointResponseDTO;
 import com.marcosdaag.deployops.dto.IncidentResponseDTO;
 import com.marcosdaag.deployops.dto.PingResult;
+import com.marcosdaag.deployops.dto.SslCertificateInfo;
 import com.marcosdaag.deployops.exception.ResourceNotFoundException;
 import com.marcosdaag.deployops.model.IncidentEntity;
 import com.marcosdaag.deployops.model.ServiceEntity;
@@ -737,5 +738,175 @@ class EndpointManagerServiceTest {
         endpointManagerService.processPingResult(service, failedPing);
         assertEquals(ServiceStatus.DEGRADED, service.getStatus());
         verify(statusPageCacheService, times(1)).evictForService(service);
+    }
+
+    @Test
+    @DisplayName("Cuando no se ha verificado SSL previamente, ejecuta el chequeo y actualiza timestamp")
+    void whenSslNeverChecked_shouldCheckSslAndUpdateTimestamp() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setLastSslCheckedAt(null);
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(45, LocalDateTime.now().plusDays(45), "Let's Encrypt"));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(httpMonitorService, times(1)).checkSslCertificate(service.getUrl());
+        assertNotNull(service.getLastSslCheckedAt());
+        assertEquals(45, service.getSslDaysRemaining());
+        assertEquals("Let's Encrypt", service.getSslIssuer());
+    }
+
+    @Test
+    @DisplayName("Cuando SSL fue verificado hace menos de 24 horas, omite la verificacion SSL")
+    void whenSslCheckedRecently_shouldSkipSslCheck() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setLastSslCheckedAt(LocalDateTime.now().minusHours(2));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(httpMonitorService, never()).checkSslCertificate(anyString());
+    }
+
+    @Test
+    @DisplayName("Cuando SSL fue verificado hace mas de 24 horas, ejecuta el chequeo nuevamente")
+    void whenSslCheckedMoreThan24HoursAgo_shouldPerformSslCheck() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setLastSslCheckedAt(LocalDateTime.now().minusHours(25));
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(45, LocalDateTime.now().plusDays(45), "DigiCert"));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(httpMonitorService, times(1)).checkSslCertificate(service.getUrl());
+        assertEquals("DigiCert", service.getSslIssuer());
+    }
+
+    @Test
+    @DisplayName("Cuando SSL expira en 14 dias o menos y no hay alerta previa, envia alerta por email y actualiza timestamp")
+    void whenSslExpiringAndNoAlertSent_shouldSendExpiringAlertAndUpdateTimestamp() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        UserEntity user = new UserEntity();
+        user.setEmail("admin@deployops.io");
+        service.setUser(user);
+        service.setLastSslCheckedAt(null);
+        service.setLastSslAlertSentAt(null);
+
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(7, LocalDateTime.now().plusDays(7), "Let's Encrypt"));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(emailAlertService, times(1)).sendSslExpiringAlert(
+                eq("admin@deployops.io"),
+                eq(service.getName()),
+                eq(service.getUrl()),
+                eq(7),
+                any()
+        );
+        assertNotNull(service.getLastSslAlertSentAt());
+    }
+
+    @Test
+    @DisplayName("Cuando SSL expira pero ya se envio alerta hace menos de 24 horas, no reenvia alerta")
+    void whenSslExpiringAndAlertSentRecently_shouldNotSendDuplicateAlert() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        UserEntity user = new UserEntity();
+        user.setEmail("admin@deployops.io");
+        service.setUser(user);
+        service.setLastSslCheckedAt(LocalDateTime.now().minusHours(25));
+        service.setLastSslAlertSentAt(LocalDateTime.now().minusHours(4));
+
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(7, LocalDateTime.now().plusDays(7), "Let's Encrypt"));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(emailAlertService, never()).sendSslExpiringAlert(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("Cuando SSL expira y pasaron mas de 24 horas desde la ultima alerta, envia nueva alerta")
+    void whenSslExpiringAndAlertSentMoreThan24HoursAgo_shouldSendNewAlert() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        UserEntity user = new UserEntity();
+        user.setEmail("admin@deployops.io");
+        service.setUser(user);
+        service.setLastSslCheckedAt(LocalDateTime.now().minusHours(25));
+        service.setLastSslAlertSentAt(LocalDateTime.now().minusHours(25));
+
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(7, LocalDateTime.now().plusDays(7), "Let's Encrypt"));
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(emailAlertService, times(1)).sendSslExpiringAlert(
+                eq("admin@deployops.io"),
+                eq(service.getName()),
+                eq(service.getUrl()),
+                eq(7),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("Pings repetidos rapidos dentro de las 24 horas solo realizan 1 check y 1 alerta")
+    void whenRapidConsecutivePingsWithin24Hours_shouldThrottleCheckAndAlert() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        UserEntity user = new UserEntity();
+        user.setEmail("admin@deployops.io");
+        service.setUser(user);
+        service.setLastSslCheckedAt(null);
+        service.setLastSslAlertSentAt(null);
+
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(5, LocalDateTime.now().plusDays(5), "Let's Encrypt"));
+
+        // Ping 1: Inicial - debe chequear SSL y enviar alerta
+        endpointManagerService.processPingResult(service, successPing);
+
+        // Pings 2, 3, 4, 5 inmediatamente despues (simulando barridos cada minuto)
+        for (int i = 0; i < 4; i++) {
+            endpointManagerService.processPingResult(service, successPing);
+        }
+
+        // Verifica que checkSslCertificate solo se llamo 1 vez en total
+        verify(httpMonitorService, times(1)).checkSslCertificate(service.getUrl());
+        // Verifica que sendSslExpiringAlert solo se envio 1 vez en total
+        verify(emailAlertService, times(1)).sendSslExpiringAlert(
+                eq("admin@deployops.io"),
+                eq(service.getName()),
+                eq(service.getUrl()),
+                eq(5),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("Endpoint de demostracion sin usuario (showcase) no lanza NullPointerException al expirar SSL")
+    void whenShowcaseEndpointWithoutUserSslExpires_shouldNotThrowNpeOrSendEmail() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setUser(null);
+        service.setLastSslCheckedAt(null);
+        service.setLastSslAlertSentAt(null);
+
+        when(httpMonitorService.checkSslCertificate(service.getUrl()))
+                .thenReturn(new SslCertificateInfo(3, LocalDateTime.now().plusDays(3), "Let's Encrypt"));
+
+        assertDoesNotThrow(() -> endpointManagerService.processPingResult(service, successPing));
+
+        verify(httpMonitorService, times(1)).checkSslCertificate(service.getUrl());
+        verify(emailAlertService, never()).sendSslExpiringAlert(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("Endpoint HTTP no encriptado omite chequeo de certificado SSL")
+    void whenHttpUrl_shouldSkipSslCheckEntirely() {
+        when(serviceRepository.existsById(1L)).thenReturn(true);
+        service.setUrl("http://plain-http.example.com");
+
+        endpointManagerService.processPingResult(service, successPing);
+
+        verify(httpMonitorService, never()).checkSslCertificate(anyString());
+        verify(emailAlertService, never()).sendSslExpiringAlert(any(), any(), any(), anyInt(), any());
     }
 }

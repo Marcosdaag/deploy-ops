@@ -67,6 +67,12 @@ public class ServiceEntity {
     @Column(length = 150)
     private String sslIssuer;
 
+    @Column
+    private LocalDateTime lastSslCheckedAt;
+
+    @Column
+    private LocalDateTime lastSslAlertSentAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private UserEntity user;
@@ -77,5 +83,21 @@ public class ServiceEntity {
 
     public void setProtected(boolean isProtected) {
         this.isProtected = isProtected;
+    }
+
+    public LocalDateTime getLastSslCheckedAt() {
+        return lastSslCheckedAt;
+    }
+
+    public void setLastSslCheckedAt(LocalDateTime lastSslCheckedAt) {
+        this.lastSslCheckedAt = lastSslCheckedAt;
+    }
+
+    public LocalDateTime getLastSslAlertSentAt() {
+        return lastSslAlertSentAt;
+    }
+
+    public void setLastSslAlertSentAt(LocalDateTime lastSslAlertSentAt) {
+        this.lastSslAlertSentAt = lastSslAlertSentAt;
     }
 }

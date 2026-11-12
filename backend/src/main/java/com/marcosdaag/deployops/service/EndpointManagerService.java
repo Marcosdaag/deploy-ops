@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +47,20 @@ public class EndpointManagerService {
     private final EmailAlertService emailAlertService;
     private final StatusPageCacheService statusPageCacheService;
     private final OutboxEventService outboxEventService;
+
+    @Value("${app.monitoring.ssl-check-interval-hours:24}")
+    private long sslCheckIntervalHours = 24;
+
+    @Value("${app.monitoring.ssl-alert-cooldown-hours:24}")
+    private long sslAlertCooldownHours = 24;
+
+    void setSslCheckIntervalHours(long sslCheckIntervalHours) {
+        this.sslCheckIntervalHours = sslCheckIntervalHours;
+    }
+
+    void setSslAlertCooldownHours(long sslAlertCooldownHours) {
+        this.sslAlertCooldownHours = sslAlertCooldownHours;
+    }
 
     @Transactional
     public ServiceEntity createEndpoint(@NonNull EndpointCreateDTO dto, String currentUserEmail) {
@@ -327,20 +342,32 @@ public class EndpointManagerService {
         service.setLastResponseTimeMs(pingResult.responseTimeMs());
 
         if (service.getUrl() != null && service.getUrl().toLowerCase().startsWith("https://")) {
-            com.marcosdaag.deployops.dto.SslCertificateInfo sslInfo = httpMonitorService.checkSslCertificate(service.getUrl());
-            if (sslInfo != null) {
-                service.setSslDaysRemaining(sslInfo.daysRemaining());
-                service.setSslExpiryDate(sslInfo.expiryDate());
-                service.setSslIssuer(sslInfo.issuer());
+            boolean shouldCheckSsl = service.getLastSslCheckedAt() == null
+                    || service.getLastSslCheckedAt().isBefore(LocalDateTime.now().minusHours(sslCheckIntervalHours));
 
-                if (sslInfo.daysRemaining() != null && sslInfo.daysRemaining() <= 14 && service.getUser() != null && service.getUser().getEmail() != null) {
-                    emailAlertService.sendSslExpiringAlert(
-                            service.getUser().getEmail(),
-                            service.getName(),
-                            service.getUrl(),
-                            sslInfo.daysRemaining(),
-                            sslInfo.expiryDate()
-                    );
+            if (shouldCheckSsl) {
+                service.setLastSslCheckedAt(LocalDateTime.now());
+                com.marcosdaag.deployops.dto.SslCertificateInfo sslInfo = httpMonitorService.checkSslCertificate(service.getUrl());
+                if (sslInfo != null) {
+                    service.setSslDaysRemaining(sslInfo.daysRemaining());
+                    service.setSslExpiryDate(sslInfo.expiryDate());
+                    service.setSslIssuer(sslInfo.issuer());
+
+                    boolean shouldAlertSsl = service.getLastSslAlertSentAt() == null
+                            || service.getLastSslAlertSentAt().isBefore(LocalDateTime.now().minusHours(sslAlertCooldownHours));
+
+                    if (sslInfo.daysRemaining() != null && sslInfo.daysRemaining() <= 14
+                            && shouldAlertSsl
+                            && service.getUser() != null && service.getUser().getEmail() != null) {
+                        service.setLastSslAlertSentAt(LocalDateTime.now());
+                        emailAlertService.sendSslExpiringAlert(
+                                service.getUser().getEmail(),
+                                service.getName(),
+                                service.getUrl(),
+                                sslInfo.daysRemaining(),
+                                sslInfo.expiryDate()
+                        );
+                    }
                 }
             }
         }
