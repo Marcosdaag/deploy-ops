@@ -466,4 +466,4 @@ El panel web estará disponible en `http://localhost:4200`.
 
 ## Licencia y Mantenimiento
 
-Proyecto desarrollado y mantenido por Marcos Da Agostini como solución integral de observabilidad web y gestión proactiva de servicios. Código fuente bajo licencia MIT.
+Proyecto desarrollado y mantenido por Marcos Daniel Aguirre como solución integral de observabilidad web y gestión proactiva de servicios. Código fuente bajo licencia MIT.
